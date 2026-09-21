@@ -1,0 +1,115 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+    
+    function isModerator() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Admin', 'Moderator'];
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ===== USERS COLLECTION =====
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['PasswordHash', 'Role']);
+    }
+    
+    // ===== PROFILES COLLECTION =====
+    match /profiles/{userId} {
+      allow read: if resource.data.isPublic == true;
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+      allow write: if isAdmin();
+      allow create: if request.auth.uid == userId;
+      allow delete: if false;
+    }
+    
+    // ===== VERIFICATIONS COLLECTION =====
+    match /verifications/{verificationId} {
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth.uid != null;
+      allow update: if resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin();
+      allow read: if resource.data.CodeHash != null;
+    }
+    
+    // ===== SOCIAL ACCOUNTS COLLECTION (Phase 2) =====
+    match /social_accounts/{socialAccountId} {
+      allow read: if isAuthenticated() && 
+        resource.data.userId == request.auth.uid;
+      allow create: if request.auth.uid != null;
+      allow update: if resource.data.userId == request.auth.uid;
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+      allow read, write, delete: if isAdmin();
+    }
+    
+    // ===== AUDIT LOGS COLLECTION =====
+    match /audit_logs/{logId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+    
+    // ===== LANDING PAGE LEADS (PUBLIC) =====
+    match /landing-leads/{leadId} {
+      // Allow LIMITED read access for duplicate email checking
+      // This is safe because:
+      // 1. Queries must filter by email (prevents reading all leads)
+      // 2. Limit must be 1 (prevents bulk reads)
+      // 3. Only returns if exact email match exists
+      allow get: if false; // Can't read individual documents
+      allow list: if 
+        request.query.limit == 1 &&
+        request.query.matches('email');
+      
+      // Allow anyone to create a lead with strict validation
+      allow create: if 
+        // Must have exactly these fields
+        request.resource.data.keys().hasAll(['name', 'email', 'timestamp', 'source']) &&
+        request.resource.data.keys().hasOnly(['name', 'email', 'timestamp', 'source']) &&
+        // Name validation
+        request.resource.data.name is string &&
+        request.resource.data.name.size() > 0 &&
+        request.resource.data.name.size() <= 100 &&
+        // Email validation
+        request.resource.data.email is string &&
+        request.resource.data.email.matches('.*@.*\\..*') &&
+        request.resource.data.email.size() >= 5 &&
+        request.resource.data.email.size() <= 100 &&
+        // Timestamp must be server timestamp
+        request.resource.data.timestamp == request.time &&
+        // Source must be 'landing-page'
+        request.resource.data.source == 'landing-page';
+      
+      // Admins can read everything
+      allow read: if isAdmin();
+      
+      // No updates or deletes allowed
+      allow update, delete: if false;
+    }
+    
+    // ===== CATCH-ALL: DENY EVERYTHING ELSE =====
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

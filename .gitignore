@@ -1,0 +1,19 @@
+# Node
+node_modules/
+dist/
+.env
+.env.local
+
+# .NET
+bin/
+obj/
+
+# Payload / Next.js
+apps/cms/.next/
+apps/cms/node_modules/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

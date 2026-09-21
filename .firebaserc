@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "samsara-backend-43fb5",
+    "staging": "tsr-website-backend-staging",
+    "production": "samsara-backend-43fb5"
+  },
+  "targets": {},
+  "etags": {}
+}

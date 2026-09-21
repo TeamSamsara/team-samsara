@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TeamSamsara.Modules.Identity\TeamSamsara.Modules.Identity.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Content\TeamSamsara.Modules.Content.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Media\TeamSamsara.Modules.Media.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Catalog\TeamSamsara.Modules.Catalog.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Orders\TeamSamsara.Modules.Orders.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Shared\TeamSamsara.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
