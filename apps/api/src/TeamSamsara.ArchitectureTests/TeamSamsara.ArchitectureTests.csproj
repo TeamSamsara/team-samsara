@@ -1,13 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,7 +26,6 @@
     <ProjectReference Include="..\TeamSamsara.Modules.Media\TeamSamsara.Modules.Media.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.Catalog\TeamSamsara.Modules.Catalog.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.Orders\TeamSamsara.Modules.Orders.csproj" />
-    <ProjectReference Include="..\TeamSamsara.Shared\TeamSamsara.Shared.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.PingPong\TeamSamsara.Modules.PingPong.csproj" />
   </ItemGroup>
 

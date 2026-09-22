@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Persistence/FirestoreServiceCollectionExtensions.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.1
+// Latest commit: feature/api-host
 // Author : Gerrah
 
-// Purpose : Registers and configures the shared Firestore services.
+// Purpose : Registers and configures the shared Firestore database client.
 
+using Google.Api.Gax;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,12 +23,20 @@ public static class FirestoreServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddValidatedOptions<FirestoreSettings>(configuration, "Firestore");
+        services.AddValidatedOptions<FirestoreSettings>(
+            configuration,
+            "Firestore");
 
         services.AddSingleton(sp =>
         {
-            var settings = sp.GetRequiredService<IOptions<FirestoreSettings>>().Value;
-            return FirestoreDb.Create(settings.ProjectId);
+            var settings =
+                sp.GetRequiredService<IOptions<FirestoreSettings>>().Value;
+
+            return new FirestoreDbBuilder
+            {
+                ProjectId = settings.ProjectId,
+                EmulatorDetection = EmulatorDetection.EmulatorOrProduction
+            }.Build();
         });
 
         return services;
