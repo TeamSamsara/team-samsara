@@ -1,0 +1,40 @@
+// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/StorageServiceCollectionExtensions.cs
+// Version : 1.0.0
+// Latest commit: feature/shared-core-primitives
+// Author : Gerrah
+// Purpose : Registers StorageClient and IAssetStorageService as singletons.
+// StorageClient is thread-safe and expensive to construct, same reasoning as
+// FirestoreDb's singleton registration.
+
+using Google.Cloud.Storage.V1;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using TeamSamsara.Shared.Configuration;
+
+namespace TeamSamsara.Shared.Storage;
+
+public static class StorageServiceCollectionExtensions
+{
+    #region Public Methods
+
+    public static IServiceCollection AddFirebaseStorage(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        services.AddValidatedOptions<StorageSettings>(configuration, "Storage");
+
+        services.AddSingleton(sp => StorageClient.Create());
+
+        services.AddSingleton<IAssetStorageService>(sp =>
+        {
+            var storageClient = sp.GetRequiredService<StorageClient>();
+            var settings = sp.GetRequiredService<IOptions<StorageSettings>>().Value;
+            return new FirebaseStorageService(storageClient, settings.BucketName);
+        });
+
+        return services;
+    }
+
+    #endregion
+}
