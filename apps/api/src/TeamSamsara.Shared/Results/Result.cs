@@ -16,7 +16,7 @@ public class Result
 
     public bool IsSuccess { get; }
     public bool IsFailure => !IsSuccess;
-    public Error Error{ get; }
+    public Error Error { get; }
     #endregion
 
     #region Constructors

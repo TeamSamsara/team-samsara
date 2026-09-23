@@ -1,0 +1,4 @@
+npx lint-staged --cwd apps/web
+npx lint-staged --cwd apps/cms
+dotnet format apps/api/TeamSamsara.sln
+git add -A

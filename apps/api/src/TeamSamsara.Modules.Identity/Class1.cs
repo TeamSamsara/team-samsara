@@ -1,4 +1,4 @@
-﻿namespace TeamSamsara.Modules.Identity;
+namespace TeamSamsara.Modules.Identity;
 
 public class Class1
 {

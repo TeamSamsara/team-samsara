@@ -15,13 +15,13 @@ public interface IAssetStorageService
     #region Public Methods
 
     // Upload a file and return its storage path
-    Task<string> UploadAsync(string relativePath, Stream content, string contentType);
+    public Task<string> UploadAsync(string relativePath, Stream content, string contentType);
 
     // Delete a file by its storage path
-    Task DeleteAsync(string relativePath);
+    public Task DeleteAsync(string relativePath);
 
     // Generate a temporary signed URL for a file
-    Task<string> GetSignedUrlAsync(string relativePath, TimeSpan expiry);
+    public Task<string> GetSignedUrlAsync(string relativePath, TimeSpan expiry);
 
     #endregion
 }

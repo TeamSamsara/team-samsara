@@ -1,4 +1,4 @@
-﻿namespace TeamSamsara.Modules.Content;
+namespace TeamSamsara.Modules.Content;
 
 public class Class1
 {

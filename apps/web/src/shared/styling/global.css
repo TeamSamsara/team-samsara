@@ -1,0 +1,28 @@
+/* File : /team-samsara/apps/web/src/shared/styling/global.css
+   Version : 1.0.0
+   Latest commit: feature/apps-web-foundation
+   Author : Gerrah
+   Purpose : The one global stylesheet. Reset and box-sizing only — design
+   tokens (colors, type scale, spacing) are Phase 3's job, not this file. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

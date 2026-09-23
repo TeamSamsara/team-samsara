@@ -1,30 +1,30 @@
 # Team Samsara
 
-Production website for Team Samsara — React frontend, C# (.NET) modular monolith backend, Payload CMS, and Firebase infrastructure.
+Production website for Team Samsara - React frontend, C# (.NET) modular monolith backend, Payload CMS, and Firebase infrastructure.
 
 ## Architecture
 
 ### Applications
 
-- `apps/web` — React + Vite frontend (public site + CMS admin UI)
-- `apps/api` — C# modular monolith backend
-- `apps/cms` — Payload CMS (API-only, admin panel disabled), backed by PostgreSQL
+- `apps/web` - React + Vite frontend (public site + CMS admin UI)
+- `apps/api` - C# modular monolith backend
+- `apps/cms` - Payload CMS (API-only, admin panel disabled), backed by PostgreSQL
 
 ### Infrastructure
 
-- Firebase — Authentication, Storage, Hosting, and Firestore
-- PostgreSQL — Payload CMS database
+- Firebase - Authentication, Storage, Hosting, and Firestore
+- PostgreSQL - Payload CMS database
 
 ### Documentation
 
-- `docs/architecture` — Architecture decisions, specifications, and planning documents
+- `docs/architecture` - Architecture decisions, specifications, and planning documents
 
 ## Local Development
 
 ### Prerequisites
 
-- .NET SDK `9.0.314` — see `global.json`
-- Node.js `22.22.3` — see `.nvmrc`
+- .NET SDK `9.0.314` - see `global.json`
+- Node.js `22.22.3` - see `.nvmrc`
 - PostgreSQL `17`
 
 ### Setup
@@ -56,18 +56,18 @@ git checkout -b feature/<slug>
 
 Branch naming:
 
-- `feature/<slug>` — new functionality
-- `fix/<slug>` — corrections to already-merged functionality
+- `feature/<slug>` - new functionality
+- `fix/<slug>` - corrections to already-merged functionality
 
 ### Commits
 
 Use Conventional Commits:
 
-- `feat:` — new functionality
-- `fix:` — bug fixes
-- `chore:` — maintenance
-- `refactor:` — code restructuring without behavior changes
-- `test:` — tests
+- `feat:` - new functionality
+- `fix:` - bug fixes
+- `chore:` - maintenance
+- `refactor:` - code restructuring without behavior changes
+- `test:` - tests
 
 ### Merge Requirements
 
@@ -121,17 +121,39 @@ Database-specific types and behavior belong exclusively inside concrete reposito
 
 This keeps business logic independent of Firestore without introducing a portability abstraction we do not currently need.
 
+### Database Migrations
+
+Payload's Postgres schema is managed differently in dev versus staging/production.
+
+**Development:** Payload's dev-mode auto-push applies schema changes directly, for iteration
+speed. No migration files are involved locally.
+
+**Staging and production:** schema changes are applied only through Payload's migration system -
+never auto-push. Workflow:
+
+- `npm run migrate:create --prefix apps/cms` generates a migration file from the current schema,
+  committed to the repo like any other code change and reviewed the same way
+- `npm run migrate --prefix apps/cms` applies any pending migrations; this is run as an explicit
+  step before the app starts in staging/production, never implicitly
+
+This means the database schema is always the result of a reviewable, ordered set of changes in
+staging/production, never something inferred silently at runtime.
+
 ## Deferred Implementations
 
 Some interface methods are intentionally stubbed rather than implemented, because building them now would mean guessing at requirements with no real caller driving their shape yet.
 
 Any method that throws `NotImplementedException` must be documented here, alongside a `// TODO` comment at the call site explaining why. One without the other means either the code has no context for a reader, or this list silently drifts out of date.
 
-- `FirebaseStorageService.GetSignedUrlAsync` — throws `NotImplementedException`. Requires a service account configured with explicit signing credentials, which isn't set up yet. Implement once a real caller needs time-limited access to a non-public file.
+- `FirebaseStorageService.GetSignedUrlAsync` - throws `NotImplementedException`. Requires a service account configured with explicit signing credentials, which isn't set up yet. Implement once a real caller needs time-limited access to a non-public file.
 
-- `Alerting & differentiated log retention` — not implemented. Requires a real pattern of what
+- `Alerting & differentiated log retention` - not implemented. Requires a real pattern of what
   counts as critical vs. routine, which doesn't exist until Identity (login attempts, anomaly
   detection) and other modules are generating real events to observe. Logging already emits
   everything a future system would need to filter on (level, exception, correlation ID, source
-  context) — no changes needed in Shared.Logging when this is built; it will be a separate
+  context) - no changes needed in Shared.Logging when this is built; it will be a separate
   consumer, not a coupled one.
+
+- `npm run generate-types` requires the API running locally - it fetches the OpenAPI spec live
+  over HTTP rather than reading a static file, so it can't run in an environment without the API
+  also running (e.g. a future CI job, item 15, would need to stand up the API first).

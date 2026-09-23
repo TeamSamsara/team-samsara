@@ -3,7 +3,8 @@
 // Latest commit: feature/shared-core-primitives
 // Author : Gerrah
 
-// Purpose : The coarse access tier every user is assigned. Only Admin-level
+// Purpose : The coarse access tier every user is assigned.
+
 
 namespace TeamSamsara.Shared.Context;
 

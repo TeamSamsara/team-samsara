@@ -11,9 +11,9 @@ public interface ICurrentUserContext
 {
     #region Properties
 
-    bool IsAuthenticated { get; }
-    string? UserId { get; }
-    AccessLevel AccessLevel { get; }
+    public bool IsAuthenticated { get; }
+    public string? UserId { get; }
+    public AccessLevel AccessLevel { get; }
 
     #endregion
 }

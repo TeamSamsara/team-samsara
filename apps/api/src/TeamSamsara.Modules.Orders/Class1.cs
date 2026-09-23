@@ -1,4 +1,4 @@
-﻿namespace TeamSamsara.Modules.Orders;
+namespace TeamSamsara.Modules.Orders;
 
 public class Class1
 {

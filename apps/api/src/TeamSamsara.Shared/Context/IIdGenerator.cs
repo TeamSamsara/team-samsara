@@ -12,6 +12,6 @@ namespace TeamSamsara.Shared.Context;
 public interface IIdGenerator
 {
     #region  Public Methods
-    Guid NewId();
+    public Guid NewId();
     #endregion
 }

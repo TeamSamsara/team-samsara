@@ -4,8 +4,8 @@
 // Author : Gerrah
 // Purpose : Provides a minimal module for validating module registration and authorization.
 
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TeamSamsara.Shared.Authorization;

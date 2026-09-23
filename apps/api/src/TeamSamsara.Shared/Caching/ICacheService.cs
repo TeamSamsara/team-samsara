@@ -15,9 +15,9 @@ public interface ICacheService
 {
     #region Public Methods
 
-    Task<T?> GetAsync<T>(string key);
-    Task SetAsync<T>(string key, T value, TimeSpan expiry);
-    Task RemoveAsync(string key);
+    public Task<T?> GetAsync<T>(string key);
+    public Task SetAsync<T>(string key, T value, TimeSpan expiry);
+    public Task RemoveAsync(string key);
 
     #endregion
 }

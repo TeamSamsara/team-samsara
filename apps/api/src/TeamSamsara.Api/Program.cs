@@ -1,8 +1,7 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.1.0
+// Version : 1.2.1
 // Latest commit: feature/api-host
 // Author : Gerrah
-
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
 using FirebaseAdmin;
@@ -29,50 +28,32 @@ const string FirebaseAuthScheme = "Firebase";
 
 builder.Services
     .AddAuthentication(FirebaseAuthScheme)
-    .AddScheme<
-        AuthenticationSchemeOptions,
-        FirebaseAuthenticationHandler>(
-        FirebaseAuthScheme,
-        null);
+    .AddScheme<AuthenticationSchemeOptions, FirebaseAuthenticationHandler>(FirebaseAuthScheme, null);
 
 builder.Services.AddPermissionAuthorization();
 builder.Services.AddFirestore(builder.Configuration);
 builder.Services.AddFirebaseStorage(builder.Configuration);
 
-builder.Services.AddValidatedOptions<CorsSettings>(
-    builder.Configuration,
-    "Cors");
+builder.Services.AddValidatedOptions<CorsSettings>(builder.Configuration, "Cors");
 
-var corsSettings =
-    builder.Configuration
-        .GetSection("Cors")
-        .Get<CorsSettings>()
-    ?? new CorsSettings();
+var corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>() ?? new CorsSettings();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Default", policy =>
     {
-        policy
-            .WithOrigins(corsSettings.AllowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        policy.WithOrigins(corsSettings.AllowedOrigins).AllowAnyHeader().AllowAnyMethod();
     });
 });
 
-builder.Services
-    .AddHealthChecks()
-    .AddCheck<FirestoreHealthCheck>(
-        "firestore",
-        tags: new[] { "ready" });
+builder.Services.AddHealthChecks().AddCheck<FirestoreHealthCheck>("firestore", tags: new[] { "ready" });
 
 builder.Services.AddRequestTimeouts(options =>
 {
-    options.DefaultPolicy =
-        new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
+    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(30)
+    };
 });
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -82,26 +63,18 @@ builder.WebHost.ConfigureKestrel(options =>
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 
     // TODO: Configure trusted proxy ranges before production deployment.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
 
-// Registers modules with the API host.
-var modules = new List<IModule>
-{
-    new PingPongModule()
-};
+var modules = new List<IModule> { new PingPongModule() };
 
 foreach (var module in modules)
 {
-    module.RegisterServices(
-        builder.Services,
-        builder.Configuration);
+    module.RegisterServices(builder.Services, builder.Configuration);
 }
 
 builder.Services.AddOpenApi();
@@ -112,15 +85,11 @@ if (FirebaseApp.DefaultInstance is null)
 {
     if (app.Environment.IsDevelopment())
     {
-        // Provides a credential for Firebase Auth emulator initialization.
-        FirebaseApp.Create(new AppOptions
-        {
-            Credential = GoogleCredential.FromAccessToken("owner")
-        });
+        FirebaseApp.Create(new AppOptions { Credential = GoogleCredential.FromAccessToken("owner") });
     }
     else
     {
-        FirebaseApp.Create();
+        FirebaseApp.Create(new AppOptions { Credential = GoogleCredentialProvider.TryGetFromEnvironment() });
     }
 }
 
@@ -147,19 +116,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRequestTimeouts();
 
-app.MapHealthChecks(
-    "/health/live",
-    new HealthCheckOptions
-    {
-        Predicate = _ => false
-    });
-
-app.MapHealthChecks(
-    "/health/ready",
-    new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("ready")
-    });
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") });
 
 foreach (var module in modules)
 {

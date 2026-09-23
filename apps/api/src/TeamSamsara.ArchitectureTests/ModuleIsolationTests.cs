@@ -3,9 +3,9 @@
 // Latest commit: feature/architecture-tests
 // Author : Gerrah
 // Purpose : Enforces that no business module references another business
-// module — modules may depend only on Shared. Loads each module by assembly
+// module - modules may depend only on Shared. Loads each module by assembly
 // name rather than by referencing a real type inside it, since most modules
-// have no real types yet. TeamSamsara.Api is deliberately excluded — it is
+// have no real types yet. TeamSamsara.Api is deliberately excluded - it is
 // the composition root and is meant to reference every module.
 
 using System.Reflection;
@@ -18,7 +18,7 @@ public class ModuleIsolationTests
 {
     #region Fields
 
-    private static readonly string[] ModuleAssemblyNames =
+    private static readonly string[] _moduleAssemblyNames =
     {
         "TeamSamsara.Modules.Identity",
         "TeamSamsara.Modules.Content",
@@ -32,12 +32,16 @@ public class ModuleIsolationTests
 
     #region Public Methods
 
-    public static IEnumerable<object[]> ModuleNames()
+    public static TheoryData<string> ModuleNames()
     {
-        foreach (var moduleName in ModuleAssemblyNames)
+        var data = new TheoryData<string>();
+
+        foreach (var moduleName in _moduleAssemblyNames)
         {
-            yield return new object[] { moduleName };
+            data.Add(moduleName);
         }
+
+        return data;
     }
 
     [Theory]
@@ -45,7 +49,7 @@ public class ModuleIsolationTests
     public void Module_ShouldNotDependOnAnyOtherModule(string moduleName)
     {
         var assembly = Assembly.Load(moduleName);
-        var otherModules = ModuleAssemblyNames.Where(name => name != moduleName).ToArray();
+        var otherModules = _moduleAssemblyNames.Where(name => name != moduleName).ToArray();
 
         var result = Types.InAssembly(assembly)
             .ShouldNot()

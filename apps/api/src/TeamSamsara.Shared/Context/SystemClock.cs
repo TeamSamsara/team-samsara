@@ -13,7 +13,7 @@ namespace TeamSamsara.Shared.Context;
 
 public class SystemClock : IClock
 {
-   #region Properties
-   public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
-   #endregion
+    #region Properties
+    public DateTimeOffset UtcNow => DateTimeOffset.UtcNow;
+    #endregion
 }
