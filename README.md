@@ -46,10 +46,15 @@ A `scripts/bootstrap.ps1` / `.sh` script may be added once the manual setup proc
 
 ### Branches
 
-Create feature branches from an up-to-date `main`:
+Two long-lived branches:
+
+- `main` - production. Only ever updated by promoting `dev` into it. Nothing branches directly from `main`.
+- `dev` - staging. Every feature branch merges here first; this is the active integration branch.
+
+Create feature branches from an up-to-date `dev`, never from `main`:
 
 ```bash
-git checkout main
+git checkout dev
 git pull
 git checkout -b feature/<slug>
 ```
@@ -69,29 +74,48 @@ Use Conventional Commits:
 - `refactor:` - code restructuring without behavior changes
 - `test:` - tests
 
-### Merge Requirements
+### Promoting a feature to staging (`dev`)
 
 Before merging:
 
 ```bash
 dotnet build apps/api/TeamSamsara.sln
+dotnet test apps/api/TeamSamsara.sln
 ```
 
-The build must be clean. No branch is merged with a failing build.
+The build and tests must be clean. No branch is merged with a failing build.
 
-Once test projects exist, `dotnet test` is also required.
-
-Merge feature branches using squash merging so each completed feature becomes one clean commit on `main`:
+Merge using squash merging, so each completed feature becomes one clean commit on `dev`:
 
 ```bash
-git merge --squash <branch>
+git checkout dev
+git merge --squash feature/<slug>
+git commit -m "..."
 ```
 
-After merging, rebuild immediately. The combined result must also pass the build.
+After merging, rebuild and retest immediately. The combined result must also pass.
 
 Deferred branches may remain unmerged while other work continues. When merging multiple deferred branches, merge them one at a time and rebuild after each merge.
 
 Once CI and branch protection are enabled, these requirements move to GitHub pull requests and are enforced automatically.
+
+### Promoting staging to production (`main`)
+
+Once `dev` is verified stable, promote it to `main` using a regular merge, **not** a squash:
+
+```bash
+git checkout main
+git pull
+git merge dev
+git push
+```
+
+Squashing here would collapse every feature already squashed into `dev` into one undifferentiated commit, destroying the ability to see what actually shipped in each release. A regular merge preserves that history on `main` exactly as it happened on `dev`. Rebuild and retest after this merge too, same as any other.
+
+### Deployment triggers
+
+- **Render** (`TeamSamsara.Api`, `apps/cms`): the staging service watches `dev`, the production service watches `main`. Both auto-deploy on every push to their respective branch. The `dev` → `main` merge itself is the deliberate promotion gate - there is no separate manual deploy step.
+- **Firebase Hosting** (`apps/web`): deployed manually via `firebase deploy --project staging` or `--project production`. Not yet automated; unaffected by the branching model above.
 
 ## Architecture Principles
 
@@ -157,3 +181,14 @@ Any method that throws `NotImplementedException` must be documented here, alongs
 - `npm run generate-types` requires the API running locally - it fetches the OpenAPI spec live
   over HTTP rather than reading a static file, so it can't run in an environment without the API
   also running (e.g. a future CI job, item 15, would need to stand up the API first).
+
+- **Firebase service account key rotation** - the staging and production service account keys
+  were shared in full outside their intended storage location during setup. A deliberate decision
+  was made to defer rotating them rather than block on it immediately. Both keys should be rotated
+  (Firebase Console → Project Settings → Service Accounts → delete the old key, generate a new
+  one) before this project is treated as production-hardened.
+
+- `GoogleCredentialProvider.TryGetFromEnvironment` uses `GoogleCredential.FromJson(string)`,
+  which the SDK marks obsolete (`CS0618`) in favor of `CredentialFactory`. Left as-is for now
+  rather than guessing at the replacement API's exact shape without a concrete reason to change
+  it; the current method still works correctly and is exercised by real staging traffic.
