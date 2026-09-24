@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.PingPong/PingPongModule.cs
-// Version : 1.0.0
-// Latest commit: feature/pingpong-module-template
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 // Purpose : Provides a minimal module for validating module registration and authorization.
 
@@ -19,17 +19,17 @@ public class PingPongModule : IModule
 
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Nothing to register — PingPong has no repository, no settings,
+        // Nothing to register - PingPong has no repository, no settings,
         // and no dependencies of its own.
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/ping", () => "pong");
+        endpoints.MapGet(PingPongConstants.PingRoute, () => PingPongConstants.PongResponse);
 
         endpoints
-            .MapGet("/ping/secure", () => "pong")
-            .RequireAuthorization(new RequirePermissionAttribute("pingpong.ping").Policy!);
+            .MapGet(PingPongConstants.PingSecureRoute, () => PingPongConstants.PongResponse)
+            .RequireAuthorization(new RequirePermissionAttribute(Permissions.PingPongPing).Policy!);
     }
 
     #endregion

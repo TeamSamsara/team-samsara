@@ -1,14 +1,12 @@
 // File : /team-samsara/apps/web/src/features/ping/service/pingService.ts
-// Version : 1.0.0
-// Latest commit: feature/apps-web-foundation
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
-// Purpose : Calls the backend's /ping endpoint. Thin wrapper around
-// apiFetch — the query hook (usePing) calls this rather than apiFetch
-// directly, keeping the feature's data-access shape consistent with how
-// every future feature's service layer will look.
+// Purpose : Calls the backend's /ping endpoint.
 
 import { apiFetch } from "@/lib/apiClient";
+import { PingApiRoutes } from "../constants/pingApiRoutes";
 
 export function fetchPing(): Promise<string> {
-  return apiFetch<string>("/ping");
+  return apiFetch<string>(PingApiRoutes.ping);
 }

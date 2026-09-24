@@ -1,13 +1,13 @@
 // File : /team-samsara/apps/web/src/lib/apiClient.ts
-// Version : 1.0.0
-// Latest commit: feature/apps-web-foundation
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 // Purpose : Thin fetch wrapper used by every feature's service layer.
-// Attaches the current Firebase ID token and a correlation ID to every
-// request, and normalizes every non-2xx response into an ApiError.
 
 import { getAuth } from "firebase/auth";
 import { ApiError } from "./ApiError";
+import { HttpConstants } from "./httpConstants";
+import { UiMessages } from "./uiMessages";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -19,10 +19,10 @@ export async function apiFetch<T>(
   const token = await auth.currentUser?.getIdToken();
 
   const headers = new Headers(options.headers);
-  headers.set("X-Correlation-Id", crypto.randomUUID());
+  headers.set(HttpConstants.correlationIdHeaderName, crypto.randomUUID());
 
   if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+    headers.set("Authorization", `${HttpConstants.bearerPrefix}${token}`);
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
@@ -35,8 +35,8 @@ export async function apiFetch<T>(
 
     throw new ApiError(
       response.status,
-      problemDetails?.title ?? "Unknown error",
-      problemDetails?.detail ?? "An unexpected error occurred.",
+      problemDetails?.title ?? UiMessages.unknownError,
+      problemDetails?.detail ?? UiMessages.unexpectedError,
     );
   }
 

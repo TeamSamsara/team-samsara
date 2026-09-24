@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Persistence/FirestoreSettings.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 
 // Purpose : Defines the configuration required to connect to Firestore.
@@ -11,6 +11,12 @@ namespace TeamSamsara.Shared.Persistence;
 
 public class FirestoreSettings
 {
+    #region Fields
+
+    public const string SectionName = "Firestore";
+
+    #endregion
+
     #region Properties
 
     [Required]

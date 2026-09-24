@@ -1,18 +1,14 @@
 // File : /team-samsara/apps/web/src/app/AuthProvider.tsx
-// Version : 1.1.0
-// Latest commit: feature/apps-web-foundation
+// Version : 1.2.0
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
-// Purpose : Subscribes to Firebase's auth state and populates AuthContext
-// (app/AuthContext.ts). Mirrors the backend's ICurrentUserContext - one
-// source of truth for "who's signed in" on the frontend. AccessLevel comes
-// from the "accessLevel" custom claim on the user's ID token; defaults to
-// Guest when absent, same as the backend. Exports only this component -
-// the context and useAuth hook live in their own files.
+// Purpose : Subscribes to Firebase auth state and populates AuthContext.
 
 import { useEffect, useState, type ReactNode } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AuthContext, type AccessLevel } from "./AuthContext";
+import { ClaimNames } from "./ClaimNames";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -25,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (currentUser) {
         const tokenResult = await currentUser.getIdTokenResult();
-        const claimValue = tokenResult.claims.accessLevel;
+        const claimValue = tokenResult.claims[ClaimNames.accessLevel];
         setAccessLevel(
           claimValue === "Member" || claimValue === "Admin"
             ? claimValue

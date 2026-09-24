@@ -18,6 +18,7 @@ Production website for Team Samsara - React frontend, C# (.NET) modular monolith
 ### Documentation
 
 - `docs/architecture` - Architecture decisions, specifications, and planning documents
+- `docs/new-module-checklist.md` - Steps for adding a new business module
 
 ## Local Development
 
@@ -26,17 +27,74 @@ Production website for Team Samsara - React frontend, C# (.NET) modular monolith
 - .NET SDK `9.0.314` - see `global.json`
 - Node.js `22.22.3` - see `.nvmrc`
 - PostgreSQL `17`
+- Firebase CLI (`npm install -g firebase-tools`), logged in (`firebase login`)
 
 ### Setup
 
-> Local setup instructions are not yet documented.
+**1. Install dependencies**
 
-The required setup sequence still needs to be documented, including:
+```bash
+npm install --prefix apps/web
+npm install --prefix apps/cms
+dotnet restore apps/api/TeamSamsara.sln
+```
 
-- PostgreSQL installation and database creation
-- Required `.env` values for each application
-- Firebase emulator configuration
-- Application startup order
+**2. PostgreSQL**
+
+Create a local database for Payload:
+
+```sql
+CREATE DATABASE samsara_cms;
+```
+
+**3. Environment files**
+
+`apps/api` needs no `.env` file for local development - `appsettings.Development.json` and the
+`Development` launch profile in `launchSettings.json` already point at the emulator suite.
+
+`apps/cms/.env` (copy from `apps/cms/.env.example`):
+
+```
+DATABASE_URL=postgres://postgres:<your-postgres-password>@127.0.0.1:5432/samsara_cms
+PAYLOAD_SECRET=<generate a random string>
+```
+
+`apps/web/.env.development` (copy from `apps/web/.env.example`):
+
+```
+VITE_FIREBASE_API_KEY=<your local/dev Firebase web app config>
+VITE_FIREBASE_AUTH_DOMAIN=<project-id>.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=<project-id>
+VITE_FIREBASE_APP_ID=<app-id>
+VITE_API_BASE_URL=/api
+VITE_FIREBASE_AUTH_EMULATOR_HOST=http://localhost:9099
+```
+
+**4. Firebase emulators**
+
+First run downloads the emulator binaries:
+
+```bash
+firebase emulators:start --project=demo-samsara-dev
+```
+
+Emulator ports: Auth `9099`, Firestore `8080`, Storage `9199`, Hosting `5000`, Functions `5001`,
+Realtime Database `9000`.
+
+### Startup order
+
+Each of the following runs in its own terminal. Start the emulators and PostgreSQL first - the
+other three depend on them being reachable, though nothing enforces this at process-start time,
+so a wrong order fails at request time rather than immediately.
+
+1. PostgreSQL (usually already running as a Windows service)
+2. `firebase emulators:start --project=demo-samsara-dev`
+3. `dotnet run --project apps/api/src/TeamSamsara.Api`
+4. `npm run dev --prefix apps/cms`
+5. `npm run dev --prefix apps/web`
+
+Confirm the API is up: `http://localhost:5055/health/ready` should return `Healthy`. Confirm the
+frontend can reach it: `http://localhost:5173/ping` should render `pong`.
 
 ### Bootstrap
 
@@ -163,6 +221,58 @@ never auto-push. Workflow:
 This means the database schema is always the result of a reviewable, ordered set of changes in
 staging/production, never something inferred silently at runtime.
 
+## Coding Conventions
+
+### String & Magic-Value Constants
+
+Application-defined semantic values must not be scattered as inline literals. Use the appropriate
+named representation - a `const string`, an enum or union type, a typed value, a configuration
+entry, or another suitable abstraction.
+
+The test: if the value represents something our code depends on matching exactly - a permission
+string, a claim key, a header name, an error code, a collection name, a route, a log property
+name, a status - it gets a named definition. Whether it is used once or ten times is irrelevant;
+usage count does not determine whether something is a magic value.
+
+The following may stay inline:
+
+- Incidental text with no application-defined meaning
+- External identifiers we don't own (framework namespace strings, third-party API values)
+- Values already represented through an appropriate typed API (e.g. ASP.NET Core's
+  `Headers.XContentTypeOptions` property)
+- Serilog message templates at the logging call site (`_logger.LogWarning("Handled application
+error: {Code}", ...)`) - kept inline deliberately, so Serilog's analyzer and IDE tooling can
+  validate named placeholders against supplied properties directly at the call site. Log
+  _property names_ (`"CorrelationId"`, `"Environment"`) still follow the named-definition
+  convention; only the complete message template is exempt.
+
+This is not a rule to eliminate string literals from the language - only to eliminate
+_unnamed semantic values_. A one-off, genuinely arbitrary piece of text has nothing to gain from
+being wrapped in a constant.
+
+**Ownership:** constants are owned by the area they belong to, not collected into one global
+file. `Shared`-level values (used across every module) live in small, purpose-named files close
+to what they describe - `Shared/Authorization/Permissions.cs`, `Shared/Authentication/
+ClaimNames.cs`, `Shared/Http/HttpConstants.cs`, and similarly-scoped files under `Logging`,
+`Results`, and `Persistence`. Module-specific values live inside that module, not in `Shared` -
+e.g. `Modules.PingPong/PingPongConstants.cs`. The frontend mirrors this: `app/ClaimNames.ts`,
+`lib/httpConstants.ts`, `lib/uiMessages.ts`, `lib/devInvariants.ts`, plus feature-owned files such
+as `features/ping/constants/pingApiRoutes.ts`.
+
+A value that must match across the C#/TypeScript boundary (e.g. the `accessLevel` claim key) gets
+its own definition on each side - a literal can't be shared across languages, but each side
+should reference its own named constant, not an inline string.
+
+### Code Comments
+
+File headers keep the required format, but `Purpose` is one short sentence describing what the
+file does - not the reasoning behind it, not how other files interact with it, not what would
+happen if something were misused.
+
+Inline comments are the exception, not the default. Add one only when the code cannot reasonably
+communicate the intent on its own; keep it to a short sentence or phrase. Don't restate what a
+name, type, or structure already makes clear.
+
 ## Deferred Implementations
 
 Some interface methods are intentionally stubbed rather than implemented, because building them now would mean guessing at requirements with no real caller driving their shape yet.
@@ -192,3 +302,8 @@ Any method that throws `NotImplementedException` must be documented here, alongs
   which the SDK marks obsolete (`CS0618`) in favor of `CredentialFactory`. Left as-is for now
   rather than guessing at the replacement API's exact shape without a concrete reason to change
   it; the current method still works correctly and is exercised by real staging traffic.
+
+- **Verbose file-header comments** - several files predating the code-comment convention above
+  still have multi-sentence `Purpose` lines explaining implementation reasoning rather than
+  stating what the file does. Not yet trimmed; revisit as those files are next touched, or as a
+  dedicated pass.

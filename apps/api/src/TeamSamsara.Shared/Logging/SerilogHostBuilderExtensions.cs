@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Logging/SerilogHostBuilderExtensions.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 
 // Purpose : Configures the application's Serilog logging pipeline.
@@ -26,8 +26,8 @@ public static class SerilogHostBuilderExtensions
                 .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
                 .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
                 .Enrich.FromLogContext()
-                .Enrich.WithProperty("Environment", context.HostingEnvironment.EnvironmentName)
-                .Enrich.WithProperty("Service", "TeamSamsara.Api");
+                .Enrich.WithProperty(LogPropertyNames.Environment, context.HostingEnvironment.EnvironmentName)
+                .Enrich.WithProperty(LogPropertyNames.Service, "TeamSamsara.Api");
 
             if (context.HostingEnvironment.IsDevelopment())
             {

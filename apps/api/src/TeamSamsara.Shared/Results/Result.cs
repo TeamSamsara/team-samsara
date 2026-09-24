@@ -1,6 +1,6 @@
-// File : /team-samsara/app/api/src/TeamSamsara.Shared/Results/Result.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Results/Result.cs
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 
 // Purpose : Provide Result and Result<T>
@@ -27,12 +27,12 @@ public class Result
     {
         if (isSuccess && error != Error.None)
         {
-            throw new InvalidOperationException("A successful result cannot have an error."); // To Do : replace string messages by shared constants
+            throw new InvalidOperationException(ResultMessages.SuccessfulResultCannotHaveError);
         }
 
         if (!isSuccess && error == Error.None)
         {
-            throw new InvalidOperationException("A failed result must contain an error."); // To Do : replace string messages by shared constants
+            throw new InvalidOperationException(ResultMessages.FailedResultMustContainError);
         }
 
         IsSuccess = isSuccess;

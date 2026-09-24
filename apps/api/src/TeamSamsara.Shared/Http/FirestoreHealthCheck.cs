@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Http/FirestoreHealthCheck.cs
-// Version : 1.0.0
-// Latest commit: feature/api-host
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 // Purpose : Confirms Firestore is reachable for the /health/ready endpoint.
 // Reads from a dedicated "_health" collection, never used for real
@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using TeamSamsara.Shared.Persistence;
 
 namespace TeamSamsara.Shared.Http;
 
@@ -41,7 +42,7 @@ public class FirestoreHealthCheck : IHealthCheck
         try
         {
             await _firestoreDb
-                .Collection("_health")
+                .Collection(FirestoreCollections.Health)
                 .Limit(1)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -49,7 +50,7 @@ public class FirestoreHealthCheck : IHealthCheck
         }
         catch (Exception exception)
         {
-            return HealthCheckResult.Unhealthy("Firestore is not reachable.", exception);
+            return HealthCheckResult.Unhealthy(HealthCheckConstants.FirestoreUnreachableMessage, exception);
         }
     }
 

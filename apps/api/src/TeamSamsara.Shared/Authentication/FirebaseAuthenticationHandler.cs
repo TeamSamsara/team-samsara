@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Authentication/FirebaseAuthenticationHandler.cs
-// Version : 1.0.0
-// Latest commit: feature/api-host
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 
 // Purpose : Provides Firebase ID token authentication for incoming API requests.
@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Http;
 
 namespace TeamSamsara.Shared.Authentication;
 
@@ -48,13 +49,13 @@ public class FirebaseAuthenticationHandler
 
         if (string.IsNullOrWhiteSpace(header)
             || !header.StartsWith(
-                "Bearer ",
+                HttpConstants.BearerPrefix,
                 StringComparison.OrdinalIgnoreCase))
         {
             return AuthenticateResult.NoResult();
         }
 
-        var idToken = header["Bearer ".Length..].Trim();
+        var idToken = header[HttpConstants.BearerPrefix.Length..].Trim();
 
         try
         {
@@ -64,7 +65,7 @@ public class FirebaseAuthenticationHandler
             var accessLevel = AccessLevel.Guest;
 
             if (decodedToken.Claims.TryGetValue(
-                    "accessLevel",
+                    ClaimNames.AccessLevel,
                     out var rawAccessLevel)
                 && Enum.TryParse<AccessLevel>(
                     rawAccessLevel?.ToString(),

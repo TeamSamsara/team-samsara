@@ -1,22 +1,19 @@
 // File : /team-samsara/apps/web/src/app/ErrorBoundary.tsx
-// Version : 1.0.0
-// Latest commit: feature/apps-web-foundation
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
-// Purpose : Catches render-time failures anywhere in the app. Wraps
-// react-error-boundary rather than hand-rolling a class component, since
-// React still requires boundaries to be classes internally either way.
-// FallbackProps.error is typed as unknown (JS allows throwing non-Error
-// values), so it's narrowed before .message is accessed.
+// Purpose : Catches render-time failures anywhere in the app.
 
 import {
   ErrorBoundary as ReactErrorBoundary,
   type FallbackProps,
 } from "react-error-boundary";
 import type { ReactNode } from "react";
+import { UiMessages } from "@/lib/uiMessages";
 
 function ErrorFallback({ error }: FallbackProps) {
   const message =
-    error instanceof Error ? error.message : "An unexpected error occurred.";
+    error instanceof Error ? error.message : UiMessages.unexpectedError;
 
   return (
     <div role="alert">
