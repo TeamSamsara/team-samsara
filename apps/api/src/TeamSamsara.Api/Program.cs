@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.2.3
+// Version : 1.2.4
 // Latest commit: feature/assets-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
@@ -19,6 +19,7 @@ using TeamSamsara.Shared.Http;
 using TeamSamsara.Shared.Logging;
 using TeamSamsara.Shared.Modules;
 using TeamSamsara.Shared.Persistence;
+using TeamSamsara.Shared.Serialization;
 using TeamSamsara.Shared.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -69,6 +70,18 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     // TODO: Configure trusted proxy ranges before production deployment.
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
+});
+
+// Applies the shared JSON convention (camelCase properties, string enums) to every
+// Minimal API endpoint's request/response serialization.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = DefaultJsonOptions.Instance.PropertyNamingPolicy;
+
+    foreach (var converter in DefaultJsonOptions.Instance.Converters)
+    {
+        options.SerializerOptions.Converters.Add(converter);
+    }
 });
 
 var modules = new List<IModule> { new PingPongModule(), new AssetsModule() };

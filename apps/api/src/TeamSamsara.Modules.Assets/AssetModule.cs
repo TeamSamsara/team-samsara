@@ -1,15 +1,18 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsModule.cs
-// Version : 1.0.3
+// Version : 1.0.4
 // Latest commit: feature/assets-module
 // Author : Gerrah
 // Purpose : Registers the Assets module's services and HTTP endpoints.
 
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TeamSamsara.Modules.Assets.Models;
 using TeamSamsara.Modules.Assets.Repositories;
 using TeamSamsara.Modules.Assets.Services;
 using TeamSamsara.Shared.Configuration;
@@ -42,6 +45,7 @@ public class AssetsModule : IModule
             .DisableAntiforgery()
             .AddEndpointFilter<ApiKeyEndpointFilter<AssetsPipelineSettings>>();
 
+        group.MapGet("/", HandleListAsync);
         group.MapGet("/{id}", HandleGetMetadataAsync);
         group.MapGet("/{id}/file", HandleGetFileAsync);
 
@@ -63,6 +67,14 @@ public class AssetsModule : IModule
         var metadata = await assetService.UploadAssetAsync(stream, file.FileName, file.ContentType, alt);
 
         return Results.Created($"/assets/{metadata.Id}", metadata);
+    }
+
+    // Lists all assets, optionally filtered by type (?type=Image)
+    private static async Task<IResult> HandleListAsync([FromQuery] AssetType? type, AssetService assetService)
+    {
+        IReadOnlyList<AssetMetadata> assets = await assetService.ListAssetsAsync(type);
+
+        return Results.Ok(assets);
     }
 
     // Returns an asset's metadata by id

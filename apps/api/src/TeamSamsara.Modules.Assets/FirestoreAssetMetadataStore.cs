@@ -1,9 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Repositories/FirestoreAssetMetadataStore.cs
-// Version : 1.0.1
+// Version : 1.0.2
 // Latest commit: feature/assets-module
 // Author : Gerrah
 // Purpose : Firestore implementation of the asset metadata store.
 
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Google.Cloud.Firestore;
 using TeamSamsara.Modules.Assets.Models;
@@ -36,6 +38,21 @@ public class FirestoreAssetMetadataStore : IAssetMetadataStore
         .GetSnapshotAsync();
 
         return snapshot.Exists ? snapshot.ConvertTo<AssetMetadata>() : null;
+    }
+
+    // Retrieves all asset metadata, optionally filtered by type
+    public async Task<IReadOnlyList<AssetMetadata>> ListAsync(AssetType? type)
+    {
+        Query query = _firestoreDb.Collection(AssetsFirestoreCollections.Assets);
+
+        if (type is not null)
+        {
+            query = query.WhereEqualTo(nameof(AssetMetadata.type), type);
+        }
+
+        var snapshot = await query.GetSnapshotAsync();
+
+        return snapshot.Documents.Select(document => document.ConvertTo<AssetMetadata>()).ToList();
     }
 
     // Creates a new asset metadata record

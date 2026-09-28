@@ -65,6 +65,9 @@ public class AssetService
     // Retrieves an asset's metadata by id, or null if it doesn't exist
     public Task<AssetMetadata?> GetAssetAsync(string id) => _metadataStore.GetByIdAsync(id);
 
+    // Retrieves all assets metadata, optionally filtered type
+    public Task<IReadOnlyList<AssetMetadata>> ListAssetsAsync(AssetType? type) => _metadataStore.ListAsync(type);
+
     // Retrieves an asset's file content and content type by id, or null if it doesn't exist
     public async Task<(Stream Content, string ContentType)?> GetAssetFileAsync(string id)
     {
