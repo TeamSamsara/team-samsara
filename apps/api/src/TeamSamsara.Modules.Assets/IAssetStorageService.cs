@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/IAssetStorageService.cs
 // Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Latest commit: feature/assets-module
 // Author : Gerrah
-// Purpose : Provides the shared contract for C# API file uploads.
+// Purpose : Provides the shared contract for C# API file storage.
 
 using System;
 using System.IO;
@@ -16,6 +16,9 @@ public interface IAssetStorageService
 
     // Upload a file and return its storage path
     public Task<string> UploadAsync(string relativePath, Stream content, string contentType);
+
+    // Download a file's content by its storage path
+    public Task<Stream> DownloadAsync(string relativePath);
 
     // Delete a file by its storage path
     public Task DeleteAsync(string relativePath);

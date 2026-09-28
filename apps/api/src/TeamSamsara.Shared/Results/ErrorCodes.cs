@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Results/ErrorCodes.cs
-// Version : 1.0.0
-// Latest commit: feature/string-magic-value-conventions
+// Version : 1.0.2
+// Latest commit: feature/assets-module
 // Author : Gerrah
 // Purpose : Error.Code values.
 
@@ -11,6 +11,8 @@ public static class ErrorCodes
     #region Fields
 
     public const string UnexpectedError = "unexpected_error";
+    public const string AssetMetadataCreationFailed = "asset_metadata_creation_failed";
+    public const string AssetMetadataDeletionFailed = "asset_metadata_deletion_failed";
 
     #endregion
 }

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.2.1
-// Latest commit: feature/api-host
+// Version : 1.2.3
+// Latest commit: feature/assets-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
+using TeamSamsara.Modules.Assets;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
@@ -32,7 +33,7 @@ builder.Services
 
 builder.Services.AddPermissionAuthorization();
 builder.Services.AddFirestore(builder.Configuration);
-builder.Services.AddFirebaseStorage(builder.Configuration);
+builder.Services.AddAssetStorage(builder.Configuration);
 
 builder.Services.AddValidatedOptions<CorsSettings>(builder.Configuration, "Cors");
 
@@ -70,7 +71,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-var modules = new List<IModule> { new PingPongModule() };
+var modules = new List<IModule> { new PingPongModule(), new AssetsModule() };
 
 foreach (var module in modules)
 {

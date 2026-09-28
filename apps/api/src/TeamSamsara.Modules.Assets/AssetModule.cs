@@ -1,0 +1,100 @@
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsModule.cs
+// Version : 1.0.3
+// Latest commit: feature/assets-module
+// Author : Gerrah
+// Purpose : Registers the Assets module's services and HTTP endpoints.
+
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using TeamSamsara.Modules.Assets.Repositories;
+using TeamSamsara.Modules.Assets.Services;
+using TeamSamsara.Shared.Configuration;
+using TeamSamsara.Shared.Http;
+using TeamSamsara.Shared.Modules;
+using TeamSamsara.Shared.Storage;
+
+namespace TeamSamsara.Modules.Assets;
+
+public class AssetsModule : IModule
+{
+    #region Public Methods
+
+    public void RegisterServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddValidatedOptions<AssetsPipelineSettings>(configuration, AssetsPipelineSettings.SectionName);
+
+        services.AddScoped<IAssetMetadataStore, FirestoreAssetMetadataStore>();
+        services.AddScoped<IAssetStorageService, AssetStorageService>();
+        services.AddScoped<AssetService>();
+    }
+
+    public void MapEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup("/assets");
+
+        // No cookie-based auth on this API, so there's no ambient credential for
+        // a forged form submission to exploit - antiforgery protection doesn't apply here.
+        group.MapPost("/", HandleUploadAsync)
+            .DisableAntiforgery()
+            .AddEndpointFilter<ApiKeyEndpointFilter<AssetsPipelineSettings>>();
+
+        group.MapGet("/{id}", HandleGetMetadataAsync);
+        group.MapGet("/{id}/file", HandleGetFileAsync);
+
+        group.MapDelete("/{id}", HandleDeleteAsync)
+            .AddEndpointFilter<ApiKeyEndpointFilter<AssetsPipelineSettings>>();
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    // Uploads a new asset from a multipart form (file + alt text)
+    private static async Task<IResult> HandleUploadAsync(
+        [FromForm] IFormFile file,
+        [FromForm] string alt,
+        AssetService assetService)
+    {
+        await using var stream = file.OpenReadStream();
+        var metadata = await assetService.UploadAssetAsync(stream, file.FileName, file.ContentType, alt);
+
+        return Results.Created($"/assets/{metadata.Id}", metadata);
+    }
+
+    // Returns an asset's metadata by id
+    private static async Task<IResult> HandleGetMetadataAsync(string id, AssetService assetService)
+    {
+        var metadata = await assetService.GetAssetAsync(id);
+
+        return metadata is null ? Results.NotFound() : Results.Ok(metadata);
+    }
+
+    // Streams an asset's raw file content by id
+    private static async Task<IResult> HandleGetFileAsync(string id, AssetService assetService)
+    {
+        var file = await assetService.GetAssetFileAsync(id);
+
+        if (file is null)
+        {
+            return Results.NotFound();
+        }
+
+        var (content, contentType) = file.Value;
+
+        return Results.Stream(content, contentType);
+    }
+
+    // Deletes an asset's metadata and stored file by id
+    private static async Task<IResult> HandleDeleteAsync(string id, AssetService assetService)
+    {
+        var deleted = await assetService.DeleteAssetAsync(id);
+
+        return deleted ? Results.NoContent() : Results.NotFound();
+    }
+
+    #endregion
+}

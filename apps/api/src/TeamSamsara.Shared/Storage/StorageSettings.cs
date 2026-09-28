@@ -19,6 +19,7 @@ public class StorageSettings
     #region Properties
 
     [Required]
+    public StorageProvider Provider { get; set; }
     public string BucketName { get; set; } = string.Empty;
 
     #endregion

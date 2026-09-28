@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>f8159f1b-48b3-4388-9e2a-ca5fdd520532</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,6 +19,7 @@
     <ProjectReference Include="..\TeamSamsara.Modules.Orders\TeamSamsara.Modules.Orders.csproj" />
     <ProjectReference Include="..\TeamSamsara.Shared\TeamSamsara.Shared.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.PingPong\TeamSamsara.Modules.PingPong.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Assets\TeamSamsara.Modules.Assets.csproj" />
   </ItemGroup>
 
 </Project>

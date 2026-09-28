@@ -14,6 +14,7 @@ COPY apps/api/src/TeamSamsara.Modules.Media/TeamSamsara.Modules.Media.csproj app
 COPY apps/api/src/TeamSamsara.Modules.Catalog/TeamSamsara.Modules.Catalog.csproj apps/api/src/TeamSamsara.Modules.Catalog/
 COPY apps/api/src/TeamSamsara.Modules.Orders/TeamSamsara.Modules.Orders.csproj apps/api/src/TeamSamsara.Modules.Orders/
 COPY apps/api/src/TeamSamsara.Modules.PingPong/TeamSamsara.Modules.PingPong.csproj apps/api/src/TeamSamsara.Modules.PingPong/
+COPY apps/api/src/TeamSamsara.Modules.Assets/TeamSamsara.Modules.Assets.csproj apps/api/src/TeamSamsara.Modules.Assets/
 COPY Directory.Packages.props .
 COPY global.json .
 
