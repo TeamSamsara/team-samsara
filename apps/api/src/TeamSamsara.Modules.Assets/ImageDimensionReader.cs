@@ -12,7 +12,7 @@ public static class ImageDimensionReader
 {
     #region Fields
 
-    private static readonly byte[] PngSignature = { 137, 80, 78, 71, 13, 10, 26, 10 };
+    private static readonly byte[] _pngSignature = { 137, 80, 78, 71, 13, 10, 26, 10 };
 
     #endregion
 
@@ -45,7 +45,7 @@ public static class ImageDimensionReader
     {
         dimensions = (null, null);
 
-        if (bytes.Length < 24 || !bytes.AsSpan(0, 8).SequenceEqual(PngSignature))
+        if (bytes.Length < 24 || !bytes.AsSpan(0, 8).SequenceEqual(_pngSignature))
         {
             return false;
         }
