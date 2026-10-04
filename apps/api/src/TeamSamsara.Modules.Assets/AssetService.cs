@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Services/AssetService.cs
-// Version : 1.0.2
-// Latest commit: feature/assets-module
+// Version : 2.0.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Orchestrates asset upload, retrieval, and deletion across file storage and metadata.
 
@@ -12,7 +12,6 @@ using TeamSamsara.Modules.Assets.Models;
 using TeamSamsara.Modules.Assets.Repositories;
 using TeamSamsara.Shared.Http;
 using TeamSamsara.Shared.Results;
-using TeamSamsara.Shared.Storage;
 
 namespace TeamSamsara.Modules.Assets.Services;
 
@@ -53,7 +52,7 @@ public class AssetService
         var id = Guid.NewGuid().ToString();
         var relativePath = BuildRelativePath(id, fileName);
 
-        await UploadBytesAsync(relativePath, bytes, contentType);
+        await UploadBytesAsync(assetType, relativePath, bytes, contentType);
 
         var metadata = BuildMetadata(id, assetType, relativePath, contentType, alt, width, height);
 
@@ -68,8 +67,10 @@ public class AssetService
     // Retrieves all assets metadata, optionally filtered type
     public Task<IReadOnlyList<AssetMetadata>> ListAssetsAsync(AssetType? type) => _metadataStore.ListAsync(type);
 
-    // Retrieves an asset's file content and content type by id, or null if it doesn't exist
-    public async Task<(Stream Content, string ContentType)?> GetAssetFileAsync(string id)
+    // Retrieves how an asset's file should be served - proxied or redirected - or null
+    // if it doesn't exist. Video is served by redirecting to its storage backend's own
+    // public URL; everything else is proxied through the API as a stream.
+    public async Task<AssetFileResult?> GetAssetFileAsync(string id)
     {
         var metadata = await _metadataStore.GetByIdAsync(id);
 
@@ -78,9 +79,14 @@ public class AssetService
             return null;
         }
 
-        var content = await _storageService.DownloadAsync(metadata.FileRelativePath);
+        if (metadata.type == AssetType.Video)
+        {
+            var url = await _storageService.GetPublicUrlAsync(metadata.type, metadata.FileRelativePath);
+            return AssetFileResult.Redirect(url);
+        }
 
-        return (content, metadata.ContentType);
+        var content = await _storageService.DownloadAsync(metadata.type, metadata.FileRelativePath);
+        return AssetFileResult.Proxied(content, metadata.ContentType);
     }
 
     // Deletes an asset's metadata record, then best-effort deletes its stored bytes.
@@ -105,7 +111,7 @@ public class AssetService
             throw new AppException(Error.Failure(ErrorCodes.AssetMetadataDeletionFailed, ResultMessages.AssetMetadataDeletionFailed));
         }
 
-        await TryDeleteFileAsync(metadata.FileRelativePath, id);
+        await TryDeleteFileAsync(metadata.type, metadata.FileRelativePath, id);
 
         return true;
     }
@@ -161,10 +167,10 @@ public class AssetService
     }
 
     // Uploads the asset's bytes to storage
-    private async Task UploadBytesAsync(string relativePath, byte[] bytes, string contentType)
+    private async Task UploadBytesAsync(AssetType type, string relativePath, byte[] bytes, string contentType)
     {
         using var uploadStream = new MemoryStream(bytes);
-        await _storageService.UploadAsync(relativePath, uploadStream, contentType);
+        await _storageService.UploadAsync(type, relativePath, uploadStream, contentType);
     }
 
     // Assembles the metadata record for a newly-uploaded asset
@@ -198,7 +204,7 @@ public class AssetService
         {
             _logger.LogError(ex, "Failed to create metadata for asset '{AssetId}'.", metadata.Id);
 
-            await TryDeleteFileAsync(relativePath, metadata.Id);
+            await TryDeleteFileAsync(metadata.type, relativePath, metadata.Id);
 
             throw new AppException(Error.Failure(ErrorCodes.AssetMetadataCreationFailed, ResultMessages.AssetMetadataCreationFailed));
         }
@@ -206,11 +212,11 @@ public class AssetService
 
     // Best-effort delete of a stored file. Used both to clean up after a failed metadata
     // write, and as the second step of a normal delete.
-    private async Task TryDeleteFileAsync(string relativePath, string assetId)
+    private async Task TryDeleteFileAsync(AssetType type, string relativePath, string assetId)
     {
         try
         {
-            await _storageService.DeleteAsync(relativePath);
+            await _storageService.DeleteAsync(type, relativePath);
         }
         catch (Exception cleanupEx)
         {

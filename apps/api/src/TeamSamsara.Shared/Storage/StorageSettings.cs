@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/StorageSettings.cs
-// Version : 1.0.1
-// Latest commit: feature/string-magic-value-conventions
+// Version : 1.0.2
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Binds the shared Firebase Storage bucket name from configuration.
-
-using System.ComponentModel.DataAnnotations;
 
 namespace TeamSamsara.Shared.Storage;
 
@@ -18,8 +16,6 @@ public class StorageSettings
 
     #region Properties
 
-    [Required]
-    public StorageProvider Provider { get; set; }
     public string BucketName { get; set; } = string.Empty;
 
     #endregion

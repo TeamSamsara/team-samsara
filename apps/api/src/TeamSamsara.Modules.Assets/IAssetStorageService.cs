@@ -1,30 +1,35 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/IAssetStorageService.cs
-// Version : 1.0.0
-// Latest commit: feature/assets-module
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/IAssetStorageService.cs
+// Version : 2.0.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
-// Purpose : Provides the shared contract for C# API file storage.
+// Purpose : Assets-module contract for moving an asset's bytes to and from storage, routed
+// by asset type to the appropriate backend.
 
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using TeamSamsara.Modules.Assets.Models;
 
-namespace TeamSamsara.Shared.Storage;
+namespace TeamSamsara.Modules.Assets;
 
 public interface IAssetStorageService
 {
     #region Public Methods
 
-    // Upload a file and return its storage path
-    public Task<string> UploadAsync(string relativePath, Stream content, string contentType);
+    // Uploads a file and returns its storage path
+    public Task<string> UploadAsync(AssetType type, string relativePath, Stream content, string contentType);
 
-    // Download a file's content by its storage path
-    public Task<Stream> DownloadAsync(string relativePath);
+    // Downloads a file's content by its storage path
+    public Task<Stream> DownloadAsync(AssetType type, string relativePath);
 
-    // Delete a file by its storage path
-    public Task DeleteAsync(string relativePath);
+    // Deletes a file by its storage path
+    public Task DeleteAsync(AssetType type, string relativePath);
 
-    // Generate a temporary signed URL for a file
-    public Task<string> GetSignedUrlAsync(string relativePath, TimeSpan expiry);
+    // Generates a temporary signed URL for a file
+    public Task<string> GetSignedUrlAsync(AssetType type, string relativePath, TimeSpan expiry);
+
+    // Returns a permanent public URL for a file, for backends that support one
+    public Task<string> GetPublicUrlAsync(AssetType type, string relativePath);
 
     #endregion
 }

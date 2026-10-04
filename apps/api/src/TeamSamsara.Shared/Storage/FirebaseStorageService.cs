@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/FirebaseStorageService.cs
-// Version : 1.0.0
-// Latest commit: feature/assets-module
+// Version : 1.1.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Provides the Firebase Storage implementation of IStorageService.
 
@@ -65,6 +65,13 @@ public class FirebaseStorageService : IStorageService
         throw new NotImplementedException(
             "Signed URL generation requires a service account with signing " +
             "credentials — deferred until a real use case needs it.");
+    }
+
+    // Returns a permanent public URL for a stored file. Assumes the object/bucket is
+    // already configured for public read access - this method does not grant that access.
+    public Task<string> GetPublicUrlAsync(string relativePath)
+    {
+        return Task.FromResult($"https://storage.googleapis.com/{_bucketName}/{relativePath}");
     }
 
     #endregion
