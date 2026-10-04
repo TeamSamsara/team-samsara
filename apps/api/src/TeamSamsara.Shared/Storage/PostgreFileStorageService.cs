@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/PostgresFileStorageService.cs
-// Version : 1.0.0
-// Latest commit: feature/assets-module
+// Version : 1.1.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Provides the Postgres implementation of IStorageService.
 
@@ -115,11 +115,19 @@ public class PostgresFileStorageService : IStorageService
     }
 
     // Generates a temporary signed URL for a stored file.
-    // TODO: Not applicable to Postgres storage - no public URL concept.
+    // Not applicable to Postgres storage - no public URL concept.
     public Task<string> GetSignedUrlAsync(string relativePath, TimeSpan expiry)
     {
         throw new NotImplementedException(
             "Postgres-backed storage has no public URL to sign - callers must use DownloadAsync instead.");
+    }
+
+    // Generates a permanent public URL for a stored file.
+    // Not applicable to Postgres storage - no public URL concept.
+    public Task<string> GetPublicUrlAsync(string relativePath)
+    {
+        throw new NotImplementedException(
+            "Postgres-backed storage has no public URL - callers must use DownloadAsync instead.");
     }
 
     #endregion

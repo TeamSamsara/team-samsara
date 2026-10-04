@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/IStorageService.cs
-// Version : 1.0.0
-// Latest commit: feature/assets-module
+// Version : 1.1.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Generic contract for moving file bytes to and from storage infrastructure.
 
@@ -25,6 +25,9 @@ public interface IStorageService
 
     // Generates a temporary signed URL for a file
     public Task<string> GetSignedUrlAsync(string relativePath, TimeSpan expiry);
+
+    // Returns a permanent public URL for a file, for backends that support one
+    public Task<string> GetPublicUrlAsync(string relativePath);
 
     #endregion
 }

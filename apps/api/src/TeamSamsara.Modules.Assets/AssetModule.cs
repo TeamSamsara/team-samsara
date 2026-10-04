@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsModule.cs
-// Version : 1.0.4
-// Latest commit: feature/assets-module
+// Version : 2.0.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
 // Purpose : Registers the Assets module's services and HTTP endpoints.
 
@@ -18,7 +18,6 @@ using TeamSamsara.Modules.Assets.Services;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Http;
 using TeamSamsara.Shared.Modules;
-using TeamSamsara.Shared.Storage;
 
 namespace TeamSamsara.Modules.Assets;
 
@@ -29,6 +28,7 @@ public class AssetsModule : IModule
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<AssetsPipelineSettings>(configuration, AssetsPipelineSettings.SectionName);
+        services.AddValidatedOptions<AssetStorageRoutingSettings>(configuration, AssetStorageRoutingSettings.SectionName);
 
         services.AddScoped<IAssetMetadataStore, FirestoreAssetMetadataStore>();
         services.AddScoped<IAssetStorageService, AssetStorageService>();
@@ -85,7 +85,8 @@ public class AssetsModule : IModule
         return metadata is null ? Results.NotFound() : Results.Ok(metadata);
     }
 
-    // Streams an asset's raw file content by id
+    // Returns an asset's file by id - proxied as a stream for image/file assets,
+    // or a redirect to its own public URL for video
     private static async Task<IResult> HandleGetFileAsync(string id, AssetService assetService)
     {
         var file = await assetService.GetAssetFileAsync(id);
@@ -95,9 +96,12 @@ public class AssetsModule : IModule
             return Results.NotFound();
         }
 
-        var (content, contentType) = file.Value;
+        if (file.RedirectUrl is not null)
+        {
+            return Results.Redirect(file.RedirectUrl);
+        }
 
-        return Results.Stream(content, contentType);
+        return Results.Stream(file.Content!, file.ContentType!);
     }
 
     // Deletes an asset's metadata and stored file by id
