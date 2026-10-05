@@ -14,15 +14,15 @@ public interface IRepository<TEntity, in TId> where TEntity : BaseEntity
     #region  Public Methods
 
     // Retrieves an entity by its identifier
-    Task<TEntity?> GetByIdAsync(TId id);
+    public Task<TEntity?> GetByIdAsync(TId id);
 
     // Add new entity
-    Task AddAsync(TEntity entity);
+    public Task AddAsync(TEntity entity);
 
     // Persist change to an existing entity
-    Task UpdateAsync(TEntity entity);
+    public Task UpdateAsync(TEntity entity);
 
     // Remove an entity by its identifier
-    Task DeleteAsync(TId id);
+    public Task DeleteAsync(TId id);
     #endregion
 }

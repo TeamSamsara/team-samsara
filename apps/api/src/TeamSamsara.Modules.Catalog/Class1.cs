@@ -1,4 +1,4 @@
-﻿namespace TeamSamsara.Modules.Catalog;
+namespace TeamSamsara.Modules.Catalog;
 
 public class Class1
 {

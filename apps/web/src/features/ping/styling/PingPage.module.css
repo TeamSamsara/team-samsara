@@ -1,0 +1,20 @@
+/* File : /team-samsara/apps/web/src/features/ping/styling/PingPage.module.css
+   Version : 1.0.0
+   Latest commit: feature/apps-web-foundation
+   Author : Gerrah
+   Purpose : Scoped styles for the ping feature's page — proof that CSS
+   Modules work end to end. No design tokens yet; that's Phase 3's job. */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 1rem;
+}
+
+.result {
+  font-family: monospace;
+  font-size: 1.25rem;
+}

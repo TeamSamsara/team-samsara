@@ -16,12 +16,12 @@ public interface IModule
     #region Public Methods
 
     // Registers the module's services and dependencies.
-    void RegisterServices(
+    public void RegisterServices(
         IServiceCollection services,
         IConfiguration configuration);
 
     // Maps the module's HTTP endpoints.
-    void MapEndpoints(IEndpointRouteBuilder endpoints);
+    public void MapEndpoints(IEndpointRouteBuilder endpoints);
 
     #endregion
 }

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Http/ExceptionHandlingMiddleware.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 // Purpose : Maps unhandled exceptions to standardized ProblemDetails responses.
 
@@ -49,7 +49,7 @@ public class ExceptionHandlingMiddleware
         catch (Exception exception)
         {
             _logger.LogError(exception, "Unhandled exception");
-            var error = Error.Failure("unexpected_error", "An unexpected error occurred.");
+            var error = Error.Failure(ErrorCodes.UnexpectedError, ResultMessages.UnexpectedError);
             await WriteProblemDetailsAsync(context, error);
         }
     }
@@ -69,7 +69,7 @@ public class ExceptionHandlingMiddleware
             Detail = error.Message
         };
 
-        context.Response.ContentType = "application/problem+json";
+        context.Response.ContentType = HttpConstants.ProblemJsonContentType;
         context.Response.StatusCode = (int)statusCode;
 
         return context.Response.WriteAsJsonAsync(problemDetails);

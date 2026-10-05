@@ -24,6 +24,10 @@ csharp_style_pattern_matching_over_as_with_null_check = true:warning
 csharp_style_prefer_switch_expression = true:suggestion
 csharp_using_directive_placement = outside_namespace:warning
 
+# Primary constructors conflict with the project's template (traditional
+# constructor bodies inside a #region Constructors block) — disabled.
+csharp_style_prefer_primary_constructors = false:none
+
 dotnet_sort_system_directives_first = true
 dotnet_separate_import_directive_groups = false
 
@@ -49,8 +53,11 @@ dotnet_naming_rule.interfaces_start_with_i.symbols = interfaces
 dotnet_naming_rule.interfaces_start_with_i.style = prefix_interface
 dotnet_naming_rule.interfaces_start_with_i.severity = warning
 
+# Private fields: _camelCase, but const fields are exempt (PascalCase for
+# constants is standard C# convention, not the mutable-field pattern below).
 dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_fields.required_modifiers = readonly
 dotnet_naming_style.underscore_camel_case.required_prefix = _
 dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 dotnet_naming_rule.private_fields_underscore.symbols = private_fields
@@ -71,3 +78,9 @@ indent_size = 2
 
 [*.md]
 trim_trailing_whitespace = false
+
+# Test methods ([Fact]/[Theory]) describe behavior, not implementation
+# detail — the Async-suffix rule is silenced here via a glob matching any
+# folder ending in "Tests", rather than excluded by symbol (not supported).
+[**/*Tests/*.cs]
+dotnet_naming_rule.async_methods_end_in_async.severity = none

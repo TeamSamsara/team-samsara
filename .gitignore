@@ -32,3 +32,8 @@ emulator-data/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Secrets - service account keys, never committed
+**/secrets/
+*.json.key
+TSR-*-SECRET-KEY.json

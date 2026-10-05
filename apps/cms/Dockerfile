@@ -10,13 +10,17 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies based on the preferred package manager
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+COPY package.json .npmrc* yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  if [ -f yarn.lock ]; then yarn install; \
+  elif [ -f package-lock.json ]; then npm install; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install; \
   else echo "Lockfile not found." && exit 1; \
   fi
+
+# sharp ships platform-specific native binaries; the ones installed on the
+# host (Windows) don't work inside this Alpine Linux container.
+RUN npm install --os=linux --libc=musl --cpu=x64 sharp
 
 
 # Rebuild the source code only when needed
@@ -28,7 +32,7 @@ COPY . .
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED 1
+# ENV NEXT_TELEMETRID_DISABLED 1
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
@@ -47,9 +51,6 @@ ENV NODE_ENV production
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
-
-# Remove this line if you do not have this folder
-COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
 RUN mkdir .next

@@ -13,7 +13,7 @@ public interface IPermissionChecker
 {
     #region Public Methods
 
-    Task<bool> HasPermissionAsync(ICurrentUserContext user, string permission);
+    public Task<bool> HasPermissionAsync(ICurrentUserContext user, string permission);
 
     #endregion
 }

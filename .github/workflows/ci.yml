@@ -1,0 +1,71 @@
+# File : /team-samsara/.github/workflows/ci.yml
+# Version : 1.0.3
+# Latest commit: feature/apps-web-foundation
+# Author : Gerrah
+# Purpose : Build and test validation on every push/PR. Two independent
+# jobs (backend, frontend) so a failure in one is reported clearly without
+# blocking visibility into the other. Deploys nothing - that's item 16.
+# Frontend steps use working-directory instead of --prefix/npx --prefix -
+# the latter isn't valid npx syntax and silently ran commands from the
+# wrong directory.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore apps/api/TeamSamsara.sln
+
+      - name: Build
+        run: dotnet build apps/api/TeamSamsara.sln --no-restore
+
+      - name: Format check
+        run: dotnet format apps/api/TeamSamsara.sln --verify-no-changes
+
+      - name: Test
+        run: dotnet test apps/api/TeamSamsara.sln --no-build
+
+  frontend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install (web)
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Lint (web)
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Type check (web)
+        working-directory: apps/web
+        run: npx tsc --noEmit
+
+      - name: Build (web)
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Install (cms)
+        working-directory: apps/cms
+        run: npm ci
+
+      - name: Lint (cms)
+        working-directory: apps/cms
+        run: npm run lint

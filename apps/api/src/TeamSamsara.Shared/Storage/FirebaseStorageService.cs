@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/FirebaseStorageService.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.1.0
+// Latest commit: feature/asset-storage-routing
 // Author : Gerrah
-
-// Purpose : Provides the Firebase Storage implementation of IAssetStorageService.
+// Purpose : Provides the Firebase Storage implementation of IStorageService.
 
 using System;
 using System.IO;
@@ -12,7 +11,7 @@ using Google.Cloud.Storage.V1;
 
 namespace TeamSamsara.Shared.Storage;
 
-public class FirebaseStorageService : IAssetStorageService
+public class FirebaseStorageService : IStorageService
 {
     #region Fields
 
@@ -34,29 +33,29 @@ public class FirebaseStorageService : IAssetStorageService
 
     #region Public Methods
 
-    // Uploads a file under the users/ storage prefix.
-    public async Task<string> UploadAsync(
-        string relativePath,
-        Stream content,
-        string contentType)
+    // Uploads a file and returns its storage path.
+    public async Task<string> UploadAsync(string relativePath, Stream content, string contentType)
     {
-        var objectName = $"users/{relativePath}";
+        await _storageClient.UploadObjectAsync(_bucketName, relativePath, contentType, content);
 
-        await _storageClient.UploadObjectAsync(
-            _bucketName,
-            objectName,
-            contentType,
-            content);
-
-        return objectName;
+        return relativePath;
     }
 
-    // Deletes a file under the users/ storage prefix.
+    // Downloads a file's content by its storage path.
+    public async Task<Stream> DownloadAsync(string relativePath)
+    {
+        var memoryStream = new MemoryStream();
+
+        await _storageClient.DownloadObjectAsync(_bucketName, relativePath, memoryStream);
+
+        memoryStream.Position = 0;
+        return memoryStream;
+    }
+
+    // Deletes a file by its storage path.
     public async Task DeleteAsync(string relativePath)
     {
-        var objectName = $"users/{relativePath}";
-
-        await _storageClient.DeleteObjectAsync(_bucketName, objectName);
+        await _storageClient.DeleteObjectAsync(_bucketName, relativePath);
     }
 
     // Generates a temporary signed URL for a stored file.
@@ -66,6 +65,13 @@ public class FirebaseStorageService : IAssetStorageService
         throw new NotImplementedException(
             "Signed URL generation requires a service account with signing " +
             "credentials — deferred until a real use case needs it.");
+    }
+
+    // Returns a permanent public URL for a stored file. Assumes the object/bucket is
+    // already configured for public read access - this method does not grant that access.
+    public Task<string> GetPublicUrlAsync(string relativePath)
+    {
+        return Task.FromResult($"https://storage.googleapis.com/{_bucketName}/{relativePath}");
     }
 
     #endregion

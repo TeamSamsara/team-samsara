@@ -12,6 +12,6 @@ namespace TeamSamsara.Shared.Context;
 public interface IClock
 {
     #region Properties
-    DateTimeOffset UtcNow { get; }
+    public DateTimeOffset UtcNow { get; }
     #endregion
 }

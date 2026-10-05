@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Results/Result{T}.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.1
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 
 // Purpose : Provide Result<T>, extending Result to carry a value on success.
@@ -23,7 +23,7 @@ public class Result<T> : Result
     // that forgets to check IsSuccess fails loudly instead of silently.
     public T Value => IsSuccess
         ? _value!
-        : throw new InvalidOperationException("Cannot access the value of a failed result."); // To Do : replace string messages by shared constants
+        : throw new InvalidOperationException(ResultMessages.CannotAccessValueOfFailedResult);
 
     #endregion
 

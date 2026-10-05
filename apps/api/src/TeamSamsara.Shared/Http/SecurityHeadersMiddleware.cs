@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Http/SecurityHeadersMiddleware.cs
-// Version : 1.0.0
-// Latest commit: feature/shared-core-primitives
+// Version : 1.0.2
+// Latest commit: feature/string-magic-value-conventions
 // Author : Gerrah
 // Purpose : Appends a fixed set of security-related headers to every response.
 
@@ -29,9 +29,9 @@ public class SecurityHeadersMiddleware
 
     public Task InvokeAsync(HttpContext context)
     {
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["X-Frame-Options"] = "DENY";
-        context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        context.Response.Headers.XContentTypeOptions = SecurityHeaderValues.NoSniff;
+        context.Response.Headers.XFrameOptions = SecurityHeaderValues.Deny;
+        context.Response.Headers[SecurityHeaderValues.ReferrerPolicyHeaderName] = SecurityHeaderValues.StrictOriginWhenCrossOrigin;
 
         return _next(context);
     }
