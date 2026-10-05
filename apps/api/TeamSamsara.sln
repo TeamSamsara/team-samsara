@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.ArchitectureTes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.Modules.Assets", "src\TeamSamsara.Modules.Assets\TeamSamsara.Modules.Assets.csproj", "{9F0B20AF-3666-43DF-9261-E4008D57375D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.Modules.Alert", "src\TeamSamsara.Modules.Alert\TeamSamsara.Modules.Alert.csproj", "{E9D9D6F2-EC83-405E-8775-54D4790E698D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -183,6 +185,18 @@ Global
 		{9F0B20AF-3666-43DF-9261-E4008D57375D}.Release|x64.Build.0 = Release|Any CPU
 		{9F0B20AF-3666-43DF-9261-E4008D57375D}.Release|x86.ActiveCfg = Release|Any CPU
 		{9F0B20AF-3666-43DF-9261-E4008D57375D}.Release|x86.Build.0 = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|x64.Build.0 = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Debug|x86.Build.0 = Debug|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|x64.ActiveCfg = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|x64.Build.0 = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|x86.ActiveCfg = Release|Any CPU
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -200,5 +214,6 @@ Global
 		{231B966A-2DC1-4642-A1EF-DE9C8FAFBF25} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{FC529655-9F8F-42CB-A66E-2B2F4A20B4A4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{9F0B20AF-3666-43DF-9261-E4008D57375D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{E9D9D6F2-EC83-405E-8775-54D4790E698D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
