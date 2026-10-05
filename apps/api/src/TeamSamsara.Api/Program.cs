@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.3.0
-// Latest commit: feature/alerts-module
+// Version : 1.4.0
+// Latest commit: feature/identity-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using TeamSamsara.Modules.Alert;
 using TeamSamsara.Modules.Assets;
+using TeamSamsara.Modules.Identity;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
@@ -87,7 +88,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     }
 });
 
-var modules = new List<IModule> { new PingPongModule(), new AssetsModule(), new AlertModule() };
+var modules = new List<IModule>
+{
+    new PingPongModule(),
+    new AssetsModule(),
+    new AlertModule(),
+    new IdentityModule()
+};
 
 foreach (var module in modules)
 {
