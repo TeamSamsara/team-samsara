@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.5.0
+// Version : 1.5.1
 // Latest commit: feature/identity-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
@@ -82,6 +82,13 @@ var trustedProxyNetworks = new[]
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // Behind Render the client is the visitor Cloudflare saw. X-Forwarded-For ends with
+    // Cloudflare's edge and Render's own private hop, so reading its last entry would
+    // return that internal hop instead of the visitor. CF-Connecting-IP holds only the
+    // visitor's address and is set by Cloudflare itself. It is honored solely when the
+    // immediate peer is a trusted private proxy, and ignored when absent (local dev).
+    options.ForwardedForHeaderName = "CF-Connecting-IP";
 
     foreach (var (prefix, prefixLength) in trustedProxyNetworks)
     {
