@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/AuthenticationEndpoints.cs
-// Version : 1.0.0
+// Version : 1.1.0
 // Latest commit: feature/identity-module
 // Author : Gerrah
 // Purpose : HTTP endpoints for logging in: check (verifies a recognized sign-in or sends the
@@ -25,6 +25,7 @@ public static class AuthenticationEndpoints
         routes.MapPost(IdentityRoutes.LoginCheck, CheckAsync);
         routes.MapPost(IdentityRoutes.LoginConfirm, ConfirmAsync);
         routes.MapPost(IdentityRoutes.LoginResend, ResendAsync);
+        routes.MapGet(IdentityRoutes.Me, GetMe);
     }
 
     #endregion
@@ -87,6 +88,18 @@ public static class AuthenticationEndpoints
         var result = await authentication.ResendChallengeAsync(context.UserId, cancellationToken);
 
         return Results.Json(result, statusCode: IdentityStatusCodes.For(result.Status));
+    }
+
+    // Reports who the API considers the caller to be: the effective access level, so a
+    // member whose sign-in is not verified yet shows up as a Guest
+    private static IResult GetMe(ICurrentUserContext context)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        return Results.Ok(new AccountSummary(context.UserId, context.AccessLevel));
     }
 
     #endregion
