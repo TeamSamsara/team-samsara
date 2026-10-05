@@ -25,8 +25,8 @@ public class AuthenticationServiceTests
     private const string Email = "member@example.com";
     private const long AuthTime = 1_700_000_000;
 
-    private static readonly ClientInfo KnownClient = new("203.0.113.7", "TestBrowser", "fingerprint-a");
-    private static readonly ClientInfo NewClient = new("198.51.100.9", "OtherBrowser", "fingerprint-b");
+    private static readonly ClientInfo _knownClient = new("203.0.113.7", "TestBrowser", "fingerprint-a");
+    private static readonly ClientInfo _newClient = new("198.51.100.9", "OtherBrowser", "fingerprint-b");
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryVerificationCodeStore _codes = new();
@@ -63,7 +63,7 @@ public class AuthenticationServiceTests
             NullLogger<AuthenticationService>.Instance);
 
         _accounts.AddAccount(UserId, Email);
-        _guardDog.Current = KnownClient;
+        _guardDog.Current = _knownClient;
     }
 
     #endregion
@@ -91,7 +91,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Check_FromARecognizedClient_VerifiesTheSignIn_WithoutAnyEmail()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
+        _users.Seed(NewMemberWhoKnows(_knownClient));
 
         var result = await _service.CheckSignInAsync(UserId, AuthTime);
 
@@ -103,8 +103,8 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Check_FromAnUnrecognizedClient_RequiresAChallenge_AndTellsTheMember()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
 
         var result = await _service.CheckSignInAsync(UserId, AuthTime);
 
@@ -118,15 +118,15 @@ public class AuthenticationServiceTests
         var notice = _alerts.Sent[1];
         notice.Type.ShouldBe(AlertType.NewLoginAttempt);
         notice.To.ShouldBe(Email);
-        notice.TemplateData[AlertTemplateKeys.IpAddress].ShouldBe(NewClient.IpAddress);
-        notice.TemplateData[AlertTemplateKeys.UserAgent].ShouldBe(NewClient.UserAgent);
+        notice.TemplateData[AlertTemplateKeys.IpAddress].ShouldBe(_newClient.IpAddress);
+        notice.TemplateData[AlertTemplateKeys.UserAgent].ShouldBe(_newClient.UserAgent);
     }
 
     [Fact]
     public async Task Check_AgainDuringTheCooldown_StillChallenges_WithoutAnotherEmail()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
         await _service.CheckSignInAsync(UserId, AuthTime);
 
         var second = await _service.CheckSignInAsync(UserId, AuthTime);
@@ -139,8 +139,8 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Check_WhenTheNewLoginNoticeFails_StillChallenges()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
         _alerts.FailingTypes.Add(AlertType.NewLoginAttempt);
 
         var result = await _service.CheckSignInAsync(UserId, AuthTime);
@@ -152,8 +152,8 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Confirm_WithTheRightCode_VerifiesTheSignIn_AndRemembersTheClient()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
         await _service.CheckSignInAsync(UserId, AuthTime);
 
         var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, _alerts.LastCode);
@@ -163,14 +163,14 @@ public class AuthenticationServiceTests
 
         var user = await _users.GetByIdAsync(UserId);
         user.ShouldNotBeNull();
-        user.KnownFingerprints.ShouldContain(known => known.Hash == NewClient.Fingerprint);
+        user.KnownFingerprints.ShouldContain(known => known.Hash == _newClient.Fingerprint);
     }
 
     [Fact]
     public async Task Confirm_WithAWrongCode_DoesNotVerify()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
         await _service.CheckSignInAsync(UserId, AuthTime);
 
         var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, "not-the-code");
@@ -182,7 +182,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Confirm_WithoutAChallenge_ReportsNoPendingCode()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
+        _users.Seed(NewMemberWhoKnows(_knownClient));
 
         var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, "123456");
 
@@ -192,8 +192,8 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task Resend_DuringTheCooldown_ReportsCooldown_AfterwardsSendsAnotherCode_WithoutAnotherNotice()
     {
-        _users.Seed(NewMemberWhoKnows(KnownClient));
-        _guardDog.Current = NewClient;
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
         await _service.CheckSignInAsync(UserId, AuthTime);
 
         var early = await _service.ResendChallengeAsync(UserId);
@@ -210,7 +210,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task ADeletedAccount_WithinTheRecoveryWindow_IsChallengedEvenFromAKnownClient_ThenRestored()
     {
-        var user = NewMemberWhoKnows(KnownClient);
+        var user = NewMemberWhoKnows(_knownClient);
         user.DeletedAt = _clock.UtcNow.AddDays(-5);
         _users.Seed(user);
 
@@ -226,7 +226,7 @@ public class AuthenticationServiceTests
     [Fact]
     public async Task ADeletedAccount_PastTheRecoveryWindow_CannotSignInAtAll()
     {
-        var user = NewMemberWhoKnows(KnownClient);
+        var user = NewMemberWhoKnows(_knownClient);
         user.DeletedAt = _clock.UtcNow.AddDays(-(_settings.RecoveryWindowDays + 1));
         _users.Seed(user);
 
