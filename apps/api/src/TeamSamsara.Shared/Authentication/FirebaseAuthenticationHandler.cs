@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Authentication/FirebaseAuthenticationHandler.cs
-// Version : 1.1.1
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feature/identity-profile
 // Author : Gerrah
 // Purpose : Provides Firebase ID token authentication for incoming API requests. A token
 // claiming Member (or Admin) is only honored as such when its sign-in has been verified
@@ -67,9 +67,9 @@ public class FirebaseAuthenticationHandler
                 await FirebaseAuth.DefaultInstance.VerifyIdTokenAsync(idToken);
 
             var authTime = ReadAuthTime(decodedToken);
-            var accessLevel = await ResolveAccessLevelAsync(decodedToken, authTime);
+            var (accessLevel, authState) = await ResolveCallerAsync(decodedToken, authTime);
 
-            PopulateContext(decodedToken.Uid, accessLevel, authTime);
+            PopulateContext(decodedToken.Uid, accessLevel, authState, authTime);
 
             return AuthenticateResult.Success(BuildTicket(decodedToken.Uid));
         }
@@ -117,9 +117,10 @@ public class FirebaseAuthenticationHandler
             : null;
     }
 
-    // The access level the caller may actually use: the claimed one, but only if their
-    // sign-in is verified. Guests need no verification.
-    private async Task<AccessLevel> ResolveAccessLevelAsync(
+    // The access level the caller may actually use and why: the claimed level, but only if
+    // their sign-in is verified. No claim means registration was never confirmed; a claim with
+    // an unverified sign-in means a verification step is still pending.
+    private async Task<(AccessLevel AccessLevel, AuthState AuthState)> ResolveCallerAsync(
         FirebaseToken decodedToken,
         long? authTime)
     {
@@ -127,12 +128,14 @@ public class FirebaseAuthenticationHandler
 
         if (claimed == AccessLevel.Guest)
         {
-            return AccessLevel.Guest;
+            return (AccessLevel.Guest, AuthState.RegistrationIncomplete);
         }
 
         var verified = await IsSignInVerifiedAsync(decodedToken.Uid, authTime);
 
-        return verified ? claimed : AccessLevel.Guest;
+        return verified
+            ? (claimed, AuthState.Member)
+            : (AccessLevel.Guest, AuthState.VerificationRequired);
     }
 
     // The access level written on the token, or Guest if absent or unreadable.
@@ -171,7 +174,11 @@ public class FirebaseAuthenticationHandler
     }
 
     // Records who is calling on the scoped context the rest of the request reads from.
-    private void PopulateContext(string userId, AccessLevel accessLevel, long? authTime)
+    private void PopulateContext(
+        string userId,
+        AccessLevel accessLevel,
+        AuthState authState,
+        long? authTime)
     {
         if (_currentUserContext is not CurrentUserContext mutableContext)
         {
@@ -181,6 +188,7 @@ public class FirebaseAuthenticationHandler
         mutableContext.IsAuthenticated = true;
         mutableContext.UserId = userId;
         mutableContext.AccessLevel = accessLevel;
+        mutableContext.AuthState = authState;
         mutableContext.AuthTime = authTime;
     }
 
