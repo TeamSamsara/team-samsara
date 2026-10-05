@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.4.0
+// Version : 1.4.1
 // Latest commit: feature/identity-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
@@ -107,13 +107,24 @@ var app = builder.Build();
 
 if (FirebaseApp.DefaultInstance is null)
 {
+    // The project id is required to verify ID tokens (the audience must match it).
+    var firebaseProjectId = app.Configuration["Firestore:ProjectId"];
+
     if (app.Environment.IsDevelopment())
     {
-        FirebaseApp.Create(new AppOptions { Credential = GoogleCredential.FromAccessToken("owner") });
+        FirebaseApp.Create(new AppOptions
+        {
+            Credential = GoogleCredential.FromAccessToken("owner"),
+            ProjectId = firebaseProjectId
+        });
     }
     else
     {
-        FirebaseApp.Create(new AppOptions { Credential = GoogleCredentialProvider.TryGetFromEnvironment() });
+        FirebaseApp.Create(new AppOptions
+        {
+            Credential = GoogleCredentialProvider.TryGetFromEnvironment(),
+            ProjectId = firebaseProjectId
+        });
     }
 }
 
