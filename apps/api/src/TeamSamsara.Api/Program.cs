@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.5.1
+// Version : 1.5.2
 // Latest commit: feature/identity-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
@@ -155,6 +155,27 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// TEMPORARY DIAGNOSTIC (remove once the client IP behind Render is confirmed): logs the
+// peer address and the raw forwarding headers, before UseForwardedHeaders rewrites them.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/account"))
+    {
+        app.Logger.LogWarning(
+            "IPDIAG peer={Peer} xff={Xff} cf={Cf} trueClient={TrueClient} realIp={RealIp} forwarded={Forwarded} proto={Proto}",
+            context.Connection.RemoteIpAddress,
+            context.Request.Headers["X-Forwarded-For"].ToString(),
+            context.Request.Headers["CF-Connecting-IP"].ToString(),
+            context.Request.Headers["True-Client-IP"].ToString(),
+            context.Request.Headers["X-Real-IP"].ToString(),
+            context.Request.Headers["Forwarded"].ToString(),
+            context.Request.Headers["X-Forwarded-Proto"].ToString());
+    }
+
+    await next();
+});
+
 app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
