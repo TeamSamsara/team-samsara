@@ -346,9 +346,10 @@ All three must be clean, and CI must pass on the pull request. Nothing is merged
 
 ### Merging and cleanup
 
-- Every merge goes through a pull request and is merged from the CLI with `gh pr merge`.
+- Every merge goes through a pull request. `main` and `dev` are protected: no direct pushes, no force pushes, no deletion, and the `backend` and `frontend` CI checks must pass before anything merges. The rules apply to admins too.
+- Merge from the CLI with `gh pr merge --auto`: GitHub waits for CI to pass and then merges, so there is no need to watch the checks.
 - Features, tasks and fixes use **squash**: each completed piece becomes one clean commit.
-- Merged branches are deleted automatically (the repository deletes the head branch after merge, and `--delete-branch` also removes the local copy).
+- Merged branches are deleted on GitHub automatically. After the merge, update `dev` and delete the local branch with `git checkout dev`, `git pull` and `git branch -D <branch>`.
 - In Windows PowerShell an empty argument is dropped, so merge commands pass a single space as the body (`--body " "`).
 
 ### Promoting staging to production (`main`)
