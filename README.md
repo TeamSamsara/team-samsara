@@ -264,7 +264,7 @@ git push -u origin feature/<slug>
 
 gh pr create --base dev --title "feat(<scope>): <summary>" --body-file pr.md
 gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body ""
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
 
 git checkout dev
 git pull
@@ -292,9 +292,9 @@ git pull
 git checkout -b task/<implementation>-<piece>
 # build and commit
 git push -u origin task/<implementation>-<piece>
-gh pr create --base feature/<implementation> --title "feat(<scope>): <piece>" --body ""
+gh pr create --base feature/<implementation> --title "feat(<scope>): <piece>" --body "<what this piece does>"
 gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <piece>" --body ""
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <piece>" --body " "
 
 # keep it current whenever dev changes
 git checkout feature/<implementation>
@@ -308,7 +308,7 @@ dotnet build apps/api/TeamSamsara.sln
 dotnet test apps/api/TeamSamsara.sln
 gh pr ready
 gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body ""
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
 ```
 
 Rules:
@@ -349,15 +349,16 @@ All three must be clean, and CI must pass on the pull request. Nothing is merged
 - Every merge goes through a pull request and is merged from the CLI with `gh pr merge`.
 - Features, tasks and fixes use **squash**: each completed piece becomes one clean commit.
 - Merged branches are deleted automatically (the repository deletes the head branch after merge, and `--delete-branch` also removes the local copy).
+- In Windows PowerShell an empty argument is dropped, so merge commands pass a single space as the body (`--body " "`).
 
 ### Promoting staging to production (`main`)
 
 Staging is `dev` deployed by Render. Once the whole of `dev` is verified on Staging, promote it with a regular merge, **not** a squash:
 
 ```bash
-gh pr create --base main --head dev --title "release: <summary>" --body ""
+gh pr create --base main --head dev --title "release: <summary>" --body-file pr.md
 gh pr checks --watch
-gh pr merge --merge --subject "release: <summary>" --body ""
+gh pr merge --merge --subject "release: <summary>" --body " "
 ```
 
 Never add `--delete-branch` here: `dev` is a long-lived branch. A squash would collapse every feature already squashed into `dev` into one undifferentiated commit and destroy the history of what shipped in each release. Rebuild and retest after this merge too.
