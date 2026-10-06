@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feature/identity-profile
 // Author : Gerrah
 // Purpose : Route paths of the Identity module's endpoints, shared between the endpoint
 // classes and their tests.
@@ -22,6 +22,11 @@ public static class IdentityRoutes
     public const string LoginResend = "/login/resend";
 
     public const string Me = "/me";
+
+    public const string ProfileGroup = "/profile";
+    public const string ProfileRoot = "/";
+    public const string ProfilePicture = "/picture";
+    public const string ProfileBanner = "/banner";
 
     #endregion
 }
