@@ -218,73 +218,154 @@ that has to stay private is stored as an asset.
 
 ## Git Workflow
 
+### Prerequisites
+
+Pull requests are created and merged from the terminal with the GitHub CLI:
+
+```bash
+winget install --id GitHub.cli -e
+gh auth login
+```
+
 ### Branches
 
 Two long-lived branches:
 
 - `main` - production. Only ever updated by promoting `dev` into it. Nothing branches directly from `main`.
-- `dev` - staging. Every feature branch merges here first; this is the active integration branch.
+- `dev` - staging and the next release. Everything merges here first, and only after it is tested.
 
-Create feature branches from an up-to-date `dev`, never from `main`:
+Short-lived branches, always created from an up-to-date `dev` (or from an integration branch, see below):
+
+- `feature/<slug>` - a feature, or an integration branch for a multi-part implementation
+- `task/<implementation>-<piece>` - one piece of an implementation, merged into its integration branch
+- `fix/<slug>` - corrections to already-merged functionality
+
+Branch names cannot also be folders: `feature/identity` and `feature/identity/alerts` cannot exist together. That is why pieces use `task/`.
+
+### Choosing a path
+
+Before creating a branch, ask:
+
+> Is this an implementation made of two or more pieces that must be verified together before any of it reaches `dev`?
+
+- **No** - use a direct branch (below). This is the default for a single feature, a fix, or any piece that can land on `dev` alone and leave `dev` working.
+- **Yes** - use an integration branch (below).
+
+Write dependencies down in the sprint list before starting ("Item 2 depends on Item 1"). Work is merged in that order, so nobody has to guess what must land first.
+
+### Direct branch
 
 ```bash
 git checkout dev
 git pull
 git checkout -b feature/<slug>
-```
+# build and commit
+git push -u origin feature/<slug>
 
-Branch naming:
+gh pr create --base dev --title "feat(<scope>): <summary>" --body-file pr.md
+gh pr checks --watch
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
 
-- `feature/<slug>` - new functionality
-- `fix/<slug>` - corrections to already-merged functionality
-
-### Commits
-
-Use Conventional Commits:
-
-- `feat:` - new functionality
-- `fix:` - bug fixes
-- `chore:` - maintenance
-- `refactor:` - code restructuring without behavior changes
-- `test:` - tests
-
-### Promoting a feature to staging (`dev`)
-
-Before merging:
-
-```bash
+git checkout dev
+git pull
 dotnet build apps/api/TeamSamsara.sln
 dotnet test apps/api/TeamSamsara.sln
 ```
 
-The build and tests must be clean. No branch is merged with a failing build.
+If one direct branch depends on another, merge the first and start the second from the updated `dev`.
 
-Merge using squash merging, so each completed feature becomes one clean commit on `dev`:
+### Integration branch
+
+The integration branch proves the pieces work together before any of them reaches `dev`.
 
 ```bash
+# create it and open a draft PR so its state is visible from the start
 git checkout dev
-git merge --squash feature/<slug>
-git commit -m "..."
+git pull
+git checkout -b feature/<implementation>
+git push -u origin feature/<implementation>
+gh pr create --draft --base dev --title "feat(<scope>): <summary>" --body-file pr.md
+
+# for each piece
+git checkout feature/<implementation>
+git pull
+git checkout -b task/<implementation>-<piece>
+# build and commit
+git push -u origin task/<implementation>-<piece>
+gh pr create --base feature/<implementation> --title "feat(<scope>): <piece>" --body "<what this piece does>"
+gh pr checks --watch
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <piece>" --body " "
+
+# keep it current whenever dev changes
+git checkout feature/<implementation>
+git pull
+git fetch origin
+git merge origin/dev
+git push
+
+# finish, once every piece is in
+dotnet build apps/api/TeamSamsara.sln
+dotnet test apps/api/TeamSamsara.sln
+gh pr ready
+gh pr checks --watch
+gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
 ```
 
-After merging, rebuild and retest immediately. The combined result must also pass.
+Rules:
 
-Deferred branches may remain unmerged while other work continues. When merging multiple deferred branches, merge them one at a time and rebuild after each merge.
+- If piece B needs piece A, A merges into the integration branch first, then B branches from the updated integration branch.
+- Merge `dev` into the integration branch (never rebase, the branch is shared) whenever `dev` changes and before finishing.
+- Keep it short-lived: days, not months.
+- `dev` receives one commit for the whole implementation.
 
-Once CI and branch protection are enabled, these requirements move to GitHub pull requests and are enforced automatically.
+### Commits
+
+Use Conventional Commits, with the module or area as the scope:
+
+- `feat(<scope>):` - new functionality
+- `fix(<scope>):` - bug fixes
+- `chore(<scope>):` - maintenance
+- `refactor(<scope>):` - code restructuring without behavior changes
+- `test(<scope>):` - tests
+- `docs(<scope>):` - documentation
+- `release:` - promotes `dev` into `main` (no scope, the summary names the version or date)
+
+Examples of scopes: `identity`, `alerts`, `assets`, `api`, `shared`, `readme`.
+
+Commits inside a branch are working history and are squashed on merge. The pull request title is what stays on `dev`, so it must be a well-formed Conventional Commit.
+
+### Before opening a pull request
+
+```bash
+dotnet build apps/api/TeamSamsara.sln
+dotnet test apps/api/TeamSamsara.sln
+dotnet format apps/api/TeamSamsara.sln --verify-no-changes
+```
+
+All three must be clean, and CI must pass on the pull request. Nothing is merged with a failing build. After merging, update `dev`, rebuild and retest: the combined result must also pass.
+
+### Merging and cleanup
+
+- Every merge goes through a pull request and is merged from the CLI with `gh pr merge`.
+- Features, tasks and fixes use **squash**: each completed piece becomes one clean commit.
+- Merged branches are deleted automatically (the repository deletes the head branch after merge, and `--delete-branch` also removes the local copy).
+- In Windows PowerShell an empty argument is dropped, so merge commands pass a single space as the body (`--body " "`).
 
 ### Promoting staging to production (`main`)
 
-Once `dev` is verified stable, promote it to `main` using a regular merge, **not** a squash:
+Staging is `dev` deployed by Render. Once the whole of `dev` is verified on Staging, promote it with a regular merge, **not** a squash:
 
 ```bash
-git checkout main
-git pull
-git merge dev
-git push
+gh pr create --base main --head dev --title "release: <summary>" --body-file pr.md
+gh pr checks --watch
+gh pr merge --merge --subject "release: <summary>" --body " "
 ```
 
-Squashing here would collapse every feature already squashed into `dev` into one undifferentiated commit, destroying the ability to see what actually shipped in each release. A regular merge preserves that history on `main` exactly as it happened on `dev`. Rebuild and retest after this merge too, same as any other.
+Never add `--delete-branch` here: `dev` is a long-lived branch. A squash would collapse every feature already squashed into `dev` into one undifferentiated commit and destroy the history of what shipped in each release. Rebuild and retest after this merge too.
+
+`dev` is promoted as a unit. If one feature on `dev` fails verification, `main` waits until it is fixed (with a `fix/<slug>` branch) or reverted.
+
+Deferred branches may remain unmerged while other work continues. When merging multiple deferred branches, merge them one at a time and rebuild after each merge.
 
 ### Deployment triggers
 
