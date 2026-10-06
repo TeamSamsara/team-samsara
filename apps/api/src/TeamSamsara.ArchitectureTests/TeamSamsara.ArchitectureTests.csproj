@@ -27,6 +27,8 @@
     <ProjectReference Include="..\TeamSamsara.Modules.Catalog\TeamSamsara.Modules.Catalog.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.Orders\TeamSamsara.Modules.Orders.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.PingPong\TeamSamsara.Modules.PingPong.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Assets\TeamSamsara.Modules.Assets.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Alert\TeamSamsara.Modules.Alert.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/AuthenticationEndpoints.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feature/identity-profile
 // Author : Gerrah
 // Purpose : HTTP endpoints for logging in: check (verifies a recognized sign-in or sends the
 // new-device challenge), confirm the challenge code, and resend it. The caller is the
@@ -91,7 +91,8 @@ public static class AuthenticationEndpoints
     }
 
     // Reports who the API considers the caller to be: the effective access level, so a
-    // member whose sign-in is not verified yet shows up as a Guest
+    // member whose sign-in is not verified yet shows up as a Guest, and the auth state
+    // that says why
     private static IResult GetMe(ICurrentUserContext context)
     {
         if (context.UserId is null)
@@ -99,7 +100,7 @@ public static class AuthenticationEndpoints
             return Results.Unauthorized();
         }
 
-        return Results.Ok(new AccountSummary(context.UserId, context.AccessLevel));
+        return Results.Ok(new AccountSummary(context.UserId, context.AccessLevel, context.AuthState));
     }
 
     #endregion

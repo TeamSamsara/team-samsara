@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feature/identity-profile
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
 // endpoint requires a signed-in caller (any access level): registration is used by accounts
-// that are not yet members, and login checks run before a sign-in is verified.
+// that are not yet members, and login checks run before a sign-in is verified. The profile
+// endpoints are further limited to verified members.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -43,6 +44,7 @@ public class IdentityModule : IModule
 
         RegistrationEndpoints.Map(group);
         AuthenticationEndpoints.Map(group);
+        ProfileEndpoints.Map(group);
     }
 
     #endregion
@@ -55,6 +57,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<VerificationSettings>(configuration, VerificationSettings.SectionName);
         services.AddValidatedOptions<GuardDogSettings>(configuration, GuardDogSettings.SectionName);
         services.AddValidatedOptions<AuthenticationSettings>(configuration, AuthenticationSettings.SectionName);
+        services.AddValidatedOptions<ProfileSettings>(configuration, ProfileSettings.SectionName);
     }
 
     // Shared building blocks the module relies on. TryAdd leaves them alone if another
@@ -85,6 +88,7 @@ public class IdentityModule : IModule
         services.AddScoped<IVerificationCodeService, VerificationCodeService>();
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<IProfileService, ProfileService>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());

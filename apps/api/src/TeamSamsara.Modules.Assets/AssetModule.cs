@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsModule.cs
-// Version : 2.0.0
-// Latest commit: feature/asset-storage-routing
+// Version : 2.1.0
+// Latest commit: feature/identity-profile
 // Author : Gerrah
 // Purpose : Registers the Assets module's services and HTTP endpoints.
 
@@ -15,6 +15,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TeamSamsara.Modules.Assets.Models;
 using TeamSamsara.Modules.Assets.Repositories;
 using TeamSamsara.Modules.Assets.Services;
+using TeamSamsara.Shared.Assets;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Http;
 using TeamSamsara.Shared.Modules;
@@ -29,10 +30,12 @@ public class AssetsModule : IModule
     {
         services.AddValidatedOptions<AssetsPipelineSettings>(configuration, AssetsPipelineSettings.SectionName);
         services.AddValidatedOptions<AssetStorageRoutingSettings>(configuration, AssetStorageRoutingSettings.SectionName);
+        services.AddValidatedOptions<MemberImageSettings>(configuration, MemberImageSettings.SectionName);
 
         services.AddScoped<IAssetMetadataStore, FirestoreAssetMetadataStore>();
         services.AddScoped<IAssetStorageService, AssetStorageService>();
         services.AddScoped<AssetService>();
+        services.AddScoped<IMemberImageService, MemberImageService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
