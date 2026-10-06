@@ -218,6 +218,8 @@ that has to stay private is stored as an asset.
 
 ## Git Workflow
 
+Replace every `<...>` placeholder before running a command.
+
 ### Prerequisites
 
 Pull requests are created and merged from the terminal with the GitHub CLI:
@@ -263,11 +265,12 @@ git checkout -b feature/<slug>
 git push -u origin feature/<slug>
 
 gh pr create --base dev --title "feat(<scope>): <summary>" --body-file pr.md
-gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
+gh pr merge --squash --auto
 
+# once it has merged
 git checkout dev
 git pull
+git branch -D feature/<slug>
 dotnet build apps/api/TeamSamsara.sln
 dotnet test apps/api/TeamSamsara.sln
 ```
@@ -293,12 +296,14 @@ git checkout -b task/<implementation>-<piece>
 # build and commit
 git push -u origin task/<implementation>-<piece>
 gh pr create --base feature/<implementation> --title "feat(<scope>): <piece>" --body "<what this piece does>"
-gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <piece>" --body " "
+gh pr merge --squash --auto
 
-# keep it current whenever dev changes
+# once the piece has merged
 git checkout feature/<implementation>
 git pull
+git branch -D task/<implementation>-<piece>
+
+# keep it current whenever dev changes
 git fetch origin
 git merge origin/dev
 git push
@@ -307,8 +312,12 @@ git push
 dotnet build apps/api/TeamSamsara.sln
 dotnet test apps/api/TeamSamsara.sln
 gh pr ready
-gh pr checks --watch
-gh pr merge --squash --delete-branch --subject "feat(<scope>): <summary>" --body " "
+gh pr merge --squash --auto
+
+# once it has merged
+git checkout dev
+git pull
+git branch -D feature/<implementation>
 ```
 
 Rules:
@@ -347,10 +356,10 @@ All three must be clean, and CI must pass on the pull request. Nothing is merged
 ### Merging and cleanup
 
 - Every merge goes through a pull request. `main` and `dev` are protected: no direct pushes, no force pushes, no deletion, and the `backend` and `frontend` CI checks must pass before anything merges. The rules apply to admins too.
-- Merge from the CLI with `gh pr merge --auto`: GitHub waits for CI to pass and then merges, so there is no need to watch the checks.
+- Merge from the CLI with `gh pr merge --squash --auto`, right after `gh pr create` and from the same branch: GitHub waits for CI to pass and then merges, so there is no need to watch the checks.
 - Features, tasks and fixes use **squash**: each completed piece becomes one clean commit.
+- The pull request title becomes the commit on `dev`, so it must be a well-formed Conventional Commit. The repository builds the squash commit from the PR title, adds the PR number, and leaves the body empty. History on `dev` cannot be rewritten, so a wrong title stays.
 - Merged branches are deleted on GitHub automatically. After the merge, update `dev` and delete the local branch with `git checkout dev`, `git pull` and `git branch -D <branch>`.
-- In Windows PowerShell an empty argument is dropped, so merge commands pass a single space as the body (`--body " "`).
 
 ### Promoting staging to production (`main`)
 
@@ -358,11 +367,12 @@ Staging is `dev` deployed by Render. Once the whole of `dev` is verified on Stag
 
 ```bash
 gh pr create --base main --head dev --title "release: <summary>" --body-file pr.md
-gh pr checks --watch
-gh pr merge --merge --subject "release: <summary>" --body " "
+gh pr merge --merge --auto --subject "release: <summary>" --body " "
 ```
 
-Never add `--delete-branch` here: `dev` is a long-lived branch. A squash would collapse every feature already squashed into `dev` into one undifferentiated commit and destroy the history of what shipped in each release. Rebuild and retest after this merge too.
+A regular merge does not use the PR title by default, so the subject is set explicitly. In Windows PowerShell an empty argument is dropped, so the body is a single space.
+
+`dev` is a long-lived branch and is protected from deletion. A squash would collapse every feature already squashed into `dev` into one undifferentiated commit and destroy the history of what shipped in each release. Rebuild and retest after this merge too.
 
 `dev` is promoted as a unit. If one feature on `dev` fails verification, `main` waits until it is fixed (with a `fix/<slug>` branch) or reverted.
 
