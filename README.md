@@ -100,6 +100,122 @@ frontend can reach it: `http://localhost:5173/ping` should render `pong`.
 
 A `scripts/bootstrap.ps1` / `.sh` script may be added once the manual setup process is stable and documented.
 
+## API Endpoints
+
+This is the human summary. The machine-readable contract is the OpenAPI document at
+`/openapi/v1.json`, which is also what `npm run generate-types` reads.
+
+### Conventions
+
+- **Authentication:** a Firebase ID token in `Authorization: Bearer <token>`.
+- **JSON:** camelCase property names, and enums as camelCase strings (`"accessLevel": "member"`).
+- **Codes are strings:** a verification code is sent as a JSON string (`"code": "123456"`), never a
+  number - a number fails binding and answers `400` with an empty body.
+- **Outcome in the body:** the flow endpoints answer with a `status` in the body as well as an HTTP
+  status code, so a client reacts to the exact reason rather than to the code alone.
+
+### Who can call what
+
+| Access          | Meaning                                                                |
+| --------------- | ---------------------------------------------------------------------- |
+| Public          | No token needed                                                        |
+| API key         | `X-Api-Key` header, for CMS pipelines                                  |
+| Signed in       | A valid token, even if registration or the sign-in is not finished yet |
+| Verified member | A valid token whose sign-in is verified                                |
+
+A caller is always in one of four states, and `401` versus `403` tells them apart:
+
+| `authState`              | Who they are                                                                                    | On a verified-member endpoint |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| `anonymous`              | No token, or an invalid one - we do not know who they are                                       | `401`                         |
+| `registrationIncomplete` | Known account, email never confirmed                                                            | `403`                         |
+| `verificationRequired`   | Known account, but this sign-in is not verified (for example a new-device challenge is pending) | `403`                         |
+| `member`                 | Known account, verified sign-in                                                                 | allowed                       |
+
+`401` means _we do not know who you are_. `403` means _we know who you are, but you cannot do this
+yet_, and its body says why: `{"authState": "verificationRequired"}`. `GET /account/me` reports the
+same field, so a client can route the person to the right screen (confirm the registration code,
+or the new-device code) instead of guessing. An admin is reported as `member` here, since the field
+only describes whether the sign-in is verified; `accessLevel` carries `member` or `admin`.
+
+### Account (`/account`) - signed in
+
+| Method | Path                        | Does                                                                  | Answers                                     |
+| ------ | --------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/register`         | Records the account as a Guest and emails the first confirmation code | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/register/resend`  | Emails a fresh confirmation code                                      | same                                        |
+| `POST` | `/account/register/confirm` | Checks `{"code"}` and completes registration                          | `status`                                    |
+| `POST` | `/account/login/check`      | Verifies a recognized sign-in, or emails the new-device code          | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/login/confirm`    | Checks `{"code"}` and verifies the sign-in                            | `status`                                    |
+| `POST` | `/account/login/resend`     | Emails a fresh new-device code                                        | `status`, `codeLength`, `retryAfterSeconds` |
+| `GET`  | `/account/me`               | Who the API considers the caller to be                                | `userId`, `accessLevel`, `authState`        |
+
+HTTP status per outcome:
+
+| Outcome (`status`)                              | HTTP  |
+| ----------------------------------------------- | ----- |
+| `success`, `authenticated`, `challengeRequired` | `200` |
+| `invalidCode`, `codeExpired`, `noPendingCode`   | `400` |
+| `registrationIncomplete`                        | `403` |
+| `accountNotFound`                               | `404` |
+| `alreadyRegistered`                             | `409` |
+| `cooldownActive`, `tooManyAttempts`             | `429` |
+
+### Profile (`/account/profile`) - verified member
+
+A member can only reach their own profile. Every call answers
+`{"status": "...", "profile": {...}}`, with `profile` set only on success, so the client never needs
+a second request after an edit.
+
+| Method   | Path                       | Does                                                       |
+| -------- | -------------------------- | ---------------------------------------------------------- |
+| `GET`    | `/account/profile`         | Returns the profile                                        |
+| `PUT`    | `/account/profile`         | Replaces `{"displayName", "bio"}`; a blank `bio` clears it |
+| `PUT`    | `/account/profile/picture` | Sets the profile picture (multipart, field `file`)         |
+| `DELETE` | `/account/profile/picture` | Removes the profile picture                                |
+| `PUT`    | `/account/profile/banner`  | Sets the banner (multipart, field `file`)                  |
+| `DELETE` | `/account/profile/banner`  | Removes the banner                                         |
+
+The profile holds `displayName`, `bio`, `profilePictureAssetId` and `bannerAssetId`. Images are
+asset ids - the client builds the address from `GET /assets/{id}/file`.
+
+Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
+
+| Rule                      | Default                                                                     | Refused with                 |
+| ------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| Display name              | 1-50 visible characters after trimming, no control characters               | `400` `invalidDisplayName`   |
+| Bio                       | at most 300 visible characters, line breaks allowed                         | `400` `invalidBio`           |
+| Image format              | PNG, JPEG or WebP, checked on the file's real bytes, not its `Content-Type` | `415` `imageUnsupportedType` |
+| Picture size              | at most 2 MB                                                                | `413` `imageTooLarge`        |
+| Banner size               | at most 5 MB                                                                | `413` `imageTooLarge`        |
+| No profile for the member | -                                                                           | `404` `profileNotFound`      |
+
+Text is stored exactly as typed. It is not HTML-cleaned, so the frontend must always render it as
+text, never as raw HTML. Replacing an image deletes the one it replaces.
+
+### Assets (`/assets`)
+
+| Method   | Path                | Access  | Does                                                                  |
+| -------- | ------------------- | ------- | --------------------------------------------------------------------- |
+| `GET`    | `/assets`           | Public  | Lists assets, optionally `?type=Image\|Video\|File`                   |
+| `GET`    | `/assets/{id}`      | Public  | Returns an asset's metadata                                           |
+| `GET`    | `/assets/{id}/file` | Public  | Returns the file: streamed for images and files, redirected for video |
+| `POST`   | `/assets`           | API key | Uploads a file (multipart: `file`, `alt`)                             |
+| `DELETE` | `/assets/{id}`      | API key | Deletes an asset and its stored file                                  |
+
+Member profile images are stored as assets too, so they appear in `GET /assets` and can be fetched
+by id like any other image. They are meant to be shown publicly. This must change before any image
+that has to stay private is stored as an asset.
+
+### Health and utility
+
+| Method | Path            | Access    | Does                                                       |
+| ------ | --------------- | --------- | ---------------------------------------------------------- |
+| `GET`  | `/health/live`  | Public    | The process is running                                     |
+| `GET`  | `/health/ready` | Public    | Dependencies are reachable (`Healthy`)                     |
+| `GET`  | `/ping`         | Public    | Answers `pong`; used to check the frontend reaches the API |
+| `GET`  | `/ping/secure`  | Signed in | `401` without a token                                      |
+
 ## Git Workflow
 
 ### Branches
