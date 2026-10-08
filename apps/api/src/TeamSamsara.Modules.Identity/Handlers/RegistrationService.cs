@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/RegistrationService.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.0.1
+// Latest commit: fix/neutral-default-display-name
 // Author : Gerrah
 // Purpose : Default IRegistrationService. Registration is complete only when the User record
 // is flipped to Member, which is deliberately the last step so a partial failure leaves the
@@ -16,8 +16,7 @@ public class RegistrationService : IRegistrationService
 {
     #region Fields
 
-    private const string DefaultDisplayName = "Member";
-    private const char EmailSeparator = '@';
+    private const string NeutralDisplayName = "Member";
 
     private readonly IUserStore _users;
     private readonly IProfileStore _profiles;
@@ -122,7 +121,7 @@ public class RegistrationService : IRegistrationService
             return ToFailureStatus(verification);
         }
 
-        await PromoteToMemberAsync(user, email);
+        await PromoteToMemberAsync(user);
 
         return RegistrationStatus.Success;
     }
@@ -164,9 +163,9 @@ public class RegistrationService : IRegistrationService
 
     // Completes registration. The User record flips to Member LAST: everything before it can
     // be safely repeated, so a failure partway leaves a Guest who can confirm again.
-    private async Task PromoteToMemberAsync(User user, string email)
+    private async Task PromoteToMemberAsync(User user)
     {
-        await EnsureProfileAsync(user.Id, email);
+        await EnsureProfileAsync(user.Id);
 
         await _accounts.SetAccessLevelAsync(user.Id, AccessLevel.Member);
 
@@ -176,8 +175,10 @@ public class RegistrationService : IRegistrationService
         await _users.UpdateAsync(user);
     }
 
-    // Creates the member's profile unless an earlier, partly failed attempt already did
-    private async Task EnsureProfileAsync(string userId, string email)
+    // Creates the member's profile unless an earlier, partly failed attempt already did. It starts
+    // with a neutral name, never one taken from the email, since profiles are visible to others;
+    // the member can change it during onboarding.
+    private async Task EnsureProfileAsync(string userId)
     {
         if (await _profiles.GetByIdAsync(userId) is not null)
         {
@@ -187,16 +188,8 @@ public class RegistrationService : IRegistrationService
         await _profiles.CreateAsync(new Profile
         {
             Id = userId,
-            DisplayName = BuildDefaultDisplayName(email)
+            DisplayName = NeutralDisplayName
         });
-    }
-
-    // The part of the email before the '@', which the member can change during onboarding
-    private static string BuildDefaultDisplayName(string email)
-    {
-        var localPart = email.Split(EmailSeparator)[0];
-
-        return string.IsNullOrWhiteSpace(localPart) ? DefaultDisplayName : localPart;
     }
 
     // Translates a failed code check into a registration outcome
