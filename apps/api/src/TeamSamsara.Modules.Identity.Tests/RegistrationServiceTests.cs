@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/RegistrationServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/neutral-default-display-name
 // Author : Gerrah
 // Purpose : Proves registration: a new account becomes a Guest and gets a code; the right code
 // makes a Member with a Profile; wrong or missing codes change nothing; and a failure partway
@@ -21,7 +21,9 @@ public class RegistrationServiceTests
     #region Fields
 
     private const string UserId = "user-1";
-    private const string Email = "member@example.com";
+    private const string Email = "jane.doe@example.com";
+    private const string EmailLocalPart = "jane.doe";
+    private const string NeutralDisplayName = "Member";
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryProfileStore _profiles = new();
@@ -140,7 +142,18 @@ public class RegistrationServiceTests
 
         var profile = await _profiles.GetByIdAsync(UserId);
         profile.ShouldNotBeNull();
-        profile.DisplayName.ShouldBe("member");
+        profile.DisplayName.ShouldBe(NeutralDisplayName);
+    }
+
+    [Fact]
+    public async Task Confirm_NeverPutsAnyPartOfTheEmailInTheProfile()
+    {
+        await _service.StartAsync(UserId);
+
+        await _service.ConfirmAsync(UserId, _alerts.LastCode);
+
+        var profile = (await _profiles.GetByIdAsync(UserId)).ShouldNotBeNull();
+        profile.DisplayName.ShouldNotContain(EmailLocalPart, Case.Insensitive);
     }
 
     [Fact]
