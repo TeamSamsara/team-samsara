@@ -1,6 +1,6 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/ProfileService.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: fix/profile-atomic-update
 // Author: Gerrah
 //
 // Purpose: Default IProfileService: validates profile text and keeps images and profile in step.
@@ -58,13 +58,6 @@ public class ProfileService : IProfileService
     // Replaces the display name and bio once both pass validation
     public async Task<ProfileResult> UpdateAsync(string userId, UpdateProfileRequest request)
     {
-        var profile = await _profiles.GetByIdAsync(userId);
-
-        if (profile is null)
-        {
-            return Failure(ProfileStatus.ProfileNotFound);
-        }
-
         var displayName = request.DisplayName?.Trim();
 
         if (!IsValidDisplayName(displayName))
@@ -79,20 +72,20 @@ public class ProfileService : IProfileService
             return Failure(ProfileStatus.InvalidBio);
         }
 
-        profile.DisplayName = displayName;
-        profile.Bio = bio;
+        var profile = await _profiles.ModifyAsync(userId, current =>
+        {
+            current.DisplayName = displayName;
+            current.Bio = bio;
+        });
 
-        await _profiles.UpdateAsync(profile);
-
-        return Success(profile);
+        return profile is null ? Failure(ProfileStatus.ProfileNotFound) : Success(profile);
     }
 
     // Stores the image, points the profile at it, then removes the image it replaced
     public async Task<ProfileResult> SetImageAsync(string userId, MemberImageKind kind, Stream content)
     {
-        var profile = await _profiles.GetByIdAsync(userId);
-
-        if (profile is null)
+        // Checked first so an image is never stored for a member who has no profile
+        if (await _profiles.GetByIdAsync(userId) is null)
         {
             return Failure(ProfileStatus.ProfileNotFound);
         }
@@ -105,18 +98,29 @@ public class ProfileService : IProfileService
         }
 
         var newAssetId = stored.AssetId!;
-        var previousAssetId = GetImageId(profile, kind);
-
-        SetImageId(profile, kind, newAssetId);
+        string? previousAssetId = null;
+        Profile? profile;
 
         try
         {
-            await _profiles.UpdateAsync(profile);
+            profile = await _profiles.ModifyAsync(userId, current =>
+            {
+                previousAssetId = GetImageId(current, kind);
+                SetImageId(current, kind, newAssetId);
+            });
         }
         catch
         {
             await TryDeleteImageAsync(newAssetId);
             throw;
+        }
+
+        // The profile was removed while the image was being stored
+        if (profile is null)
+        {
+            await TryDeleteImageAsync(newAssetId);
+
+            return Failure(ProfileStatus.ProfileNotFound);
         }
 
         if (previousAssetId is not null)
@@ -130,24 +134,23 @@ public class ProfileService : IProfileService
     // Unlinks the image from the profile, then removes it. Clearing an empty slot succeeds.
     public async Task<ProfileResult> ClearImageAsync(string userId, MemberImageKind kind)
     {
-        var profile = await _profiles.GetByIdAsync(userId);
+        string? previousAssetId = null;
+
+        var profile = await _profiles.ModifyAsync(userId, current =>
+        {
+            previousAssetId = GetImageId(current, kind);
+            SetImageId(current, kind, null);
+        });
 
         if (profile is null)
         {
             return Failure(ProfileStatus.ProfileNotFound);
         }
 
-        var previousAssetId = GetImageId(profile, kind);
-
-        if (previousAssetId is null)
+        if (previousAssetId is not null)
         {
-            return Success(profile);
+            await TryDeleteImageAsync(previousAssetId);
         }
-
-        SetImageId(profile, kind, null);
-
-        await _profiles.UpdateAsync(profile);
-        await TryDeleteImageAsync(previousAssetId);
 
         return Success(profile);
     }

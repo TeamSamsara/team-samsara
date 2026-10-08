@@ -1,6 +1,6 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/FakeMemberImageService.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: fix/profile-atomic-update
 // Author: Gerrah
 //
 // Purpose: A member image service that hands out ids, tracks what is stored, and can be made to refuse or fail.
@@ -27,6 +27,9 @@ public class FakeMemberImageService : IMemberImageService
     // Makes DeleteAsync throw, as a failing storage backend would
     public bool FailDeletes { get; set; }
 
+    // Runs at the start of every StoreAsync call, to simulate something else changing while an upload is in flight
+    public Func<Task>? BeforeStore { get; set; }
+
     // The asset ids that are stored right now
     public IReadOnlyList<string> StoredAssetIds => _storedAssetIds;
 
@@ -37,17 +40,22 @@ public class FakeMemberImageService : IMemberImageService
 
     #region Public Methods
 
-    public Task<MemberImageResult> StoreAsync(MemberImageKind kind, Stream content)
+    public async Task<MemberImageResult> StoreAsync(MemberImageKind kind, Stream content)
     {
+        if (BeforeStore is not null)
+        {
+            await BeforeStore();
+        }
+
         if (NextStatus != MemberImageStatus.Success)
         {
-            return Task.FromResult(new MemberImageResult(NextStatus, null));
+            return new MemberImageResult(NextStatus, null);
         }
 
         var assetId = $"asset-{++_counter}";
         _storedAssetIds.Add(assetId);
 
-        return Task.FromResult(new MemberImageResult(MemberImageStatus.Success, assetId));
+        return new MemberImageResult(MemberImageStatus.Success, assetId);
     }
 
     public Task DeleteAsync(string assetId)
