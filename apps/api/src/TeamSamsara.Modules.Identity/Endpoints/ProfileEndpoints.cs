@@ -1,13 +1,12 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/ProfileEndpoints.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.0.1
+// Latest commit: fix/profile-guest-before-form
 // Author: Gerrah
 //
 // Purpose: HTTP endpoints for a member's own profile: read, edit name and bio, set or remove images.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using TeamSamsara.Modules.Identity.Handlers;
 using TeamSamsara.Modules.Identity.Models;
@@ -19,6 +18,12 @@ namespace TeamSamsara.Modules.Identity.Endpoints;
 
 public static class ProfileEndpoints
 {
+    #region Fields
+
+    private const string ImageFieldName = "file";
+
+    #endregion
+
     #region Public Methods
 
     // Maps the profile endpoints onto the given route group, open to verified members only
@@ -31,12 +36,10 @@ public static class ProfileEndpoints
         group.MapGet(IdentityRoutes.ProfileRoot, GetAsync);
         group.MapPut(IdentityRoutes.ProfileRoot, UpdateAsync);
 
-        // Callers authenticate with a bearer token, not a cookie, so there is no ambient
-        // credential for a forged form to use - antiforgery protection doesn't apply here.
-        group.MapPut(IdentityRoutes.ProfilePicture, SetPictureAsync).DisableAntiforgery();
+        group.MapPut(IdentityRoutes.ProfilePicture, SetPictureAsync);
         group.MapDelete(IdentityRoutes.ProfilePicture, ClearPictureAsync);
 
-        group.MapPut(IdentityRoutes.ProfileBanner, SetBannerAsync).DisableAntiforgery();
+        group.MapPut(IdentityRoutes.ProfileBanner, SetBannerAsync);
         group.MapDelete(IdentityRoutes.ProfileBanner, ClearBannerAsync);
     }
 
@@ -61,11 +64,11 @@ public static class ProfileEndpoints
 
     // Sets the caller's profile picture from an uploaded image
     private static Task<IResult> SetPictureAsync(
-        [FromForm] IFormFile file,
+        HttpRequest request,
         ICurrentUserContext context,
         IProfileService profiles)
     {
-        return SetImageAsync(MemberImageKind.ProfilePicture, file, context, profiles);
+        return SetImageAsync(MemberImageKind.ProfilePicture, request, context, profiles);
     }
 
     // Removes the caller's profile picture
@@ -76,11 +79,11 @@ public static class ProfileEndpoints
 
     // Sets the caller's banner from an uploaded image
     private static Task<IResult> SetBannerAsync(
-        [FromForm] IFormFile file,
+        HttpRequest request,
         ICurrentUserContext context,
         IProfileService profiles)
     {
-        return SetImageAsync(MemberImageKind.Banner, file, context, profiles);
+        return SetImageAsync(MemberImageKind.Banner, request, context, profiles);
     }
 
     // Removes the caller's banner
@@ -89,16 +92,44 @@ public static class ProfileEndpoints
         return RunAsync(context, userId => profiles.ClearImageAsync(userId, MemberImageKind.Banner));
     }
 
-    // Hands the uploaded file to the profile service as the caller's image of this kind
+    // Reads the uploaded file from the request and hands it to the profile service as the caller's
+    // image of this kind. The form is read here, not bound as a parameter, because binding happens
+    // before the member-only filter and would let non-members get a 400 instead of a 401 or 403.
     private static async Task<IResult> SetImageAsync(
         MemberImageKind kind,
-        IFormFile file,
+        HttpRequest request,
         ICurrentUserContext context,
         IProfileService profiles)
     {
+        var file = await ReadFileAsync(request);
+        if (file is null)
+        {
+            return Results.BadRequest();
+        }
+
         await using var content = file.OpenReadStream();
 
         return await RunAsync(context, userId => profiles.SetImageAsync(userId, kind, content));
+    }
+
+    // Returns the uploaded file, or null when the request is not a form or carries no such file
+    private static async Task<IFormFile?> ReadFileAsync(HttpRequest request)
+    {
+        if (!request.HasFormContentType)
+        {
+            return null;
+        }
+
+        try
+        {
+            var form = await request.ReadFormAsync();
+
+            return form.Files.GetFile(ImageFieldName);
+        }
+        catch (InvalidDataException)
+        {
+            return null;
+        }
     }
 
     // Runs a profile operation for the caller and answers with its outcome and status code
