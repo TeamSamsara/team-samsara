@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/InMemoryProfileStore.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/profile-atomic-update
 // Author : Gerrah
 // Purpose : An in-memory profile store.
 
@@ -34,11 +34,18 @@ public class InMemoryProfileStore : IProfileStore
         return Task.CompletedTask;
     }
 
-    public Task UpdateAsync(Profile profile)
+    public Task<Profile?> ModifyAsync(string id, Action<Profile> modify)
     {
-        _profiles[profile.Id] = Copy(profile);
+        if (!_profiles.TryGetValue(id, out var stored))
+        {
+            return Task.FromResult<Profile?>(null);
+        }
 
-        return Task.CompletedTask;
+        var profile = Copy(stored);
+        modify(profile);
+        _profiles[id] = Copy(profile);
+
+        return Task.FromResult<Profile?>(profile);
     }
 
     public Task DeleteAsync(string id)

@@ -1,6 +1,6 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/ThrowingProfileStore.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: fix/profile-atomic-update
 // Author: Gerrah
 //
 // Purpose: A profile store wrapper that can be made to fail saving, as a database outage would.
@@ -29,7 +29,7 @@ public class ThrowingProfileStore : IProfileStore
 
     #region Properties
 
-    // Makes UpdateAsync throw instead of saving
+    // Makes ModifyAsync throw instead of saving
     public bool FailUpdates { get; set; }
 
     #endregion
@@ -40,14 +40,14 @@ public class ThrowingProfileStore : IProfileStore
 
     public Task CreateAsync(Profile profile) => _inner.CreateAsync(profile);
 
-    public Task UpdateAsync(Profile profile)
+    public Task<Profile?> ModifyAsync(string id, Action<Profile> modify)
     {
         if (FailUpdates)
         {
             throw new InvalidOperationException("Update failed.");
         }
 
-        return _inner.UpdateAsync(profile);
+        return _inner.ModifyAsync(id, modify);
     }
 
     public Task DeleteAsync(string id) => _inner.DeleteAsync(id);
