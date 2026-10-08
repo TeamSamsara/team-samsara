@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/StorageServiceCollectionExtensions.cs
-// Version : 2.1.0
-// Latest commit: feature/asset-storage-routing
+// Version : 2.1.1
+// Latest commit: fix/storage-connection-string-null
 // Author : Gerrah
 // Purpose : Registers both Firebase- and Postgres-backed IStorageService implementations as
 // keyed services. Which one is actually used per asset type is decided by the Assets module,
@@ -71,7 +71,16 @@ public static class StorageServiceCollectionExtensions
     {
         var connectionString = configuration.GetConnectionString(StorageConnectionStrings.AssetsStorage);
 
-        services.AddSingleton(sp => NpgsqlDataSource.Create(connectionString));
+        services.AddSingleton(sp =>
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    $"ConnectionStrings:{StorageConnectionStrings.AssetsStorage} must be set to use Postgres-backed storage.");
+            }
+
+            return NpgsqlDataSource.Create(connectionString);
+        });
 
         services.AddKeyedSingleton<IStorageService>(StorageProvider.Postgres, (sp, _) =>
         {
