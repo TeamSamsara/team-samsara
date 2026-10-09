@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert.Tests/AlertSenderTests.cs
-// Version : 1.0.0
-// Latest commit: test/alert-module
+// Version : 1.1.0
+// Latest commit: feat/alert-password-notices
 // Author : Gerrah
 // Purpose : Proves each alert type turns into one email to the right recipient with its template
 // data filled in, that substituted values are HTML-encoded, and that an unknown type sends nothing.
@@ -60,18 +60,36 @@ public class AlertSenderTests
     [Fact]
     public async Task NewLoginAttempt_SendsOneEmailWithTheIpAddressAndDevice()
     {
-        var data = new Dictionary<string, string>
-        {
-            [AlertTemplateKeys.IpAddress] = Ip,
-            [AlertTemplateKeys.UserAgent] = Device
-        };
-
-        await _sender.SendAlertAsync(Recipient, AlertType.NewLoginAttempt, data);
+        await _sender.SendAlertAsync(Recipient, AlertType.NewLoginAttempt, ClientData());
 
         var sent = _email.Sent.ShouldHaveSingleItem();
         sent.To.ShouldBe(Recipient);
         sent.HtmlBody.ShouldContain(Ip);
         sent.HtmlBody.ShouldContain(Device);
+    }
+
+    [Fact]
+    public async Task PasswordResetRequested_SendsOneEmailWithTheIpAddressAndDevice()
+    {
+        await _sender.SendAlertAsync(Recipient, AlertType.PasswordResetRequested, ClientData());
+
+        var sent = _email.Sent.ShouldHaveSingleItem();
+        sent.To.ShouldBe(Recipient);
+        sent.Subject.ShouldNotBeNullOrWhiteSpace();
+        sent.HtmlBody.ShouldContain(Ip);
+        sent.HtmlBody.ShouldContain(Device);
+    }
+
+    [Fact]
+    public async Task PasswordChanged_SendsOneEmailWithoutAnyTemplateData()
+    {
+        await _sender.SendAlertAsync(
+            Recipient, AlertType.PasswordChanged, new Dictionary<string, string>());
+
+        var sent = _email.Sent.ShouldHaveSingleItem();
+        sent.To.ShouldBe(Recipient);
+        sent.Subject.ShouldNotBeNullOrWhiteSpace();
+        sent.HtmlBody.ShouldNotContain("{{");
     }
 
     [Fact]
@@ -84,6 +102,17 @@ public class AlertSenderTests
 
         _email.Sent.Count.ShouldBe(Enum.GetValues<AlertType>().Length);
         _email.Sent.ShouldAllBe(sent => sent.Subject.Length > 0 && sent.HtmlBody.Length > 0);
+    }
+
+    [Fact]
+    public async Task EveryAlertType_LeavesNoPlaceholderUnfilled()
+    {
+        foreach (var type in Enum.GetValues<AlertType>())
+        {
+            await _sender.SendAlertAsync(Recipient, type, AllData());
+        }
+
+        _email.Sent.ShouldAllBe(sent => !sent.HtmlBody.Contains("{{"));
     }
 
     [Fact]
@@ -139,6 +168,13 @@ public class AlertSenderTests
 
     private static Dictionary<string, string> CodeData() =>
         new() { [AlertTemplateKeys.Code] = VerificationCode };
+
+    private static Dictionary<string, string> ClientData() =>
+        new()
+        {
+            [AlertTemplateKeys.IpAddress] = Ip,
+            [AlertTemplateKeys.UserAgent] = Device
+        };
 
     private static Dictionary<string, string> AllData() =>
         new()

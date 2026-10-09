@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertTemplates.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.1.0
+// Latest commit: feat/alert-password-notices
 // Author : Gerrah
 // Purpose : Resolves an AlertType into its email subject and HTML body (text lives in
 // AlertMessages), substituting {{token}} placeholders from the caller-supplied template data.
@@ -31,6 +31,12 @@ internal static class AlertTemplates
 
             AlertType.NewLoginAttempt =>
                 (AlertMessages.NewLoginAttemptSubject, AlertMessages.NewLoginAttemptBody),
+
+            AlertType.PasswordResetRequested =>
+                (AlertMessages.PasswordResetRequestedSubject, AlertMessages.PasswordResetRequestedBody),
+
+            AlertType.PasswordChanged =>
+                (AlertMessages.PasswordChangedSubject, AlertMessages.PasswordChangedBody),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type), type, "No template defined for this alert type.")
