@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/VerificationCodeServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feat/password-reset-purpose
 // Author : Gerrah
 // Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, the attempt
 // limit, single use, and that a failed email leaves nothing behind.
@@ -73,6 +73,31 @@ public class VerificationCodeServiceTests
 
         result.CodeLength.ShouldBe(_settings.LoginChallengeCodeLength);
         _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+    }
+
+    [Fact]
+    public async Task Issue_PasswordReset_UsesItsOwnLengthAndTheStepUpAlert()
+    {
+        var result = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        result.CodeLength.ShouldBe(_settings.PasswordResetCodeLength);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.LastCode.Length.ShouldBe(_settings.PasswordResetCodeLength);
+    }
+
+    [Fact]
+    public async Task Issue_PasswordReset_DoesNotDisturbAPendingStepUpCode()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var stepUpCode = _alerts.LastCode;
+
+        var reset = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+        var verification = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, stepUpCode);
+
+        reset.Status.ShouldBe(VerificationIssueStatus.Sent);
+        _alerts.Sent.Count.ShouldBe(2);
+        verification.ShouldBe(VerificationResult.Valid);
     }
 
     [Fact]
