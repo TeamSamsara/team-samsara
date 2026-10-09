@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertType.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.1.0
+// Latest commit: feat/alert-password-notices
 // Author : Gerrah
 // Purpose : Enumerates every system-triggered security/transactional alert the platform can
 // send. Lives in Shared so any module can request an alert by type without referencing the
@@ -19,5 +19,12 @@ public enum AlertType
 
     // Sent whenever a login is attempted from an unrecognized device/IP fingerprint, regardless
     // of whether the login attempt ultimately succeeds
-    NewLoginAttempt
+    NewLoginAttempt,
+
+    // Sent alongside the reset code when a password reset is requested from an unrecognized
+    // device/IP, so the account owner can tell it was not them
+    PasswordResetRequested,
+
+    // Sent after a password has been changed or reset, so an unexpected change is noticed
+    PasswordChanged
 }

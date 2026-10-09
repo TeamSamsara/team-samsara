@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertMessages.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.1.0
+// Latest commit: feat/alert-password-notices
 // Author : Gerrah
 // Purpose : Subject and body text for every alert type. Placeholder wording for now - final
 // copy replaces these constants later without touching any logic. {{token}} placeholders are
@@ -26,6 +26,15 @@ internal static class AlertMessages
     public const string NewLoginAttemptBody =
         "<p>Placeholder - new login attempt from IP {{" + AlertTemplateKeys.IpAddress +
         "}}, device {{" + AlertTemplateKeys.UserAgent + "}}</p>";
+
+    public const string PasswordResetRequestedSubject = "Alert: password reset requested";
+    public const string PasswordResetRequestedBody =
+        "<p>Placeholder - password reset requested from IP {{" + AlertTemplateKeys.IpAddress +
+        "}}, device {{" + AlertTemplateKeys.UserAgent + "}}</p>";
+
+    public const string PasswordChangedSubject = "Alert: password changed";
+    public const string PasswordChangedBody =
+        "<p>Placeholder - your password was changed</p>";
 
     #endregion
 }
