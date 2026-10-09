@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationSettings.cs
-// Version : 1.0.1
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feat/password-reset-purpose
 // Author : Gerrah
 // Purpose : Configuration for verification codes. The server alone decides code length and
 // limits; clients are told the length in the response, never asked for it.
@@ -27,6 +27,9 @@ public class VerificationSettings
 
     [AllowedValues(4, 6, 8, 10)]
     public int LoginChallengeCodeLength { get; set; } = 6;
+
+    [AllowedValues(4, 6, 8, 10)]
+    public int PasswordResetCodeLength { get; set; } = 8;
 
     // How long a code stays valid
     [Range(1, 60)]

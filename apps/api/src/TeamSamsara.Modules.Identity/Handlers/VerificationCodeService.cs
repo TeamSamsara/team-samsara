@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/VerificationCodeService.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feat/password-reset-purpose
 // Author : Gerrah
 // Purpose : Issues and checks one-time verification codes. Codes are delivered through
 // IAlertSender, throttled on resend, and burned after too many wrong guesses. Cryptography
@@ -129,6 +129,11 @@ public class VerificationCodeService : IVerificationCodeService
             // notice is sent by the login flow.
             VerificationPurpose.LoginChallenge =>
                 new PurposeProfile(_settings.LoginChallengeCodeLength, AlertType.StepUpCode),
+
+            // The reset code reuses the step-up wording; the separate "password reset requested"
+            // notice is sent by the reset flow when the request comes from an unknown client.
+            VerificationPurpose.PasswordReset =>
+                new PurposeProfile(_settings.PasswordResetCodeLength, AlertType.StepUpCode),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(purpose), purpose, "Unknown verification purpose.")
