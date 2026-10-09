@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-profile
+// Version : 1.2.0
+// Latest commit: feat/password-change-service
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
 // endpoint requires a signed-in caller (any access level): registration is used by accounts
@@ -58,6 +58,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<GuardDogSettings>(configuration, GuardDogSettings.SectionName);
         services.AddValidatedOptions<AuthenticationSettings>(configuration, AuthenticationSettings.SectionName);
         services.AddValidatedOptions<ProfileSettings>(configuration, ProfileSettings.SectionName);
+        services.AddValidatedOptions<PasswordSettings>(configuration, PasswordSettings.SectionName);
     }
 
     // Shared building blocks the module relies on. TryAdd leaves them alone if another
@@ -89,6 +90,7 @@ public class IdentityModule : IModule
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IPasswordService, PasswordService>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());
