@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.Modules.Identit
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.Modules.Assets.Tests", "src\TeamSamsara.Modules.Assets.Tests\TeamSamsara.Modules.Assets.Tests.csproj", "{F3A92362-2CA4-4A93-803D-2E89D1E7B2C7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeamSamsara.Modules.Alert.Tests", "src\TeamSamsara.Modules.Alert.Tests\TeamSamsara.Modules.Alert.Tests.csproj", "{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -225,6 +227,18 @@ Global
 		{F3A92362-2CA4-4A93-803D-2E89D1E7B2C7}.Release|x64.Build.0 = Release|Any CPU
 		{F3A92362-2CA4-4A93-803D-2E89D1E7B2C7}.Release|x86.ActiveCfg = Release|Any CPU
 		{F3A92362-2CA4-4A93-803D-2E89D1E7B2C7}.Release|x86.Build.0 = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|x64.Build.0 = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Debug|x86.Build.0 = Debug|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|x64.ActiveCfg = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|x64.Build.0 = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|x86.ActiveCfg = Release|Any CPU
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -245,5 +259,6 @@ Global
 		{E9D9D6F2-EC83-405E-8775-54D4790E698D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{4DDC877B-AD50-494A-97E3-CA2AA7A2D138} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F3A92362-2CA4-4A93-803D-2E89D1E7B2C7} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{40F0AFAB-6973-499B-8BD3-B86B7EB139CC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
