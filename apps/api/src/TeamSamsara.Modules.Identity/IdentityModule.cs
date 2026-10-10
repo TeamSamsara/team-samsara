@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.12.0
-// Latest commit: feat/account-purge
+// Version : 1.13.0
+// Latest commit: feat/account-purge-job
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -13,6 +13,7 @@ using TeamSamsara.Modules.Identity.Endpoints;
 using TeamSamsara.Modules.Identity.Handlers;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
+using TeamSamsara.Modules.Identity.Workers;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Caching;
 using TeamSamsara.Shared.Configuration;
@@ -25,13 +26,14 @@ public class IdentityModule : IModule
 {
     #region Public Methods
 
-    // Registers settings, infrastructure, stores and handlers.
+    // Registers settings, infrastructure, stores, handlers and workers.
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         RegisterSettings(services, configuration);
         RegisterInfrastructure(services);
         RegisterRepositories(services);
         RegisterHandlers(services);
+        RegisterWorkers(services);
     }
 
     // Maps the signed-in endpoint group, plus password reset for callers who are signed out.
@@ -107,6 +109,12 @@ public class IdentityModule : IModule
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());
         services.AddScoped<ISignInVerifier>(provider => provider.GetRequiredService<SignInTracker>());
+    }
+
+    // Registers the background job that purges accounts past their recovery window.
+    private static void RegisterWorkers(IServiceCollection services)
+    {
+        services.AddHostedService<AccountPurgeWorker>();
     }
 
     #endregion
