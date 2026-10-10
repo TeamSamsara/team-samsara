@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Services/AssetService.cs
-// Version : 2.0.0
-// Latest commit: feature/asset-storage-routing
+// Version : 2.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Orchestrates asset upload, retrieval, and deletion across file storage and metadata.
 
@@ -89,9 +89,7 @@ public class AssetService
         return AssetFileResult.Proxied(content, metadata.ContentType);
     }
 
-    // Deletes an asset's metadata record, then best-effort deletes its stored bytes.
-    // Metadata is the source of truth for whether an asset exists, so it's deleted first;
-    // if that fails, nothing is deleted. Returns false if no asset with that id exists.
+    // Deletes the stored file, then the metadata, so a failure leaves the asset findable and retryable; false if it doesn't exist
     public async Task<bool> DeleteAssetAsync(string id)
     {
         var metadata = await _metadataStore.GetByIdAsync(id);
@@ -101,17 +99,8 @@ public class AssetService
             return false;
         }
 
-        try
-        {
-            await _metadataStore.DeleteAsync(id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to delete metadata for asset '{AssetId}'.", id);
-            throw new AppException(Error.Failure(ErrorCodes.AssetMetadataDeletionFailed, ResultMessages.AssetMetadataDeletionFailed));
-        }
-
-        await TryDeleteFileAsync(metadata.type, metadata.FileRelativePath, id);
+        await DeleteFileAsync(metadata);
+        await DeleteMetadataAsync(id);
 
         return true;
     }
@@ -210,8 +199,36 @@ public class AssetService
         }
     }
 
-    // Best-effort delete of a stored file. Used both to clean up after a failed metadata
-    // write, and as the second step of a normal delete.
+    // Deletes the asset's stored file, failing the whole delete (metadata untouched) if storage refuses
+    private async Task DeleteFileAsync(AssetMetadata metadata)
+    {
+        try
+        {
+            await _storageService.DeleteAsync(metadata.type, metadata.FileRelativePath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete stored file '{RelativePath}' for asset '{AssetId}'.",
+                metadata.FileRelativePath, metadata.Id);
+            throw new AppException(Error.Failure(ErrorCodes.AssetFileDeletionFailed, ResultMessages.AssetFileDeletionFailed));
+        }
+    }
+
+    // Deletes the asset's metadata record, failing the delete if the store refuses
+    private async Task DeleteMetadataAsync(string id)
+    {
+        try
+        {
+            await _metadataStore.DeleteAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to delete metadata for asset '{AssetId}'.", id);
+            throw new AppException(Error.Failure(ErrorCodes.AssetMetadataDeletionFailed, ResultMessages.AssetMetadataDeletionFailed));
+        }
+    }
+
+    // Best-effort delete of a stored file, used only to clean up after a failed metadata write
     private async Task TryDeleteFileAsync(AssetType type, string relativePath, string assetId)
     {
         try

@@ -1,23 +1,31 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertType.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
-// Purpose : Enumerates every system-triggered security/transactional alert the platform can
-// send. Lives in Shared so any module can request an alert by type without referencing the
-// Alert module directly.
+// Purpose : Every system-triggered alert the platform can send, requestable by type from any module.
 
 namespace TeamSamsara.Shared.Alert;
 
 public enum AlertType
 {
-    // Sent when a new account is created; must be confirmed to complete registration
+    // Completes a new account's registration
     RegistrationCode,
 
-    // Sent to confirm a sensitive operation (email change, password change, account deletion,
-    // password reset) before it is carried out
+    // Confirms a sensitive operation before it is carried out
     StepUpCode,
 
-    // Sent whenever a login is attempted from an unrecognized device/IP fingerprint, regardless
-    // of whether the login attempt ultimately succeeds
-    NewLoginAttempt
+    // Reports a login attempt from an unrecognized device or IP
+    NewLoginAttempt,
+
+    // Reports a password reset requested from an unrecognized device or IP
+    PasswordResetRequested,
+
+    // Reports that a password was changed or reset
+    PasswordChanged,
+
+    // Reports to the old address that the account email was changed
+    EmailChanged,
+
+    // Reports that the account was deleted and can be restored by signing in within the recovery window
+    AccountDeleted
 }

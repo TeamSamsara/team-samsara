@@ -100,75 +100,474 @@ frontend can reach it: `http://localhost:5173/ping` should render `pong`.
 
 A `scripts/bootstrap.ps1` / `.sh` script may be added once the manual setup process is stable and documented.
 
+### Staging smoke tests
+
+Two PowerShell scripts in `scripts/` check the live Staging API (`teamsamsara-api-staging.onrender.com`)
+end to end, with the real Firebase, Firestore, Storage and email behind it. Unit tests cannot cover
+that. Each step prints `PASS` or `FAIL`, and the script ends with a count.
+
+| Script                              | Account it needs                                            | Covers                                                                                                                                       |
+| ----------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/staging-profile-smoke.ps1` | A verified member (it restores the name and bio afterwards) | Reading and editing the profile, picture and banner upload, replace and delete, size and type limits, and the guest and anonymous refusals   |
+| `scripts/staging-account-smoke.ps1` | None: it creates its own throwaway account                  | Registration, `logout/all`, account deletion with its immediate block and revoked sessions, the deletion notice, and restoring by signing in |
+
+Run either one from the repository root:
+
+```powershell
+.\scripts\staging-profile-smoke.ps1
+.\scripts\staging-account-smoke.ps1
+```
+
+Both read the Firebase web API key from `apps/web/.env.staging`; `-Api` and `-EnvFile` override the API address and
+that file. If PowerShell blocks the script, run
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in the same window first.
+
+- **The account script deletes the account it creates.** Use a throwaway mailbox that really receives mail,
+  such as a plus-address (`you+smoke1@example.com`), and a new one every run. It asks for each emailed code in turn
+  (registration, login if asked, deletion, a second deletion) and for whether the deletion notice arrived.
+  Check the spam folder too.
+- **Passwords never touch a file.** The profile script prompts for the member's password. The account script
+  generates a random one and does not print it.
+- **Never paste a token, password or emailed code into a chat or an issue.**
+
+**Testing the purge by hand.** The account script leaves its account deleted, and prints that account's user id.
+The purge needs an account deleted more than `RecoveryWindowDays` (30) ago, so:
+
+1. In the Staging Firestore, open `users/<that id>` and set `DeletedAt` to a date more than 30 days in the past.
+   Keep it a timestamp, and check the date is in the past.
+2. Restart the Staging service on Render once, and wait a minute. The purge runs at startup.
+3. The logs show `Account purge finished: 1 purged, 0 skipped`. `users/<id>` and `profiles/<id>` are gone, and so
+   is the Firebase Authentication user.
+
+## API Endpoints
+
+This is the human summary. The machine-readable contract is the OpenAPI document at
+`/openapi/v1.json`, which is also what `npm run generate-types` reads.
+
+### Conventions
+
+- **Authentication:** a Firebase ID token in `Authorization: Bearer <token>`.
+- **JSON:** camelCase property names, and enums as camelCase strings (`"accessLevel": "member"`).
+- **Codes are strings:** a verification code is sent as a JSON string (`"code": "123456"`), never a
+  number - a number fails binding and answers `400` with an empty body.
+- **Outcome in the body:** the flow endpoints answer with a `status` in the body as well as an HTTP
+  status code, so a client reacts to the exact reason rather than to the code alone.
+
+### Who can call what
+
+| Access          | Meaning                                                                |
+| --------------- | ---------------------------------------------------------------------- |
+| Public          | No token needed                                                        |
+| API key         | `X-Api-Key` header, for CMS pipelines                                  |
+| Signed in       | A valid token, even if registration or the sign-in is not finished yet |
+| Verified member | A valid token whose sign-in is verified                                |
+
+A caller is always in one of four states, and `401` versus `403` tells them apart:
+
+| `authState`              | Who they are                                                                                    | On a verified-member endpoint |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| `anonymous`              | No token, or an invalid one - we do not know who they are                                       | `401`                         |
+| `registrationIncomplete` | Known account, email never confirmed                                                            | `403`                         |
+| `verificationRequired`   | Known account, but this sign-in is not verified (for example a new-device challenge is pending) | `403`                         |
+| `member`                 | Known account, verified sign-in                                                                 | allowed                       |
+
+`401` means _we do not know who you are_. `403` means _we know who you are, but you cannot do this
+yet_, and its body says why: `{"authState": "verificationRequired"}`. `GET /account/me` reports the
+same field, so a client can route the person to the right screen (confirm the registration code,
+or the new-device code) instead of guessing. An admin is reported as `member` here, since the field
+only describes whether the sign-in is verified; `accessLevel` carries `member` or `admin`.
+
+### Account (`/account`) - signed in
+
+| Method | Path                        | Does                                                                  | Answers                                     |
+| ------ | --------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/register`         | Records the account as a Guest and emails the first confirmation code | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/register/resend`  | Emails a fresh confirmation code                                      | same                                        |
+| `POST` | `/account/register/confirm` | Checks `{"code"}` and completes registration                          | `status`                                    |
+| `POST` | `/account/login/check`      | Verifies a recognized sign-in, or emails the new-device code          | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/login/confirm`    | Checks `{"code"}` and verifies the sign-in                            | `status`                                    |
+| `POST` | `/account/login/resend`     | Emails a fresh new-device code                                        | `status`, `codeLength`, `retryAfterSeconds` |
+| `GET`  | `/account/me`               | Who the API considers the caller to be                                | `userId`, `accessLevel`, `authState`        |
+
+HTTP status per outcome:
+
+| Outcome (`status`)                              | HTTP  |
+| ----------------------------------------------- | ----- |
+| `success`, `authenticated`, `challengeRequired` | `200` |
+| `invalidCode`, `codeExpired`, `noPendingCode`   | `400` |
+| `registrationIncomplete`                        | `403` |
+| `accountNotFound`                               | `404` |
+| `alreadyRegistered`                             | `409` |
+| `cooldownActive`, `tooManyAttempts`             | `429` |
+
+### Profile (`/account/profile`) - verified member
+
+A member can only reach their own profile. Every call answers
+`{"status": "...", "profile": {...}}`, with `profile` set only on success, so the client never needs
+a second request after an edit.
+
+| Method   | Path                       | Does                                                       |
+| -------- | -------------------------- | ---------------------------------------------------------- |
+| `GET`    | `/account/profile`         | Returns the profile                                        |
+| `PUT`    | `/account/profile`         | Replaces `{"displayName", "bio"}`; a blank `bio` clears it |
+| `PUT`    | `/account/profile/picture` | Sets the profile picture (multipart, field `file`)         |
+| `DELETE` | `/account/profile/picture` | Removes the profile picture                                |
+| `PUT`    | `/account/profile/banner`  | Sets the banner (multipart, field `file`)                  |
+| `DELETE` | `/account/profile/banner`  | Removes the banner                                         |
+
+The profile holds `displayName`, `bio`, `profilePictureAssetId` and `bannerAssetId`. Images are
+asset ids - the client builds the address from `GET /assets/{id}/file`.
+
+Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
+
+| Rule                      | Default                                                                     | Refused with                 |
+| ------------------------- | --------------------------------------------------------------------------- | ---------------------------- |
+| Display name              | 1-50 visible characters after trimming, no control characters               | `400` `invalidDisplayName`   |
+| Bio                       | at most 300 visible characters, line breaks allowed                         | `400` `invalidBio`           |
+| Image format              | PNG, JPEG or WebP, checked on the file's real bytes, not its `Content-Type` | `415` `imageUnsupportedType` |
+| Picture size              | at most 2 MB                                                                | `413` `imageTooLarge`        |
+| Banner size               | at most 5 MB                                                                | `413` `imageTooLarge`        |
+| No profile for the member | -                                                                           | `404` `profileNotFound`      |
+
+Text is stored exactly as typed. It is not HTML-cleaned, so the frontend must always render it as
+text, never as raw HTML. Replacing an image deletes the one it replaces.
+
+### Password (`/account/password`) - verified member
+
+Changing a password takes two calls. The new password travels with the code, so the server never
+stores it between steps.
+
+| Method | Path                             | Does                                                                                        | Answers                                     |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/password/request-code` | Checks `{"newPassword"}` against the rules and emails a confirmation code                   | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/password/change`       | Checks `{"newPassword", "code"}`, replaces the password and signs the member out everywhere | `status`                                    |
+
+The password must be 8-128 characters (`Identity:Password`). An unacceptable password is refused
+with `invalidPassword` before the code is checked, so it does not use the code up. A change ends
+every session: refresh tokens are revoked, verified sign-ins are forgotten, and the member gets a
+password-changed email.
+
+### Password reset (`/account/password/reset`) - signed out
+
+For a member who forgot their password. The three calls run in order, and none needs a token.
+
+| Method | Path                              | Does                                                                     | Answers                                     |
+| ------ | --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| `POST` | `/account/password/reset/request` | Emails a reset code to `{"email"}` if it belongs to a member             | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/password/reset/verify`  | Checks `{"email", "code"}` and returns a one-time reset token            | `status`, `resetToken`                      |
+| `POST` | `/account/password/reset/confirm` | Sets `{"resetToken", "newPassword"}` and signs the member out everywhere | `status`                                    |
+
+- **Same answer for every address:** `request` answers identically whether or not the email has an
+  account. The lookup and the email happen in the background, so the response time reveals nothing
+  either.
+- **Reset token:** single use, valid for 10 minutes (`Identity:Password:ResetTokenMinutes`). A weak
+  password does not use it up, so the member can retry.
+- **Rate limit:** every call is limited per client IP (default 10 per 60 seconds, `RateLimit`
+  section) and answers `429` with a `Retry-After` header when exceeded.
+- **Session end:** a successful reset ends every session and emails a password-changed notice.
+
+Password outcomes (change and reset) map to HTTP like this:
+
+| Outcome (`status`)                                                                    | HTTP  |
+| ------------------------------------------------------------------------------------- | ----- |
+| `success`                                                                             | `200` |
+| `invalidPassword`, `invalidCode`, `codeExpired`, `noPendingCode`, `invalidResetToken` | `400` |
+| `accountNotFound`                                                                     | `404` |
+| `cooldownActive`, `tooManyAttempts`                                                   | `429` |
+
+### Email change (`/account/email`) - verified member
+
+Changing the sign-in address needs proof of both mailboxes, so a stolen session alone cannot take
+over the account.
+
+| Method | Path                     | Does                                                                                    | Answers                                     |
+| ------ | ------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/email/request` | Takes `{"newEmail"}`, emails one code to the current address and one to the new address | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/email/confirm` | Checks `{"oldCode", "newCode"}` and, if both are right, switches the address            | `status`                                    |
+
+1. `request` saves the pending change and queues two 8-digit codes: one to the **current** address
+   and one to the **new** address. Codes expire after 10 minutes. Asking again within 60 seconds
+   answers `cooldownActive`.
+2. `confirm` needs both codes. A code that was accepted is remembered, so after a typo the client
+   only has to resend the other one.
+3. On success the address changes, every session ends, and the **old** address gets an
+   email-changed notice naming the new address in masked form (`j***@example.com`). The client must
+   sign the member in again with the new address.
+
+Account existence is never revealed:
+
+- `request` answers identically whether the new address is free, taken or the member's own. A taken
+  address receives no email; a decoy code is stored instead, and the check runs in the background.
+- Every wrong, missing or expired code, and an address taken while the change was pending, answers
+  `invalidCode`. The response never says which code failed.
+- Five wrong guesses cancel the change (`tooManyAttempts`), a decoy code included.
+
+| Outcome (`status`)                                | HTTP  |
+| ------------------------------------------------- | ----- |
+| `success`                                         | `200` |
+| `invalidEmail`, `invalidCode`, `noPendingRequest` | `400` |
+| `accountNotFound`                                 | `404` |
+| `cooldownActive`, `tooManyAttempts`               | `429` |
+
+### Account deletion (`/account/delete`) - verified member
+
+A member deletes their own account in two steps. The account is not erased at once: it is blocked
+immediately and can be restored for 30 days (`RecoveryWindowDays`), then a scheduled job removes
+it for good.
+
+| Method | Path                           | Does                                                       | Answers                                     |
+| ------ | ------------------------------ | ---------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/delete/request-code` | Emails a confirmation code to the member's current address | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/delete`              | Checks `{"code"}` and deletes the account                  | `status`                                    |
+
+| Outcome (`status`)                            | HTTP  |
+| --------------------------------------------- | ----- |
+| `success`                                     | `200` |
+| `invalidCode`, `codeExpired`, `noPendingCode` | `400` |
+| `accountNotFound`                             | `404` |
+| `cooldownActive`, `tooManyAttempts`           | `429` |
+
+**Lifecycle**
+
+1. **Confirm.** `request-code` emails a code; asking again too soon answers `cooldownActive`.
+   `delete` accepts the code once. A second request with the same code, or a parallel request that
+   lost the race, answers `noPendingCode`.
+2. **Blocked at once.** One write marks the account deleted and forgets every verified sign-in.
+   From that moment every token the member holds is answered as `403` `verificationRequired`, even
+   though Firebase still considers the token valid until it expires. Nothing after this write is
+   needed for the block to hold.
+3. **Cleanup after the commit.** The cached verified sign-ins are dropped and the member's Firebase
+   refresh tokens are revoked, so no device can get a new ID token. These steps are best effort:
+   a failure is logged as an error and does not undo the deletion or fail the request, because the
+   account is already blocked.
+4. **Notice.** Once the deletion is committed, the `AccountDeleted` email goes to the member's
+   address and states the recovery window. A failed send is logged and ignored. No email is sent
+   for a deletion that did not commit.
+5. **Recovery window.** For 30 days the member can restore the account by signing in again and
+   completing the normal login check (the new-device code if the device is not recognized). There
+   is no cancel endpoint. The restore is one write: it clears the deletion and records the verified
+   sign-in together, so an account is never half restored. The deadline is strict: exactly 30 days
+   after the deletion still restores, one instant later does not. Past the deadline, or while the
+   purge is already working on the account, the sign-in answers `accountNotFound`.
+6. **Purge.** After the window the scheduled job (see Background Services) removes the profile
+   images, the profile, every verification code, password reset token and email-change request
+   the account still has, the Firebase account, and finally the user record.
+
+- **The client must call Firebase `signOut()` after a successful delete.** The API already refuses
+  the old token as a member, but the Firebase session is still open on the device until the client
+  ends it. Without `signOut()` the next request answers `403` instead of returning to the login
+  screen.
+- A restored account does not bring old tokens back: they keep their old sign-in time, so they stay
+  unverified. The member signs in again.
+
+### Logout (`/account/logout`) - verified member
+
+| Method | Path                  | Does                                                                                   |
+| ------ | --------------------- | -------------------------------------------------------------------------------------- |
+| `POST` | `/account/logout`     | Ends this device's sign-in; the member's other devices stay signed in                  |
+| `POST` | `/account/logout/all` | Revokes every refresh token and forgets every verified sign-in, like a password change |
+
+Both answer `204 No Content` with no body, and repeating them is harmless.
+
+- **The client must also call Firebase `signOut()`.** `logout` only stops this API accepting the
+  sign-in as a member. The ID token itself stays valid with Firebase until it expires (up to an
+  hour), and until then it is answered as `403` `verificationRequired`.
+- **`logout/all` takes effect on every device:** refresh tokens are revoked, so no device can get a
+  new ID token, and the verified sign-ins are forgotten at once. Each device has to sign in again.
+- **Verified members only.** A caller still waiting on the new-device code, or on registration, has
+  no verified sign-in to end and gets `403`. To abandon the device challenge the client calls
+  Firebase `signOut()` and returns to the login screen; nothing was recorded on the server.
+
+### Assets (`/assets`)
+
+| Method   | Path                | Access  | Does                                                                  |
+| -------- | ------------------- | ------- | --------------------------------------------------------------------- |
+| `GET`    | `/assets`           | Public  | Lists assets, optionally `?type=Image\|Video\|File`                   |
+| `GET`    | `/assets/{id}`      | Public  | Returns an asset's metadata                                           |
+| `GET`    | `/assets/{id}/file` | Public  | Returns the file: streamed for images and files, redirected for video |
+| `POST`   | `/assets`           | API key | Uploads a file (multipart: `file`, `alt`)                             |
+| `DELETE` | `/assets/{id}`      | API key | Deletes an asset and its stored file                                  |
+
+Member profile images are stored as assets too, so they appear in `GET /assets` and can be fetched
+by id like any other image. They are meant to be shown publicly. This must change before any image
+that has to stay private is stored as an asset.
+
+Deleting an asset removes the stored file first and the metadata second, so a failed delete leaves
+the asset in place and can simply be repeated. A file that is already gone counts as deleted, so a
+repeat after a partial failure succeeds. If the file cannot be deleted the request answers an
+error. A file can still be left without metadata only if the cleanup after a failed upload fails
+twice in a row; that is logged.
+
+### Health and utility
+
+| Method | Path            | Access    | Does                                                       |
+| ------ | --------------- | --------- | ---------------------------------------------------------- |
+| `GET`  | `/health/live`  | Public    | The process is running                                     |
+| `GET`  | `/health/ready` | Public    | Dependencies are reachable (`Healthy`)                     |
+| `GET`  | `/ping`         | Public    | Answers `pong`; used to check the frontend reaches the API |
+| `GET`  | `/ping/secure`  | Signed in | `401` without a token                                      |
+
 ## Git Workflow
+
+Replace every `<...>` placeholder before running a command.
+
+### Prerequisites
+
+Pull requests are created and merged from the terminal with the GitHub CLI:
+
+```bash
+winget install --id GitHub.cli -e
+gh auth login
+```
 
 ### Branches
 
 Two long-lived branches:
 
 - `main` - production. Only ever updated by promoting `dev` into it. Nothing branches directly from `main`.
-- `dev` - staging. Every feature branch merges here first; this is the active integration branch.
+- `dev` - staging and the next release. Everything merges here first, and only after it is tested.
 
-Create feature branches from an up-to-date `dev`, never from `main`:
+Short-lived branches, always created from an up-to-date `dev` (or from an integration branch, see below):
+
+- `feature/<slug>` - a feature, or an integration branch for a multi-part implementation
+- `task/<implementation>-<piece>` - one piece of an implementation, merged into its integration branch
+- `fix/<slug>` - corrections to already-merged functionality
+
+Branch names cannot also be folders: `feature/identity` and `feature/identity/alerts` cannot exist together. That is why pieces use `task/`.
+
+### Choosing a path
+
+Before creating a branch, ask:
+
+> Is this an implementation made of two or more pieces that must be verified together before any of it reaches `dev`?
+
+- **No** - use a direct branch (below). This is the default for a single feature, a fix, or any piece that can land on `dev` alone and leave `dev` working.
+- **Yes** - use an integration branch (below).
+
+Write dependencies down in the sprint list before starting ("Item 2 depends on Item 1"). Work is merged in that order, so nobody has to guess what must land first.
+
+### Direct branch
 
 ```bash
 git checkout dev
 git pull
 git checkout -b feature/<slug>
-```
+# build and commit
+git push -u origin feature/<slug>
 
-Branch naming:
+gh pr create --base dev --title "feat(<scope>): <summary>" --body-file pr.md
+gh pr merge --squash --auto
 
-- `feature/<slug>` - new functionality
-- `fix/<slug>` - corrections to already-merged functionality
-
-### Commits
-
-Use Conventional Commits:
-
-- `feat:` - new functionality
-- `fix:` - bug fixes
-- `chore:` - maintenance
-- `refactor:` - code restructuring without behavior changes
-- `test:` - tests
-
-### Promoting a feature to staging (`dev`)
-
-Before merging:
-
-```bash
+# once it has merged
+git checkout dev
+git pull
+git branch -D feature/<slug>
 dotnet build apps/api/TeamSamsara.sln
 dotnet test apps/api/TeamSamsara.sln
 ```
 
-The build and tests must be clean. No branch is merged with a failing build.
+If one direct branch depends on another, merge the first and start the second from the updated `dev`.
 
-Merge using squash merging, so each completed feature becomes one clean commit on `dev`:
+### Integration branch
+
+The integration branch proves the pieces work together before any of them reaches `dev`.
 
 ```bash
+# create it and open a draft PR so its state is visible from the start
 git checkout dev
-git merge --squash feature/<slug>
-git commit -m "..."
+git pull
+git checkout -b feature/<implementation>
+git push -u origin feature/<implementation>
+gh pr create --draft --base dev --title "feat(<scope>): <summary>" --body-file pr.md
+
+# for each piece
+git checkout feature/<implementation>
+git pull
+git checkout -b task/<implementation>-<piece>
+# build and commit
+git push -u origin task/<implementation>-<piece>
+gh pr create --base feature/<implementation> --title "feat(<scope>): <piece>" --body "<what this piece does>"
+gh pr merge --squash --auto
+
+# once the piece has merged
+git checkout feature/<implementation>
+git pull
+git branch -D task/<implementation>-<piece>
+
+# keep it current whenever dev changes
+git fetch origin
+git merge origin/dev
+git push
+
+# finish, once every piece is in
+dotnet build apps/api/TeamSamsara.sln
+dotnet test apps/api/TeamSamsara.sln
+gh pr ready
+gh pr merge --squash --auto
+
+# once it has merged
+git checkout dev
+git pull
+git branch -D feature/<implementation>
 ```
 
-After merging, rebuild and retest immediately. The combined result must also pass.
+Rules:
 
-Deferred branches may remain unmerged while other work continues. When merging multiple deferred branches, merge them one at a time and rebuild after each merge.
+- If piece B needs piece A, A merges into the integration branch first, then B branches from the updated integration branch.
+- Merge `dev` into the integration branch (never rebase, the branch is shared) whenever `dev` changes and before finishing.
+- Keep it short-lived: days, not months.
+- `dev` receives one commit for the whole implementation.
 
-Once CI and branch protection are enabled, these requirements move to GitHub pull requests and are enforced automatically.
+### Commits
+
+Use Conventional Commits, with the module or area as the scope:
+
+- `feat(<scope>):` - new functionality
+- `fix(<scope>):` - bug fixes
+- `chore(<scope>):` - maintenance
+- `refactor(<scope>):` - code restructuring without behavior changes
+- `test(<scope>):` - tests
+- `docs(<scope>):` - documentation
+- `release:` - promotes `dev` into `main` (no scope, the summary names the version or date)
+
+Examples of scopes: `identity`, `alerts`, `assets`, `api`, `shared`, `readme`.
+
+Commits inside a branch are working history and are squashed on merge. The pull request title is what stays on `dev`, so it must be a well-formed Conventional Commit.
+
+### Before opening a pull request
+
+```bash
+dotnet build apps/api/TeamSamsara.sln
+dotnet test apps/api/TeamSamsara.sln
+dotnet format apps/api/TeamSamsara.sln --verify-no-changes
+```
+
+All three must be clean, and CI must pass on the pull request. Nothing is merged with a failing build. After merging, update `dev`, rebuild and retest: the combined result must also pass. New and changed code also follows [Code Comments](#code-comments).
+
+### Merging and cleanup
+
+- Every merge goes through a pull request. `main` and `dev` are protected: no direct pushes, no force pushes, no deletion, and the `backend` and `frontend` CI checks must pass before anything merges. The rules apply to admins too.
+- Merge from the CLI with `gh pr merge --squash --auto`, right after `gh pr create` and from the same branch: GitHub waits for CI to pass and then merges, so there is no need to watch the checks.
+- Features, tasks and fixes use **squash**: each completed piece becomes one clean commit.
+- The pull request title becomes the commit on `dev`, so it must be a well-formed Conventional Commit. The repository builds the squash commit from the PR title, adds the PR number, and leaves the body empty. History on `dev` cannot be rewritten, so a wrong title stays.
+- Merged branches are deleted on GitHub automatically. After the merge, update `dev` and delete the local branch with `git checkout dev`, `git pull` and `git branch -D <branch>`.
 
 ### Promoting staging to production (`main`)
 
-Once `dev` is verified stable, promote it to `main` using a regular merge, **not** a squash:
+Staging is `dev` deployed by Render. Once the whole of `dev` is verified on Staging, promote it with a regular merge, **not** a squash:
 
 ```bash
-git checkout main
-git pull
-git merge dev
-git push
+gh pr create --base main --head dev --title "release: <summary>" --body-file pr.md
+gh pr merge --merge --auto --subject "release: <summary>" --body " "
 ```
 
-Squashing here would collapse every feature already squashed into `dev` into one undifferentiated commit, destroying the ability to see what actually shipped in each release. A regular merge preserves that history on `main` exactly as it happened on `dev`. Rebuild and retest after this merge too, same as any other.
+A regular merge does not use the PR title by default, so the subject is set explicitly. In Windows PowerShell an empty argument is dropped, so the body is a single space.
+
+`dev` is a long-lived branch and is protected from deletion. A squash would collapse every feature already squashed into `dev` into one undifferentiated commit and destroy the history of what shipped in each release. Rebuild and retest after this merge too.
+
+`dev` is promoted as a unit. If one feature on `dev` fails verification, `main` waits until it is fixed (with a `fix/<slug>` branch) or reverted.
+
+Deferred branches may remain unmerged while other work continues. When merging multiple deferred branches, merge them one at a time and rebuild after each merge.
 
 ### Deployment triggers
 
@@ -265,13 +664,114 @@ should reference its own named constant, not an inline string.
 
 ### Code Comments
 
-File headers keep the required format, but `Purpose` is one short sentence describing what the
-file does - not the reasoning behind it, not how other files interact with it, not what would
-happen if something were misused.
+Comments are short and state intent. Code that reads well needs few of them.
 
-Inline comments are the exception, not the default. Add one only when the code cannot reasonably
-communicate the intent on its own; keep it to a short sentence or phrase. Don't restate what a
-name, type, or structure already makes clear.
+**File header.** Keep the required format (`File`, `Version`, `Latest commit`, `Author`,
+`Purpose`). `Purpose` is one sentence saying what the file does - not the reasoning behind it, not
+how other files use it, not what would happen if it were misused. Version, commit and author lines
+are never dropped when a file is rewritten.
+
+**Methods.** Every method, public or private, has a one-line comment above it stating its primary
+responsibility or an important contract the caller must know (single-use, expiry, security,
+ordering). Constructors, fields and trivial properties need none.
+
+**Inline comments.** The exception, not the default. Add one only when the code cannot
+communicate the intent on its own, and keep it to a short sentence or phrase.
+
+**Do not write:**
+
+- Narration of what the code does, line by line.
+- Conversational justification ("we do this because we considered...").
+- Text that restates a name, type or structure that is already clear.
+- A paragraph where one line says it.
+
+**Readability.** Prefer flat code to comments that explain nesting: early returns, and small named
+helper methods, so a method reads top to bottom without deeply nested `if` blocks.
+
+**Existing code.** Bring a file in line when it is next touched for another reason. Do not change
+behavior just to shorten a comment, and do not remove documentation that carries real meaning.
+
+```csharp
+// Consumes the code so it can never be used twice.
+private async Task<VerificationResult> ConsumeAsync(...)
+```
+
+## Background Services
+
+Work that must not hold up a request, or that runs on a schedule, goes through one of two
+mechanisms. Both live in `TeamSamsara.Shared.BackgroundTasks`.
+
+- **Task queue** (`IBackgroundTaskQueue`) - request-triggered work. A handler calls
+  `TryEnqueue` and returns; one worker runs the items in order, each in its own DI scope.
+  The queue is in memory and bounded (1000 items), so queued work is lost if the app restarts
+  and `TryEnqueue` returns `false` when it is full. Only enqueue work that is safe to lose
+  (a user can tap resend) or that is re-derivable.
+- **Scheduled job** - time-triggered work, built as its own `BackgroundService` on a
+  `PeriodicTimer`. It runs once at startup, then every interval, each run in its own DI scope. A
+  failed run is logged and the job waits for the next tick; it never stops.
+
+### Implemented
+
+| Service                | Where    | What it does                                                                                                                |
+| ---------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `BackgroundTaskWorker` | Shared   | Runs queued work one item at a time, logs failures, never stops on one. Runs password reset and email change code delivery. |
+| `AccountPurgeWorker`   | Identity | Permanently removes accounts whose recovery window has ended. See below.                                                    |
+
+### Account purge
+
+`AccountPurgeWorker` calls `IAccountPurgeService` at startup and then every `IntervalHours`. It
+removes every account deleted more than `RecoveryWindowDays` (30) ago. See Account deletion for
+the member's side.
+
+| Setting (`Identity:AccountPurge`) | Default | Range | Meaning                                                 |
+| --------------------------------- | ------- | ----- | ------------------------------------------------------- |
+| `IntervalHours`                   | `6`     | 1-168 | How often the job looks for accounts to remove          |
+| `LeaseMinutes`                    | `10`    | 1-120 | How long one instance holds an account while purging it |
+
+- **Several instances.** Before touching an account an instance claims it in a transaction that
+  checks the account is still deleted, past the deadline and not leased by another instance. Only
+  one claim succeeds. If the instance crashes, the lease lapses after `LeaseMinutes` and a later
+  run takes the account over. A member who signs in during a lease is not restored.
+- **Retry safety.** Each step can be repeated, and something already gone counts as success. The
+  order is images, profile, verification codes, password reset tokens, email-change request,
+  Firebase account, and the user record last, so an account that stopped halfway is still listed
+  and the next run finishes it.
+- **Failures.** A failure on one account is logged and counted, and the rest of the batch goes on.
+  The account stays listed and is retried on every later run. A run that logs failed accounts is
+  a warning.
+- **Leftover documents.** The purge deletes verification codes, password reset tokens and the
+  email-change request directly, so a purged account leaves none behind. The Firestore TTL
+  policies stay as the cleanup for everyone else.
+
+### Planned
+
+Nothing is planned at the moment.
+
+### Audit before starting the frontend
+
+Run this audit once every backend module is built. Findings so far, from the code that exists:
+
+- `AuthenticationService` - the new-login alert is awaited inside the sign-in request and its
+  failure is swallowed. Candidate for the queue.
+- `PasswordService` - the password-changed notice is awaited inside the request and its failure
+  is swallowed. Candidate for the queue.
+- `VerificationCodeService` - the code email stays inline. `IssueAsync` discards the stored code
+  and reports failure if the send throws, so the caller has to know the outcome. Not a candidate
+  as written.
+- `ResendEmailSender` - no retry. A queued send could retry a few times before giving up.
+- Assets - a deleted asset no longer leaves its file behind. Two cases remain: the file left by
+  a failed upload whose cleanup also failed (`TryDeleteFileAsync`), and metadata with no owner.
+  Candidate for a scheduled sweep of orphaned files.
+- Expired `verificationCodes`, `passwordResetTokens` and `emailChangeRequests` - cleaned up by a
+  Firestore TTL policy on `ExpiresAt`, not by a service. The account purge also deletes them
+  directly for the accounts it removes.
+- Catalog, Content, Media, Orders - stubs. Audit each when built (image processing, order and
+  receipt emails, stock and price sync).
+
+For each module, check: anything awaited in a request that the caller does not need the result
+of; anything that fails quietly and leaves leftovers; anything that should expire or be swept on
+a schedule; and whether it can tolerate being lost on restart. If not, it needs a durable outbox
+rather than the in-memory queue.
 
 ## Deferred Implementations
 

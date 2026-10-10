@@ -1,14 +1,14 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/VerificationCodeServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.4.0
+// Latest commit: fix/verification-code-single-use
 // Author : Gerrah
-// Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, the attempt
-// limit, single use, and that a failed email leaves nothing behind.
+// Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, attempt limit, single use, and decoys.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
 using TeamSamsara.Modules.Identity.Handlers;
 using TeamSamsara.Modules.Identity.Models;
+using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Modules.Identity.Tests.Fakes;
 using TeamSamsara.Shared.Alert;
 
@@ -20,7 +20,9 @@ public class VerificationCodeServiceTests
 
     private const string UserId = "user-1";
     private const string Email = "member@example.com";
+    private const string NewEmail = "new.member@example.com";
     private const string WrongCode = "not-the-code";
+    private const string OtherUserId = "user-2";
 
     private readonly InMemoryVerificationCodeStore _store = new();
     private readonly RecordingAlertSender _alerts = new();
@@ -73,6 +75,60 @@ public class VerificationCodeServiceTests
 
         result.CodeLength.ShouldBe(_settings.LoginChallengeCodeLength);
         _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+    }
+
+    [Fact]
+    public async Task Issue_PasswordReset_UsesItsOwnLengthAndTheStepUpAlert()
+    {
+        var result = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        result.CodeLength.ShouldBe(_settings.PasswordResetCodeLength);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.LastCode.Length.ShouldBe(_settings.PasswordResetCodeLength);
+    }
+
+    [Fact]
+    public async Task Issue_PasswordReset_DoesNotDisturbAPendingStepUpCode()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var stepUpCode = _alerts.LastCode;
+
+        var reset = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+        var verification = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, stepUpCode);
+
+        reset.Status.ShouldBe(VerificationIssueStatus.Sent);
+        _alerts.Sent.Count.ShouldBe(2);
+        verification.ShouldBe(VerificationResult.Valid);
+    }
+
+    [Theory]
+    [InlineData(VerificationPurpose.EmailChangeOld)]
+    [InlineData(VerificationPurpose.EmailChangeNew)]
+    public async Task Issue_EmailChange_UsesTheEmailChangeLengthAndTheStepUpAlert(VerificationPurpose purpose)
+    {
+        var result = await _service.IssueAsync(UserId, purpose, Email);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        result.CodeLength.ShouldBe(_settings.EmailChangeCodeLength);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.LastCode.Length.ShouldBe(_settings.EmailChangeCodeLength);
+    }
+
+    [Fact]
+    public async Task Issue_EmailChange_OldAndNewCodesAreIndependent()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.EmailChangeOld, Email);
+        var oldCode = _alerts.LastCode;
+        await _service.IssueAsync(UserId, VerificationPurpose.EmailChangeNew, NewEmail);
+        var newCode = _alerts.LastCode;
+
+        var newResult = await _service.VerifyAsync(UserId, VerificationPurpose.EmailChangeNew, newCode);
+        var oldResult = await _service.VerifyAsync(UserId, VerificationPurpose.EmailChangeOld, oldCode);
+
+        _alerts.Sent.Select(sent => sent.To).ShouldBe(new[] { Email, NewEmail });
+        newResult.ShouldBe(VerificationResult.Valid);
+        oldResult.ShouldBe(VerificationResult.Valid);
     }
 
     [Fact]
@@ -213,6 +269,217 @@ public class VerificationCodeServiceTests
         var result = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, _alerts.LastCode);
 
         result.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_SendsNothing_AndReportsSent()
+    {
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        _alerts.Sent.ShouldBeEmpty();
+        (await _store.GetAsync(UserId, VerificationPurpose.PasswordReset)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task IssueDecoy_GivesTheSameAnswerAndStoredShapeAsARealCode()
+    {
+        var real = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+        var decoy = await _service.IssueDecoyAsync(OtherUserId, VerificationPurpose.PasswordReset);
+
+        var realStored = await _store.GetAsync(UserId, VerificationPurpose.PasswordReset);
+        var decoyStored = await _store.GetAsync(OtherUserId, VerificationPurpose.PasswordReset);
+
+        decoy.ShouldBe(real);
+        realStored.ShouldNotBeNull();
+        decoyStored.ShouldNotBeNull();
+        decoyStored.CreatedAt.ShouldBe(realStored.CreatedAt);
+        decoyStored.ExpiresAt.ShouldBe(realStored.ExpiresAt);
+        decoyStored.CodeHash.Length.ShouldBe(realStored.CodeHash.Length);
+        decoyStored.Salt.Length.ShouldBe(realStored.Salt.Length);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_UsesThePurposeCodeLength()
+    {
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.CodeLength.ShouldBe(_settings.PasswordResetCodeLength);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_AgainTooSoon_ReportsTheSameCooldownAsARealCode()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+        _clock.Advance(TimeSpan.FromSeconds(20));
+
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.CooldownActive);
+        result.RetryAfterSeconds.ShouldBe(_settings.ResendCooldownSeconds - 20);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_WhenEmailDeliveryIsDown_StillSucceeds()
+    {
+        _alerts.ShouldFail = true;
+
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        (await _store.GetAsync(UserId, VerificationPurpose.PasswordReset)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_WrongCodeIsInvalid_NotNotFound()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        result.ShouldBe(VerificationResult.Invalid);
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_TooManyGuessesBurnsIt()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        for (var attempt = 1; attempt < _settings.MaxFailedAttempts; attempt++)
+        {
+            var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+            result.ShouldBe(VerificationResult.Invalid);
+        }
+
+        var final = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+        var after = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        final.ShouldBe(VerificationResult.TooManyAttempts);
+        after.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_ExpiresLikeARealCode()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+        _clock.Advance(TimeSpan.FromMinutes(_settings.ExpiryMinutes));
+
+        var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        result.ShouldBe(VerificationResult.Expired);
+    }
+
+    [Fact]
+    public async Task Verify_TwoParallelSubmissionsOfTheSameValidCode_OnlyOneIsValid()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var code = _alerts.LastCode;
+        var arrived = 0;
+        var gate = new TaskCompletionSource();
+        var store = new InterceptingCodeStore(_store, () =>
+        {
+            if (Interlocked.Increment(ref arrived) == 2)
+            {
+                gate.SetResult();
+            }
+
+            return gate.Task;
+        });
+        var service = new VerificationCodeService(store, _alerts, _clock, Options.Create(_settings));
+
+        var results = await Task.WhenAll(
+            service.VerifyAsync(UserId, VerificationPurpose.StepUp, code),
+            service.VerifyAsync(UserId, VerificationPurpose.StepUp, code));
+
+        results.Count(result => result == VerificationResult.Valid).ShouldBe(1);
+        results.Count(result => result == VerificationResult.NotFound).ShouldBe(1);
+        (await _store.GetAsync(UserId, VerificationPurpose.StepUp)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Verify_AfterAValidCode_TheSameCodeIsNotFound()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var code = _alerts.LastCode;
+
+        var first = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, code);
+        var second = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, code);
+
+        first.ShouldBe(VerificationResult.Valid);
+        second.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task Verify_ACodeReissuedMidCheck_IsNotConsumedBySubmissionForTheOldOne()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var oldCode = _alerts.LastCode;
+        _clock.Advance(TimeSpan.FromSeconds(_settings.ResendCooldownSeconds));
+        var newCode = string.Empty;
+        var reissued = false;
+        var store = new InterceptingCodeStore(_store, async () =>
+        {
+            if (reissued)
+            {
+                return;
+            }
+
+            reissued = true;
+            await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+            newCode = _alerts.LastCode;
+        });
+        var service = new VerificationCodeService(store, _alerts, _clock, Options.Create(_settings));
+
+        var oldResult = await service.VerifyAsync(UserId, VerificationPurpose.StepUp, oldCode);
+        var newResult = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, newCode);
+
+        oldResult.ShouldBe(VerificationResult.NotFound);
+        newResult.ShouldBe(VerificationResult.Valid);
+    }
+
+    #endregion
+
+    #region Nested Types
+
+    // Store that runs a step after every read, so a test can interleave other work between a read and the write that follows
+    private sealed class InterceptingCodeStore : IVerificationCodeStore
+    {
+        private readonly InMemoryVerificationCodeStore _inner;
+        private readonly Func<Task> _afterGet;
+
+        public InterceptingCodeStore(InMemoryVerificationCodeStore inner, Func<Task> afterGet)
+        {
+            _inner = inner;
+            _afterGet = afterGet;
+        }
+
+        public async Task<VerificationCode?> GetAsync(string userId, VerificationPurpose purpose)
+        {
+            var code = await _inner.GetAsync(userId, purpose);
+            await _afterGet();
+
+            return code;
+        }
+
+        public Task SaveAsync(VerificationCode code)
+        {
+            return _inner.SaveAsync(code);
+        }
+
+        public Task<int?> IncrementFailedAttemptsAsync(string userId, VerificationPurpose purpose)
+        {
+            return _inner.IncrementFailedAttemptsAsync(userId, purpose);
+        }
+
+        public Task<bool> TryTakeAsync(string userId, VerificationPurpose purpose, string codeHash)
+        {
+            return _inner.TryTakeAsync(userId, purpose, codeHash);
+        }
+
+        public Task DeleteAsync(string userId, VerificationPurpose purpose)
+        {
+            return _inner.DeleteAsync(userId, purpose);
+        }
     }
 
     #endregion

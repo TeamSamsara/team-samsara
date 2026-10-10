@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirebaseAccountGateway.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
 // Purpose : Firebase Admin implementation of the account gateway.
 
@@ -14,8 +14,7 @@ public class FirebaseAccountGateway : IAccountGateway
 {
     #region Public Methods
 
-    // Sets the access level claim. Firebase replaces the whole custom-claims set on each call,
-    // which is safe today because accessLevel is the only custom claim in use.
+    // Sets the access level claim; Firebase replaces the whole claim set, and this is the only claim in use
     public async Task SetAccessLevelAsync(string uid, AccessLevel accessLevel)
     {
         var claims = new Dictionary<string, object>
@@ -26,7 +25,7 @@ public class FirebaseAccountGateway : IAccountGateway
         await FirebaseAuth.DefaultInstance.SetCustomUserClaimsAsync(uid, claims);
     }
 
-    // Retrieves the account's email address, or null if the account does not exist
+    // Returns the account's email, or null if the account does not exist
     public async Task<string?> GetEmailAsync(string uid)
     {
         try
@@ -41,7 +40,61 @@ public class FirebaseAccountGateway : IAccountGateway
         }
     }
 
-    // Deletes the authentication account, treating "already gone" as success
+    // Returns the id of the account registered with this email, or null if there is none
+    public async Task<string?> GetUserIdByEmailAsync(string email)
+    {
+        try
+        {
+            var user = await FirebaseAuth.DefaultInstance.GetUserByEmailAsync(email);
+            return user.Uid;
+        }
+        catch (FirebaseAuthException exception)
+            when (exception.AuthErrorCode == AuthErrorCode.UserNotFound)
+        {
+            return null;
+        }
+    }
+
+    // Replaces the account's password
+    public async Task SetPasswordAsync(string uid, string newPassword)
+    {
+        var changes = new UserRecordArgs
+        {
+            Uid = uid,
+            Password = newPassword
+        };
+
+        await FirebaseAuth.DefaultInstance.UpdateUserAsync(changes);
+    }
+
+    // Replaces the account's email and marks it verified, since both codes were just confirmed
+    public async Task SetEmailAsync(string uid, string newEmail)
+    {
+        var changes = new UserRecordArgs
+        {
+            Uid = uid,
+            Email = newEmail,
+            EmailVerified = true
+        };
+
+        await FirebaseAuth.DefaultInstance.UpdateUserAsync(changes);
+    }
+
+    // Invalidates every refresh token, treating an account that is already gone as success
+    public async Task RevokeSessionsAsync(string uid)
+    {
+        try
+        {
+            await FirebaseAuth.DefaultInstance.RevokeRefreshTokensAsync(uid);
+        }
+        catch (FirebaseAuthException exception)
+            when (exception.AuthErrorCode == AuthErrorCode.UserNotFound)
+        {
+            // Nothing left to sign out.
+        }
+    }
+
+    // Deletes the authentication account, treating an account that is already gone as success
     public async Task DeleteAsync(string uid)
     {
         try
@@ -51,7 +104,7 @@ public class FirebaseAccountGateway : IAccountGateway
         catch (FirebaseAuthException exception)
             when (exception.AuthErrorCode == AuthErrorCode.UserNotFound)
         {
-            // Already deleted - nothing to do.
+            // Already deleted.
         }
     }
 

@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertMessages.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
-// Purpose : Subject and body text for every alert type. Placeholder wording for now - final
-// copy replaces these constants later without touching any logic. {{token}} placeholders are
-// filled from the template data supplied by the caller.
+// Purpose : Subject and body text for every alert type, with {{token}} placeholders filled from the caller's template data.
 
 using TeamSamsara.Shared.Alert;
 
@@ -26,6 +24,24 @@ internal static class AlertMessages
     public const string NewLoginAttemptBody =
         "<p>Placeholder - new login attempt from IP {{" + AlertTemplateKeys.IpAddress +
         "}}, device {{" + AlertTemplateKeys.UserAgent + "}}</p>";
+
+    public const string PasswordResetRequestedSubject = "Alert: password reset requested";
+    public const string PasswordResetRequestedBody =
+        "<p>Placeholder - password reset requested from IP {{" + AlertTemplateKeys.IpAddress +
+        "}}, device {{" + AlertTemplateKeys.UserAgent + "}}</p>";
+
+    public const string PasswordChangedSubject = "Alert: password changed";
+    public const string PasswordChangedBody =
+        "<p>Placeholder - your password was changed</p>";
+
+    public const string EmailChangedSubject = "Alert: email changed";
+    public const string EmailChangedBody =
+        "<p>Placeholder - your email was changed to {{" + AlertTemplateKeys.NewEmail + "}}</p>";
+
+    public const string AccountDeletedSubject = "Alert: account deleted";
+    public const string AccountDeletedBody =
+        "<p>Placeholder - your account was deleted. Sign in within {{" + AlertTemplateKeys.RecoveryDays +
+        "}} days to restore it; after that it is permanently removed.</p>";
 
     #endregion
 }

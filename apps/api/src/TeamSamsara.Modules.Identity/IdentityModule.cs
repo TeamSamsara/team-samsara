@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.13.0
+// Latest commit: feat/account-purge-job
 // Author : Gerrah
-// Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
-// endpoint requires a signed-in caller (any access level): registration is used by accounts
-// that are not yet members, and login checks run before a sign-in is verified.
+// Purpose : Registers the Identity module's services and maps its endpoints.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -15,6 +13,7 @@ using TeamSamsara.Modules.Identity.Endpoints;
 using TeamSamsara.Modules.Identity.Handlers;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
+using TeamSamsara.Modules.Identity.Workers;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Caching;
 using TeamSamsara.Shared.Configuration;
@@ -27,14 +26,17 @@ public class IdentityModule : IModule
 {
     #region Public Methods
 
+    // Registers settings, infrastructure, stores, handlers and workers.
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         RegisterSettings(services, configuration);
         RegisterInfrastructure(services);
         RegisterRepositories(services);
         RegisterHandlers(services);
+        RegisterWorkers(services);
     }
 
+    // Maps the signed-in endpoint group, plus password reset for callers who are signed out.
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints
@@ -43,22 +45,31 @@ public class IdentityModule : IModule
 
         RegistrationEndpoints.Map(group);
         AuthenticationEndpoints.Map(group);
+        LogoutEndpoints.Map(group);
+        ProfileEndpoints.Map(group);
+        PasswordEndpoints.Map(group);
+        EmailChangeEndpoints.Map(group);
+        AccountDeletionEndpoints.Map(group);
+
+        PasswordResetEndpoints.Map(endpoints);
     }
 
     #endregion
 
     #region Private Methods
 
-    // Binds and validates the module's settings (the app refuses to start if they are invalid)
+    // Binds and validates settings; the app refuses to start if they are invalid.
     private static void RegisterSettings(IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<VerificationSettings>(configuration, VerificationSettings.SectionName);
         services.AddValidatedOptions<GuardDogSettings>(configuration, GuardDogSettings.SectionName);
         services.AddValidatedOptions<AuthenticationSettings>(configuration, AuthenticationSettings.SectionName);
+        services.AddValidatedOptions<ProfileSettings>(configuration, ProfileSettings.SectionName);
+        services.AddValidatedOptions<PasswordSettings>(configuration, PasswordSettings.SectionName);
+        services.AddValidatedOptions<AccountPurgeSettings>(configuration, AccountPurgeSettings.SectionName);
     }
 
-    // Shared building blocks the module relies on. TryAdd leaves them alone if another
-    // module (or the host) registers its own.
+    // Registers shared services; TryAdd defers to registrations made elsewhere.
     private static void RegisterInfrastructure(IServiceCollection services)
     {
         services.AddHttpContextAccessor();
@@ -67,28 +78,43 @@ public class IdentityModule : IModule
         services.TryAddSingleton<IClock, SystemClock>();
     }
 
-    // Data access: Firestore stores and the Firebase account gateway
+    // Registers the Firestore stores and the Firebase account gateway.
     private static void RegisterRepositories(IServiceCollection services)
     {
         services.AddScoped<IUserStore, FirestoreUserStore>();
         services.AddScoped<IProfileStore, FirestoreProfileStore>();
         services.AddScoped<IVerificationCodeStore, FirestoreVerificationCodeStore>();
+        services.AddScoped<IPasswordResetTokenStore, FirestorePasswordResetTokenStore>();
+        services.AddScoped<IEmailChangeRequestStore, FirestoreEmailChangeRequestStore>();
         services.AddScoped<IAccountGateway, FirebaseAccountGateway>();
     }
 
-    // The module's logic. SignInTracker is one object exposed as two interfaces: Identity
-    // records verified sign-ins through ISignInTracker, and the authentication handler in
-    // Shared checks them through ISignInVerifier.
+    // Registers the module's services; SignInTracker backs both ISignInTracker and ISignInVerifier.
     private static void RegisterHandlers(IServiceCollection services)
     {
         services.AddScoped<IGuardDog, GuardDog>();
         services.AddScoped<IVerificationCodeService, VerificationCodeService>();
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<ISessionService, SessionService>();
+        services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
+        services.AddScoped<IPasswordResetDelivery, PasswordResetDelivery>();
+        services.AddScoped<IEmailChangeService, EmailChangeService>();
+        services.AddScoped<IEmailChangeDelivery, EmailChangeDelivery>();
+        services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+        services.AddScoped<IAccountPurgeService, AccountPurgeService>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());
         services.AddScoped<ISignInVerifier>(provider => provider.GetRequiredService<SignInTracker>());
+    }
+
+    // Registers the background job that purges accounts past their recovery window.
+    private static void RegisterWorkers(IServiceCollection services)
+    {
+        services.AddHostedService<AccountPurgeWorker>();
     }
 
     #endregion

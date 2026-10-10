@@ -1,12 +1,14 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/FirebaseStorageService.cs
-// Version : 1.1.0
-// Latest commit: feature/asset-storage-routing
+// Version : 1.2.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Provides the Firebase Storage implementation of IStorageService.
 
 using System;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
+using Google;
 using Google.Cloud.Storage.V1;
 
 namespace TeamSamsara.Shared.Storage;
@@ -52,10 +54,17 @@ public class FirebaseStorageService : IStorageService
         return memoryStream;
     }
 
-    // Deletes a file by its storage path.
+    // Deletes a file by its storage path; a file that is already gone counts as deleted.
     public async Task DeleteAsync(string relativePath)
     {
-        await _storageClient.DeleteObjectAsync(_bucketName, relativePath);
+        try
+        {
+            await _storageClient.DeleteObjectAsync(_bucketName, relativePath);
+        }
+        catch (GoogleApiException exception) when (exception.HttpStatusCode == HttpStatusCode.NotFound)
+        {
+            // Already deleted, so a retry after a partial delete still succeeds.
+        }
     }
 
     // Generates a temporary signed URL for a stored file.

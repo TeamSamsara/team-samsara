@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/AuthenticationServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Proves login: a recognized client is verified straight away, an unrecognized one
 // must confirm a code (and the member is told), deleted accounts are restored only after a
-// confirmed code and only within the recovery window.
+// confirmed code, only up to the end of the recovery window, and never while a purge holds them.
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -237,6 +237,79 @@ public class AuthenticationServiceTests
         check.Status.ShouldBe(AuthenticationStatus.AccountNotFound);
         confirm.ShouldBe(AuthenticationStatus.AccountNotFound);
         resend.Status.ShouldBe(AuthenticationStatus.AccountNotFound);
+    }
+
+    [Fact]
+    public async Task ADeletedAccount_ExactlyOneWindowOld_CanStillBeRestored()
+    {
+        var user = NewMemberWhoKnows(_knownClient);
+        user.DeletedAt = _clock.UtcNow.AddDays(-_settings.RecoveryWindowDays);
+        _users.Seed(user);
+
+        var check = await _service.CheckSignInAsync(UserId, AuthTime);
+        var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, _alerts.LastCode);
+
+        check.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
+        status.ShouldBe(AuthenticationStatus.Authenticated);
+        (await _users.GetByIdAsync(UserId))!.DeletedAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ADeletedAccount_OneSecondPastTheWindow_CannotBeRestored()
+    {
+        var user = NewMemberWhoKnows(_knownClient);
+        user.DeletedAt = _clock.UtcNow.AddDays(-_settings.RecoveryWindowDays).AddSeconds(-1);
+        _users.Seed(user);
+
+        var check = await _service.CheckSignInAsync(UserId, AuthTime);
+
+        check.Status.ShouldBe(AuthenticationStatus.AccountNotFound);
+        (await _users.GetByIdAsync(UserId))!.DeletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Confirm_WhileAPurgeHoldsTheAccount_RefusesToRestore_AndChangesNothing()
+    {
+        var user = NewMemberWhoKnows(_knownClient);
+        user.DeletedAt = _clock.UtcNow.AddDays(-5);
+        user.PurgeLeaseUntil = _clock.UtcNow.AddMinutes(10);
+        _users.Seed(user);
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, _alerts.LastCode);
+
+        status.ShouldBe(AuthenticationStatus.AccountNotFound);
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.DeletedAt.ShouldBe(user.DeletedAt);
+        stored.PurgeLeaseUntil.ShouldBe(user.PurgeLeaseUntil);
+        stored.VerifiedSignIns.ShouldBeEmpty();
+        stored.KnownFingerprints.ShouldNotContain(known => known.Hash == _newClient.Fingerprint);
+        (await _signIns.IsVerifiedAsync(UserId, AuthTime)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Restoring_ClearsTheDeletionMarkerAndAnyLapsedLease_AndVerifiesTheSignIn_Together()
+    {
+        var user = NewMemberWhoKnows(_knownClient);
+        user.DeletedAt = _clock.UtcNow.AddDays(-5);
+        user.PurgeLeaseUntil = _clock.UtcNow.AddMinutes(-1);
+        _users.Seed(user);
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        var status = await _service.ConfirmChallengeAsync(UserId, AuthTime, _alerts.LastCode);
+
+        status.ShouldBe(AuthenticationStatus.Authenticated);
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.DeletedAt.ShouldBeNull();
+        stored.PurgeLeaseUntil.ShouldBeNull();
+        stored.VerifiedSignIns.ShouldHaveSingleItem().ShouldBe(AuthTime);
+        stored.KnownFingerprints.ShouldContain(known => known.Hash == _newClient.Fingerprint);
     }
 
     #endregion

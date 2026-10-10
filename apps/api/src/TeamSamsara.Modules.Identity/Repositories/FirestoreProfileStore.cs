@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirestoreProfileStore.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/profile-atomic-update
 // Author : Gerrah
 // Purpose : Firestore implementation of the profile store.
 
@@ -49,13 +49,28 @@ public class FirestoreProfileStore : IProfileStore
             .CreateAsync(profile);
     }
 
-    // Saves the current state of an existing profile record
-    public async Task UpdateAsync(Profile profile)
+    // Reads, changes and saves the profile in one transaction; Firestore reruns it if the record changed meanwhile
+    public async Task<Profile?> ModifyAsync(string id, Action<Profile> modify)
     {
-        await _firestoreDb
+        var reference = _firestoreDb
             .Collection(IdentityFirestoreCollections.Profiles)
-            .Document(profile.Id)
-            .SetAsync(profile);
+            .Document(id);
+
+        return await _firestoreDb.RunTransactionAsync<Profile?>(async transaction =>
+        {
+            var snapshot = await transaction.GetSnapshotAsync(reference);
+
+            if (!snapshot.Exists)
+            {
+                return null;
+            }
+
+            var profile = snapshot.ConvertTo<Profile>();
+            modify(profile);
+            transaction.Set(reference, profile);
+
+            return profile;
+        });
     }
 
     // Deletes a profile record by id

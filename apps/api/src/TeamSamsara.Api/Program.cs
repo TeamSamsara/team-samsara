@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.5.1
-// Latest commit: feature/identity-module
+// Version : 1.6.0
+// Latest commit: feat/password-reset-endpoints
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -16,6 +16,7 @@ using TeamSamsara.Modules.Identity;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
+using TeamSamsara.Shared.BackgroundTasks;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Email;
 using TeamSamsara.Shared.Http;
@@ -39,10 +40,18 @@ builder.Services.AddPermissionAuthorization();
 builder.Services.AddFirestore(builder.Configuration);
 builder.Services.AddAssetStorage(builder.Configuration);
 builder.Services.AddEmail(builder.Configuration);
+builder.Services.AddBackgroundTasks();
 
 builder.Services.AddValidatedOptions<CorsSettings>(builder.Configuration, "Cors");
+builder.Services.AddValidatedOptions<RateLimitSettings>(builder.Configuration, RateLimitSettings.SectionName);
 
 var corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>() ?? new CorsSettings();
+
+var rateLimitSettings = builder.Configuration
+    .GetSection(RateLimitSettings.SectionName)
+    .Get<RateLimitSettings>() ?? new RateLimitSettings();
+
+builder.Services.AddSamsaraRateLimiting(rateLimitSettings);
 
 builder.Services.AddCors(options =>
 {
@@ -84,10 +93,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 
     // Behind Render the client is the visitor Cloudflare saw. X-Forwarded-For ends with
-    // Cloudflare's edge and Render's own private hop, so reading its last entry would
-    // return that internal hop instead of the visitor. CF-Connecting-IP holds only the
-    // visitor's address and is set by Cloudflare itself. It is honored solely when the
-    // immediate peer is a trusted private proxy, and ignored when absent (local dev).
+    // Cloudflare's edge and Render's own private hop (visitor, edge, internal hop), so
+    // reading its last entry would return that internal hop instead of the visitor.
+    // CF-Connecting-IP holds only the visitor's address and is set by Cloudflare itself.
+    // On Render the immediate peer is loopback (the platform proxy runs beside the app),
+    // which is trusted by default. The header is ignored when absent (local dev).
     options.ForwardedForHeaderName = "CF-Connecting-IP";
 
     foreach (var (prefix, prefixLength) in trustedProxyNetworks)
@@ -168,6 +178,10 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseRouting();
 app.UseCors("Default");
+
+// After forwarded headers (real client IP) and routing (endpoint policies), before auth work.
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRequestTimeouts();

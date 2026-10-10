@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.5.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
-// Purpose : Translates the outcome of a registration or authentication step into the HTTP
-// status code the endpoint answers with. The outcome itself always travels in the body too,
-// so the client can react to the exact reason.
+// Purpose : Translates each Identity step outcome into the HTTP status code the endpoint answers with.
 
 using Microsoft.AspNetCore.Http;
 using TeamSamsara.Modules.Identity.Models;
@@ -15,7 +13,7 @@ public static class IdentityStatusCodes
 {
     #region Public Methods
 
-    // HTTP status for a registration outcome
+    // HTTP status for a registration outcome.
     public static int For(RegistrationStatus status)
     {
         return status switch
@@ -32,7 +30,7 @@ public static class IdentityStatusCodes
         };
     }
 
-    // HTTP status for an authentication outcome
+    // HTTP status for an authentication outcome.
     public static int For(AuthenticationStatus status)
     {
         return status switch
@@ -46,6 +44,71 @@ public static class IdentityStatusCodes
             AuthenticationStatus.InvalidCode => StatusCodes.Status400BadRequest,
             AuthenticationStatus.CodeExpired => StatusCodes.Status400BadRequest,
             AuthenticationStatus.NoPendingCode => StatusCodes.Status400BadRequest,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for a profile outcome.
+    public static int For(ProfileStatus status)
+    {
+        return status switch
+        {
+            ProfileStatus.Success => StatusCodes.Status200OK,
+            ProfileStatus.ProfileNotFound => StatusCodes.Status404NotFound,
+            ProfileStatus.InvalidDisplayName => StatusCodes.Status400BadRequest,
+            ProfileStatus.InvalidBio => StatusCodes.Status400BadRequest,
+            ProfileStatus.ImageUnsupportedType => StatusCodes.Status415UnsupportedMediaType,
+            ProfileStatus.ImageTooLarge => StatusCodes.Status413PayloadTooLarge,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for a password outcome.
+    public static int For(PasswordStatus status)
+    {
+        return status switch
+        {
+            PasswordStatus.Success => StatusCodes.Status200OK,
+            PasswordStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            PasswordStatus.InvalidPassword => StatusCodes.Status400BadRequest,
+            PasswordStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            PasswordStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            PasswordStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            PasswordStatus.CodeExpired => StatusCodes.Status400BadRequest,
+            PasswordStatus.NoPendingCode => StatusCodes.Status400BadRequest,
+            PasswordStatus.InvalidResetToken => StatusCodes.Status400BadRequest,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for an email change outcome.
+    public static int For(EmailChangeStatus status)
+    {
+        return status switch
+        {
+            EmailChangeStatus.Success => StatusCodes.Status200OK,
+            EmailChangeStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            EmailChangeStatus.InvalidEmail => StatusCodes.Status400BadRequest,
+            EmailChangeStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            EmailChangeStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            EmailChangeStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            EmailChangeStatus.NoPendingRequest => StatusCodes.Status400BadRequest,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for an account deletion outcome.
+    public static int For(AccountDeletionStatus status)
+    {
+        return status switch
+        {
+            AccountDeletionStatus.Success => StatusCodes.Status200OK,
+            AccountDeletionStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            AccountDeletionStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            AccountDeletionStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            AccountDeletionStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            AccountDeletionStatus.CodeExpired => StatusCodes.Status400BadRequest,
+            AccountDeletionStatus.NoPendingCode => StatusCodes.Status400BadRequest,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }
