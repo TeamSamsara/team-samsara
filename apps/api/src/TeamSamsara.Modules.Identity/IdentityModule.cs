@@ -1,11 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.2.0
-// Latest commit: feat/password-change-service
+// Version : 1.3.0
+// Latest commit: feat/password-change-endpoints
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
 // endpoint requires a signed-in caller (any access level): registration is used by accounts
 // that are not yet members, and login checks run before a sign-in is verified. The profile
-// endpoints are further limited to verified members.
+// and password endpoints are further limited to verified members.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -45,6 +45,7 @@ public class IdentityModule : IModule
         RegistrationEndpoints.Map(group);
         AuthenticationEndpoints.Map(group);
         ProfileEndpoints.Map(group);
+        PasswordEndpoints.Map(group);
     }
 
     #endregion
