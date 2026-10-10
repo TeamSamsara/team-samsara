@@ -1,30 +1,28 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertType.cs
-// Version : 1.1.0
-// Latest commit: feat/alert-password-notices
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Enumerates every system-triggered security/transactional alert the platform can
-// send. Lives in Shared so any module can request an alert by type without referencing the
-// Alert module directly.
+// Purpose : Every system-triggered alert the platform can send, requestable by type from any module.
 
 namespace TeamSamsara.Shared.Alert;
 
 public enum AlertType
 {
-    // Sent when a new account is created; must be confirmed to complete registration
+    // Completes a new account's registration
     RegistrationCode,
 
-    // Sent to confirm a sensitive operation (email change, password change, account deletion,
-    // password reset) before it is carried out
+    // Confirms a sensitive operation before it is carried out
     StepUpCode,
 
-    // Sent whenever a login is attempted from an unrecognized device/IP fingerprint, regardless
-    // of whether the login attempt ultimately succeeds
+    // Reports a login attempt from an unrecognized device or IP
     NewLoginAttempt,
 
-    // Sent alongside the reset code when a password reset is requested from an unrecognized
-    // device/IP, so the account owner can tell it was not them
+    // Reports a password reset requested from an unrecognized device or IP
     PasswordResetRequested,
 
-    // Sent after a password has been changed or reset, so an unexpected change is noticed
-    PasswordChanged
+    // Reports that a password was changed or reset
+    PasswordChanged,
+
+    // Reports to the old address that the account email was changed
+    EmailChanged
 }

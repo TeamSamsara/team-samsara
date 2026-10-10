@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/FakeAccountGateway.cs
-// Version : 1.1.0
-// Latest commit: feat/account-gateway-password
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : A stand-in for the Firebase account operations. Tests register accounts with an email
-// and can read back the access level, password and session revocations that were applied.
+// Purpose : A stand-in for the Firebase account operations that records what was applied.
 
 using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Shared.Context;
@@ -23,23 +22,26 @@ public class FakeAccountGateway : IAccountGateway
     // The access level last set on each account
     public Dictionary<string, AccessLevel> AccessLevels { get; } = new();
 
-    // The password last set on each account (only accounts whose password was changed)
+    // The password last set on each account
     public Dictionary<string, string> Passwords { get; } = new();
 
     // Every account whose sessions were revoked, in order
     public List<string> RevokedSessions { get; } = new();
 
-    // When true, setting the access level throws (to test a failure partway through)
+    // When true, setting the access level throws
     public bool SetAccessLevelShouldFail { get; set; }
 
-    // When true, setting a password throws (to test a failure partway through)
+    // When true, setting a password throws
     public bool SetPasswordShouldFail { get; set; }
+
+    // When true, setting an email throws
+    public bool SetEmailShouldFail { get; set; }
 
     #endregion
 
     #region Public Methods
 
-    // Test helper: an account that exists with this email
+    // Test helper: registers an account with this email
     public void AddAccount(string uid, string email)
     {
         _emails[uid] = email;
@@ -85,6 +87,33 @@ public class FakeAccountGateway : IAccountGateway
         }
 
         Passwords[uid] = newPassword;
+
+        return Task.CompletedTask;
+    }
+
+    public Task SetEmailAsync(string uid, string newEmail)
+    {
+        if (SetEmailShouldFail)
+        {
+            throw new InvalidOperationException("Simulated failure setting the email.");
+        }
+
+        if (!_emails.ContainsKey(uid))
+        {
+            throw new InvalidOperationException("The account does not exist.");
+        }
+
+        var holder = _emails
+            .Where(entry => string.Equals(entry.Value, newEmail, StringComparison.OrdinalIgnoreCase))
+            .Select(entry => entry.Key)
+            .FirstOrDefault();
+
+        if (holder is not null && holder != uid)
+        {
+            throw new InvalidOperationException("The email belongs to another account.");
+        }
+
+        _emails[uid] = newEmail;
 
         return Task.CompletedTask;
     }

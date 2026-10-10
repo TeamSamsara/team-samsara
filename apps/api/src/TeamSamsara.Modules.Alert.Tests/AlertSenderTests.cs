@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert.Tests/AlertSenderTests.cs
-// Version : 1.1.0
-// Latest commit: feat/alert-password-notices
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Proves each alert type turns into one email to the right recipient with its template
-// data filled in, that substituted values are HTML-encoded, and that an unknown type sends nothing.
+// Purpose : Proves each alert type becomes one email to the right recipient with its data filled in and HTML-encoded.
 
 using Shouldly;
 using TeamSamsara.Modules.Alert.Tests.Fakes;
@@ -19,6 +18,7 @@ public class AlertSenderTests
     private const string VerificationCode = "493817";
     private const string Ip = "203.0.113.7";
     private const string Device = "Mozilla/5.0 (Test)";
+    private const string MaskedNewEmail = "j***@example.com";
 
     private readonly RecordingEmailSender _email = new();
     private readonly AlertSender _sender;
@@ -90,6 +90,19 @@ public class AlertSenderTests
         sent.To.ShouldBe(Recipient);
         sent.Subject.ShouldNotBeNullOrWhiteSpace();
         sent.HtmlBody.ShouldNotContain("{{");
+    }
+
+    [Fact]
+    public async Task EmailChanged_SendsOneEmailNamingTheMaskedNewAddress()
+    {
+        var data = new Dictionary<string, string> { [AlertTemplateKeys.NewEmail] = MaskedNewEmail };
+
+        await _sender.SendAlertAsync(Recipient, AlertType.EmailChanged, data);
+
+        var sent = _email.Sent.ShouldHaveSingleItem();
+        sent.To.ShouldBe(Recipient);
+        sent.Subject.ShouldNotBeNullOrWhiteSpace();
+        sent.HtmlBody.ShouldContain(MaskedNewEmail);
     }
 
     [Fact]
@@ -166,9 +179,11 @@ public class AlertSenderTests
 
     #region Private Methods
 
+    // Template data for the code alerts
     private static Dictionary<string, string> CodeData() =>
         new() { [AlertTemplateKeys.Code] = VerificationCode };
 
+    // Template data for the alerts that describe the requesting client
     private static Dictionary<string, string> ClientData() =>
         new()
         {
@@ -176,12 +191,14 @@ public class AlertSenderTests
             [AlertTemplateKeys.UserAgent] = Device
         };
 
+    // Every template key, for tests that cover all alert types
     private static Dictionary<string, string> AllData() =>
         new()
         {
             [AlertTemplateKeys.Code] = VerificationCode,
             [AlertTemplateKeys.IpAddress] = Ip,
-            [AlertTemplateKeys.UserAgent] = Device
+            [AlertTemplateKeys.UserAgent] = Device,
+            [AlertTemplateKeys.NewEmail] = MaskedNewEmail
         };
 
     #endregion

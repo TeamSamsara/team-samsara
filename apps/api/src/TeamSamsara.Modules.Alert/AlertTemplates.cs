@@ -1,11 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertTemplates.cs
-// Version : 1.1.0
-// Latest commit: feat/alert-password-notices
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Resolves an AlertType into its email subject and HTML body (text lives in
-// AlertMessages), substituting {{token}} placeholders from the caller-supplied template data.
-// Substituted values are HTML-encoded, since some (like the user agent) originate from the
-// requester.
+// Purpose : Resolves an AlertType into its email subject and HTML body.
 
 using System.Net;
 using System.Text;
@@ -17,6 +14,7 @@ internal static class AlertTemplates
 {
     #region Public Methods
 
+    // Picks the subject and body for the type and fills in its placeholders
     public static (string Subject, string Html) Resolve(
         AlertType type,
         IReadOnlyDictionary<string, string> templateData)
@@ -38,6 +36,9 @@ internal static class AlertTemplates
             AlertType.PasswordChanged =>
                 (AlertMessages.PasswordChangedSubject, AlertMessages.PasswordChangedBody),
 
+            AlertType.EmailChanged =>
+                (AlertMessages.EmailChangedSubject, AlertMessages.EmailChangedBody),
+
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type), type, "No template defined for this alert type.")
         };
@@ -49,6 +50,7 @@ internal static class AlertTemplates
 
     #region Private Methods
 
+    // Replaces each {{token}} with its HTML-encoded value, since some values come from the requester
     private static string Substitute(string html, IReadOnlyDictionary<string, string> templateData)
     {
         var builder = new StringBuilder(html);

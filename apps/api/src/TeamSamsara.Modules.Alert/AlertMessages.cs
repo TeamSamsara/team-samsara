@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertMessages.cs
-// Version : 1.1.0
-// Latest commit: feat/alert-password-notices
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Subject and body text for every alert type. Placeholder wording for now - final
-// copy replaces these constants later without touching any logic. {{token}} placeholders are
-// filled from the template data supplied by the caller.
+// Purpose : Subject and body text for every alert type, with {{token}} placeholders filled from the caller's template data.
 
 using TeamSamsara.Shared.Alert;
 
@@ -35,6 +33,10 @@ internal static class AlertMessages
     public const string PasswordChangedSubject = "Alert: password changed";
     public const string PasswordChangedBody =
         "<p>Placeholder - your password was changed</p>";
+
+    public const string EmailChangedSubject = "Alert: email changed";
+    public const string EmailChangedBody =
+        "<p>Placeholder - your email was changed to {{" + AlertTemplateKeys.NewEmail + "}}</p>";
 
     #endregion
 }
