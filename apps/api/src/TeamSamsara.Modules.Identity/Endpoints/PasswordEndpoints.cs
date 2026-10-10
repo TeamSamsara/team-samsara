@@ -1,11 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/PasswordEndpoints.cs
-// Version : 1.0.0
-// Latest commit: feat/password-change-endpoints
+// Version : 1.1.0
+// Latest commit: feat/password-reset-endpoints
 // Author : Gerrah
 // Purpose : HTTP endpoints for a member changing their own password: request the confirmation
 // code, then submit the new password with that code.
 
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -47,7 +46,7 @@ public static class PasswordEndpoints
             return Results.Unauthorized();
         }
 
-        var body = await ReadBodyAsync<PasswordCodeRequest>(request, cancellationToken);
+        var body = await request.ReadJsonBodyAsync<PasswordCodeRequest>(cancellationToken);
 
         if (body is null || string.IsNullOrEmpty(body.NewPassword))
         {
@@ -72,7 +71,7 @@ public static class PasswordEndpoints
             return Results.Unauthorized();
         }
 
-        var body = await ReadBodyAsync<ChangePasswordRequest>(request, cancellationToken);
+        var body = await request.ReadJsonBodyAsync<ChangePasswordRequest>(cancellationToken);
 
         if (body is null
             || string.IsNullOrEmpty(body.NewPassword)
@@ -87,27 +86,6 @@ public static class PasswordEndpoints
         return Results.Json(
             new StatusResponse<PasswordStatus>(status),
             statusCode: IdentityStatusCodes.For(status));
-    }
-
-    // Reads the JSON body here, not as a bound parameter, because binding happens before the
-    // member-only filter and would let non-members get a 400 instead of a 401 or 403.
-    // Returns null when the request is not JSON or the JSON is malformed.
-    private static async Task<T?> ReadBodyAsync<T>(HttpRequest request, CancellationToken cancellationToken)
-        where T : class
-    {
-        if (!request.HasJsonContentType())
-        {
-            return null;
-        }
-
-        try
-        {
-            return await request.ReadFromJsonAsync<T>(cancellationToken);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     #endregion

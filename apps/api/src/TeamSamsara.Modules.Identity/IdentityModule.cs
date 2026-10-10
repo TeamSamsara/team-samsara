@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.5.0
-// Latest commit: feat/password-reset-service
+// Version : 1.6.0
+// Latest commit: feat/password-reset-endpoints
 // Author : Gerrah
-// Purpose : Registers the Identity module's services and maps its endpoints; the endpoint group requires a signed-in caller.
+// Purpose : Registers the Identity module's services and maps its endpoints; the endpoint group requires a signed-in caller, except password reset.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -43,6 +43,9 @@ public class IdentityModule : IModule
         AuthenticationEndpoints.Map(group);
         ProfileEndpoints.Map(group);
         PasswordEndpoints.Map(group);
+
+        // Outside the authorized group: callers who forgot their password cannot sign in.
+        PasswordResetEndpoints.Map(endpoints);
     }
 
     #endregion
