@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/FakeAccountGateway.cs
-// Version : 1.2.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : A stand-in for the Firebase account operations that records what was applied.
 
@@ -36,6 +36,9 @@ public class FakeAccountGateway : IAccountGateway
 
     // When true, setting an email throws
     public bool SetEmailShouldFail { get; set; }
+
+    // When true, revoking sessions throws
+    public bool RevokeSessionsShouldFail { get; set; }
 
     #endregion
 
@@ -120,6 +123,11 @@ public class FakeAccountGateway : IAccountGateway
 
     public Task RevokeSessionsAsync(string uid)
     {
+        if (RevokeSessionsShouldFail)
+        {
+            throw new InvalidOperationException("Simulated failure revoking the sessions.");
+        }
+
         RevokedSessions.Add(uid);
 
         return Task.CompletedTask;

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.10.0
-// Latest commit: feat/logout
+// Version : 1.11.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -47,6 +47,7 @@ public class IdentityModule : IModule
         ProfileEndpoints.Map(group);
         PasswordEndpoints.Map(group);
         EmailChangeEndpoints.Map(group);
+        AccountDeletionEndpoints.Map(group);
 
         PasswordResetEndpoints.Map(endpoints);
     }
@@ -99,6 +100,7 @@ public class IdentityModule : IModule
         services.AddScoped<IPasswordResetDelivery, PasswordResetDelivery>();
         services.AddScoped<IEmailChangeService, EmailChangeService>();
         services.AddScoped<IEmailChangeDelivery, EmailChangeDelivery>();
+        services.AddScoped<IAccountDeletionService, AccountDeletionService>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());

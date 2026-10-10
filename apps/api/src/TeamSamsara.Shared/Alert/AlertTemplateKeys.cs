@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertTemplateKeys.cs
-// Version : 1.1.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.2.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Names of the template data entries callers supply to IAlertSender.
 
@@ -21,6 +21,9 @@ public static class AlertTemplateKeys
 
     // The new email address, masked (EmailChanged)
     public const string NewEmail = "newEmail";
+
+    // The number of days the deleted account can still be restored (AccountDeleted)
+    public const string RecoveryDays = "recoveryDays";
 
     #endregion
 }

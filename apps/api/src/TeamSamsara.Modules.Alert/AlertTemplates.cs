@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert/AlertTemplates.cs
-// Version : 1.2.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Resolves an AlertType into its email subject and HTML body.
 
@@ -38,6 +38,9 @@ internal static class AlertTemplates
 
             AlertType.EmailChanged =>
                 (AlertMessages.EmailChangedSubject, AlertMessages.EmailChangedBody),
+
+            AlertType.AccountDeleted =>
+                (AlertMessages.AccountDeletedSubject, AlertMessages.AccountDeletedBody),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(type), type, "No template defined for this alert type.")

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertType.cs
-// Version : 1.2.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Every system-triggered alert the platform can send, requestable by type from any module.
 
@@ -24,5 +24,8 @@ public enum AlertType
     PasswordChanged,
 
     // Reports to the old address that the account email was changed
-    EmailChanged
+    EmailChanged,
+
+    // Reports that the account was deleted and can be restored by signing in within the recovery window
+    AccountDeleted
 }
