@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/PasswordEndpointsTests.cs
-// Version : 1.0.0
-// Latest commit: feat/password-change-endpoints
+// Version : 1.1.0
+// Latest commit: fix/password-change-verified-sign-ins
 // Author : Gerrah
 // Purpose : Proves the password endpoints refuse non-members before reading the request body,
 // reject missing or malformed bodies from members, and answer each step of a password change
@@ -40,6 +40,7 @@ public class PasswordEndpointsTests
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryVerificationCodeStore _codes = new();
+    private readonly InMemoryCacheService _cache = new();
     private readonly RecordingAlertSender _alerts = new();
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeClock _clock = new();
@@ -303,9 +304,12 @@ public class PasswordEndpointsTests
         var verification = new VerificationCodeService(
             _codes, _alerts, _clock, Options.Create(_verificationSettings));
 
+        var signIns = new SignInTracker(_users, _cache, Options.Create(new AuthenticationSettings()));
+
         var passwords = new PasswordService(
             _users,
             _accounts,
+            signIns,
             verification,
             _alerts,
             Options.Create(_passwordSettings),

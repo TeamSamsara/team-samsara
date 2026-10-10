@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/PasswordServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feat/password-change-service
+// Version : 1.1.0
+// Latest commit: fix/password-change-verified-sign-ins
 // Author : Gerrah
 // Purpose : Proves password change: the rules are checked before a code is sent or used, only the
-// right code changes the password, a change signs the member out everywhere and sends a notice,
-// and a failed notice or a failed change behaves as it should.
+// right code changes the password, a change signs the member out everywhere (sessions revoked,
+// verified sign-ins forgotten) and sends a notice, and a failed notice or a failed change
+// behaves as it should.
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -25,14 +26,18 @@ public class PasswordServiceTests : IAsyncLifetime
     private const string Email = "jane.doe@example.com";
     private const string NewPassword = "a-good-new-password";
     private const string WrongCode = "not-the-code";
+    private const long FirstSignIn = 1_700_000_000;
+    private const long SecondSignIn = 1_700_000_100;
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryVerificationCodeStore _codes = new();
+    private readonly InMemoryCacheService _cache = new();
     private readonly RecordingAlertSender _alerts = new();
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeClock _clock = new();
     private readonly VerificationSettings _verificationSettings = new();
     private readonly PasswordSettings _passwordSettings = new();
+    private readonly SignInTracker _signIns;
     private readonly PasswordService _service;
 
     #endregion
@@ -44,9 +49,12 @@ public class PasswordServiceTests : IAsyncLifetime
         var verification = new VerificationCodeService(
             _codes, _alerts, _clock, Options.Create(_verificationSettings));
 
+        _signIns = new SignInTracker(_users, _cache, Options.Create(new AuthenticationSettings()));
+
         _service = new PasswordService(
             _users,
             _accounts,
+            _signIns,
             verification,
             _alerts,
             Options.Create(_passwordSettings),
@@ -65,7 +73,8 @@ public class PasswordServiceTests : IAsyncLifetime
         {
             Id = UserId,
             AccessLevel = AccessLevel.Member,
-            CreatedAt = _clock.UtcNow
+            CreatedAt = _clock.UtcNow,
+            VerifiedSignIns = new List<long> { FirstSignIn, SecondSignIn }
         });
     }
 
@@ -164,6 +173,22 @@ public class PasswordServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Change_WithTheRightCode_ForgetsTheVerifiedSignIns_AtOnce()
+    {
+        var code = await RequestCodeAsync();
+        (await _signIns.IsVerifiedAsync(UserId, FirstSignIn)).ShouldBeTrue();
+
+        await _service.ChangeAsync(UserId, NewPassword, code);
+
+        (await _signIns.IsVerifiedAsync(UserId, FirstSignIn)).ShouldBeFalse();
+        (await _signIns.IsVerifiedAsync(UserId, SecondSignIn)).ShouldBeFalse();
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.VerifiedSignIns.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Change_WithAWrongCode_ChangesNothing()
     {
         await RequestCodeAsync();
@@ -174,6 +199,7 @@ public class PasswordServiceTests : IAsyncLifetime
         _accounts.Passwords.ShouldBeEmpty();
         _accounts.RevokedSessions.ShouldBeEmpty();
         _alerts.Sent.ShouldNotContain(alert => alert.Type == AlertType.PasswordChanged);
+        (await _signIns.IsVerifiedAsync(UserId, FirstSignIn)).ShouldBeTrue();
     }
 
     [Fact]
@@ -274,6 +300,7 @@ public class PasswordServiceTests : IAsyncLifetime
 
         _accounts.RevokedSessions.ShouldBeEmpty();
         _alerts.Sent.ShouldNotContain(alert => alert.Type == AlertType.PasswordChanged);
+        (await _signIns.IsVerifiedAsync(UserId, FirstSignIn)).ShouldBeTrue();
     }
 
     #endregion
