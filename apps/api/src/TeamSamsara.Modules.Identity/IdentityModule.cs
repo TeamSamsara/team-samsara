@@ -1,11 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.4.0
-// Latest commit: feat/password-reset-token-store
+// Version : 1.5.0
+// Latest commit: feat/password-reset-service
 // Author : Gerrah
-// Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
-// endpoint requires a signed-in caller (any access level): registration is used by accounts
-// that are not yet members, and login checks run before a sign-in is verified. The profile
-// and password endpoints are further limited to verified members.
+// Purpose : Registers the Identity module's services and maps its endpoints; the endpoint group requires a signed-in caller.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -52,7 +49,7 @@ public class IdentityModule : IModule
 
     #region Private Methods
 
-    // Binds and validates the module's settings (the app refuses to start if they are invalid)
+    // Binds and validates settings; the app refuses to start if they are invalid.
     private static void RegisterSettings(IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<VerificationSettings>(configuration, VerificationSettings.SectionName);
@@ -62,8 +59,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<PasswordSettings>(configuration, PasswordSettings.SectionName);
     }
 
-    // Shared building blocks the module relies on. TryAdd leaves them alone if another
-    // module (or the host) registers its own.
+    // Shared services; TryAdd defers to registrations made elsewhere.
     private static void RegisterInfrastructure(IServiceCollection services)
     {
         services.AddHttpContextAccessor();
@@ -72,7 +68,7 @@ public class IdentityModule : IModule
         services.TryAddSingleton<IClock, SystemClock>();
     }
 
-    // Data access: Firestore stores and the Firebase account gateway
+    // Firestore stores and the Firebase account gateway.
     private static void RegisterRepositories(IServiceCollection services)
     {
         services.AddScoped<IUserStore, FirestoreUserStore>();
@@ -82,9 +78,7 @@ public class IdentityModule : IModule
         services.AddScoped<IAccountGateway, FirebaseAccountGateway>();
     }
 
-    // The module's logic. SignInTracker is one object exposed as two interfaces: Identity
-    // records verified sign-ins through ISignInTracker, and the authentication handler in
-    // Shared checks them through ISignInVerifier.
+    // Module services; SignInTracker backs both ISignInTracker and ISignInVerifier.
     private static void RegisterHandlers(IServiceCollection services)
     {
         services.AddScoped<IGuardDog, GuardDog>();
@@ -93,6 +87,8 @@ public class IdentityModule : IModule
         services.AddScoped<IAuthenticationService, AuthenticationService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IPasswordResetService, PasswordResetService>();
+        services.AddScoped<IPasswordResetDelivery, PasswordResetDelivery>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());
