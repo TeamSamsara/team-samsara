@@ -270,6 +270,57 @@ Account existence is never revealed:
 | `accountNotFound`                                 | `404` |
 | `cooldownActive`, `tooManyAttempts`               | `429` |
 
+### Account deletion (`/account/delete`) - verified member
+
+A member deletes their own account in two steps. The account is not erased at once: it is blocked
+immediately and can be restored for 30 days (`RecoveryWindowDays`), then a scheduled job removes
+it for good.
+
+| Method | Path                           | Does                                                       | Answers                                     |
+| ------ | ------------------------------ | ---------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/delete/request-code` | Emails a confirmation code to the member's current address | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/delete`              | Checks `{"code"}` and deletes the account                  | `status`                                    |
+
+| Outcome (`status`)                            | HTTP  |
+| --------------------------------------------- | ----- |
+| `success`                                     | `200` |
+| `invalidCode`, `codeExpired`, `noPendingCode` | `400` |
+| `accountNotFound`                             | `404` |
+| `cooldownActive`, `tooManyAttempts`           | `429` |
+
+**Lifecycle**
+
+1. **Confirm.** `request-code` emails a code; asking again too soon answers `cooldownActive`.
+   `delete` accepts the code once. A second request with the same code, or a parallel request that
+   lost the race, answers `noPendingCode`.
+2. **Blocked at once.** One write marks the account deleted and forgets every verified sign-in.
+   From that moment every token the member holds is answered as `403` `verificationRequired`, even
+   though Firebase still considers the token valid until it expires. Nothing after this write is
+   needed for the block to hold.
+3. **Cleanup after the commit.** The cached verified sign-ins are dropped and the member's Firebase
+   refresh tokens are revoked, so no device can get a new ID token. These steps are best effort:
+   a failure is logged as an error and does not undo the deletion or fail the request, because the
+   account is already blocked.
+4. **Notice.** Once the deletion is committed, the `AccountDeleted` email goes to the member's
+   address and states the recovery window. A failed send is logged and ignored. No email is sent
+   for a deletion that did not commit.
+5. **Recovery window.** For 30 days the member can restore the account by signing in again and
+   completing the normal login check (the new-device code if the device is not recognized). There
+   is no cancel endpoint. The restore is one write: it clears the deletion and records the verified
+   sign-in together, so an account is never half restored. The deadline is strict: exactly 30 days
+   after the deletion still restores, one instant later does not. Past the deadline, or while the
+   purge is already working on the account, the sign-in answers `accountNotFound`.
+6. **Purge.** After the window the scheduled job (see Background Services) removes the profile
+   images, the profile, every verification code, password reset token and email-change request
+   the account still has, the Firebase account, and finally the user record.
+
+- **The client must call Firebase `signOut()` after a successful delete.** The API already refuses
+  the old token as a member, but the Firebase session is still open on the device until the client
+  ends it. Without `signOut()` the next request answers `403` instead of returning to the login
+  screen.
+- A restored account does not bring old tokens back: they keep their old sign-in time, so they stay
+  unverified. The member signs in again.
+
 ### Logout (`/account/logout`) - verified member
 
 | Method | Path                  | Does                                                                                   |
@@ -301,6 +352,12 @@ Both answer `204 No Content` with no body, and repeating them is harmless.
 Member profile images are stored as assets too, so they appear in `GET /assets` and can be fetched
 by id like any other image. They are meant to be shown publicly. This must change before any image
 that has to stay private is stored as an asset.
+
+Deleting an asset removes the stored file first and the metadata second, so a failed delete leaves
+the asset in place and can simply be repeated. A file that is already gone counts as deleted, so a
+repeat after a partial failure succeeds. If the file cannot be deleted the request answers an
+error. A file can still be left without metadata only if the cleanup after a failed upload fails
+twice in a row; that is logged.
 
 ### Health and utility
 
@@ -611,19 +668,45 @@ mechanisms. Both live in `TeamSamsara.Shared.BackgroundTasks`.
   and `TryEnqueue` returns `false` when it is full. Only enqueue work that is safe to lose
   (a user can tap resend) or that is re-derivable.
 - **Scheduled job** - time-triggered work, built as its own `BackgroundService` on a
-  `PeriodicTimer`. Not built yet.
+  `PeriodicTimer`. It runs once at startup, then every interval, each run in its own DI scope. A
+  failed run is logged and the job waits for the next tick; it never stops.
 
 ### Implemented
 
-| Service                | Where  | What it does                                                                                                                |
-| ---------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `BackgroundTaskWorker` | Shared | Runs queued work one item at a time, logs failures, never stops on one. Runs password reset and email change code delivery. |
+| Service                | Where    | What it does                                                                                                                |
+| ---------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `BackgroundTaskWorker` | Shared   | Runs queued work one item at a time, logs failures, never stops on one. Runs password reset and email change code delivery. |
+| `AccountPurgeWorker`   | Identity | Permanently removes accounts whose recovery window has ended. See below.                                                    |
+
+### Account purge
+
+`AccountPurgeWorker` calls `IAccountPurgeService` at startup and then every `IntervalHours`. It
+removes every account deleted more than `RecoveryWindowDays` (30) ago. See Account deletion for
+the member's side.
+
+| Setting (`Identity:AccountPurge`) | Default | Range | Meaning                                                 |
+| --------------------------------- | ------- | ----- | ------------------------------------------------------- |
+| `IntervalHours`                   | `6`     | 1-168 | How often the job looks for accounts to remove          |
+| `LeaseMinutes`                    | `10`    | 1-120 | How long one instance holds an account while purging it |
+
+- **Several instances.** Before touching an account an instance claims it in a transaction that
+  checks the account is still deleted, past the deadline and not leased by another instance. Only
+  one claim succeeds. If the instance crashes, the lease lapses after `LeaseMinutes` and a later
+  run takes the account over. A member who signs in during a lease is not restored.
+- **Retry safety.** Each step can be repeated, and something already gone counts as success. The
+  order is images, profile, verification codes, password reset tokens, email-change request,
+  Firebase account, and the user record last, so an account that stopped halfway is still listed
+  and the next run finishes it.
+- **Failures.** A failure on one account is logged and counted, and the rest of the batch goes on.
+  The account stays listed and is retried on every later run. A run that logs failed accounts is
+  a warning.
+- **Leftover documents.** The purge deletes verification codes, password reset tokens and the
+  email-change request directly, so a purged account leaves none behind. The Firestore TTL
+  policies stay as the cleanup for everyone else.
 
 ### Planned
 
-| Work          | Mechanism     | Notes                                                                                                                                                                                               |
-| ------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account purge | Scheduled job | Deletes accounts past `RecoveryWindowDays` (30). `IUserStore.ListDeletedBeforeAsync` and `DeleteAsync` already exist; nothing calls them yet. Needs the gateway, profile and asset deletes as well. |
+Nothing is planned at the moment.
 
 ### Audit before starting the frontend
 
@@ -637,10 +720,12 @@ Run this audit once every backend module is built. Findings so far, from the cod
   and reports failure if the send throws, so the caller has to know the outcome. Not a candidate
   as written.
 - `ResendEmailSender` - no retry. A queued send could retry a few times before giving up.
-- Assets - a failed file delete is logged and the file is left behind (`TryDeleteFileAsync`).
+- Assets - a deleted asset no longer leaves its file behind. Two cases remain: the file left by
+  a failed upload whose cleanup also failed (`TryDeleteFileAsync`), and metadata with no owner.
   Candidate for a scheduled sweep of orphaned files.
 - Expired `verificationCodes`, `passwordResetTokens` and `emailChangeRequests` - cleaned up by a
-  Firestore TTL policy on `ExpiresAt`, not by a service.
+  Firestore TTL policy on `ExpiresAt`, not by a service. The account purge also deletes them
+  directly for the accounts it removes.
 - Catalog, Content, Media, Orders - stubs. Audit each when built (image processing, order and
   receipt emails, stock and price sync).
 
