@@ -1,6 +1,6 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/PasswordStatus.cs
-// Version : 1.0.0
-// Latest commit: feat/password-change-service
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Passwords/PasswordStatus.cs
+// Version : 1.1.0
+// Latest commit: feat/password-reset-token-store
 // Author : Gerrah
 // Purpose : The outcome of a password step. Endpoints translate these into responses.
 
@@ -31,5 +31,9 @@ public enum PasswordStatus
     TooManyAttempts,
 
     // No code is pending for this account
-    NoPendingCode
+    NoPendingCode,
+
+    // The password reset token is unknown, expired or already used. These are deliberately not
+    // told apart, so the answer reveals nothing about which tokens ever existed.
+    InvalidResetToken
 }

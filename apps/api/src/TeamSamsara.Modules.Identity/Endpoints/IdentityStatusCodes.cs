@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.2.0
-// Latest commit: feat/password-change-endpoints
+// Version : 1.3.0
+// Latest commit: feat/password-reset-token-store
 // Author : Gerrah
 // Purpose : Translates the outcome of a registration, authentication, profile or password step
 // into the HTTP status code the endpoint answers with. The outcome itself always travels in the
@@ -78,6 +78,7 @@ public static class IdentityStatusCodes
             PasswordStatus.InvalidCode => StatusCodes.Status400BadRequest,
             PasswordStatus.CodeExpired => StatusCodes.Status400BadRequest,
             PasswordStatus.NoPendingCode => StatusCodes.Status400BadRequest,
+            PasswordStatus.InvalidResetToken => StatusCodes.Status400BadRequest,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }
