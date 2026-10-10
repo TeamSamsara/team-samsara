@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AuthenticationService.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Default IAuthenticationService. A sign-in only becomes verified (and so honored as
 // Member by the authentication handler) once the client is recognized or the emailed
@@ -77,7 +77,10 @@ public class AuthenticationService : IAuthenticationService
 
         if (IsRecognized(account.User, client))
         {
-            await VerifySignInAsync(userId, authTime, client);
+            if (!await VerifySignInAsync(userId, authTime, client))
+            {
+                return Rejected(AuthenticationStatus.AccountNotFound);
+            }
 
             return new LoginResult(AuthenticationStatus.Authenticated, 0, 0);
         }
@@ -108,7 +111,10 @@ public class AuthenticationService : IAuthenticationService
             return ToFailureStatus(verification);
         }
 
-        await VerifySignInAsync(userId, authTime, _guardDog.Inspect());
+        if (!await VerifySignInAsync(userId, authTime, _guardDog.Inspect()))
+        {
+            return AuthenticationStatus.AccountNotFound;
+        }
 
         return AuthenticationStatus.Authenticated;
     }
@@ -174,6 +180,12 @@ public class AuthenticationService : IAuthenticationService
         return deletedAt.AddDays(_settings.RecoveryWindowDays) < _clock.UtcNow;
     }
 
+    // Whether a purge currently holds the account, which makes it impossible to restore
+    private bool IsBeingPurged(User user)
+    {
+        return user.PurgeLeaseUntil is { } heldUntil && heldUntil > _clock.UtcNow;
+    }
+
     // Deleted accounts are never recognized: they must confirm a code to be restored
     private bool IsRecognized(User user, ClientInfo client)
     {
@@ -223,16 +235,25 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 
-    // Remembers the client, clears any deletion marker, then marks the sign-in as verified
-    private async Task VerifySignInAsync(string userId, long authTime, ClientInfo client)
+    // Restores the account and records the sign-in in one write; false if the account can no longer be restored
+    private async Task<bool> VerifySignInAsync(string userId, long authTime, ClientInfo client)
     {
-        await _users.ModifyAsync(userId, user =>
-        {
-            user.DeletedAt = null;
-            _guardDog.Remember(user, client);
-        });
+        return await _signIns.RecordVerifiedAsync(userId, authTime, user => TryRestore(user, client));
+    }
 
-        await _signIns.RecordVerifiedAsync(userId, authTime);
+    // Clears the deletion marker and remembers the client, unless the window has ended or a purge holds the account
+    private bool TryRestore(User user, ClientInfo client)
+    {
+        if (IsPastRecoveryWindow(user) || IsBeingPurged(user))
+        {
+            return false;
+        }
+
+        user.DeletedAt = null;
+        user.PurgeLeaseUntil = null;
+        _guardDog.Remember(user, client);
+
+        return true;
     }
 
     // Translates a failed code check into an authentication outcome

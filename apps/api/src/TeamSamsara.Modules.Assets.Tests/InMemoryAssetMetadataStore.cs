@@ -1,6 +1,6 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Assets.Tests/Fakes/InMemoryAssetMetadataStore.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: feat/account-purge
 // Author: Gerrah
 //
 // Purpose: An in-memory asset metadata store.
@@ -22,6 +22,9 @@ public class InMemoryAssetMetadataStore : IAssetMetadataStore
 
     // Every metadata record currently stored, keyed by asset id
     public IReadOnlyDictionary<string, AssetMetadata> Assets => _assets;
+
+    // When true, deleting a record throws, as a failing database would
+    public bool FailDeletes { get; set; }
 
     #endregion
 
@@ -53,6 +56,11 @@ public class InMemoryAssetMetadataStore : IAssetMetadataStore
 
     public Task DeleteAsync(string id)
     {
+        if (FailDeletes)
+        {
+            throw new InvalidOperationException("Simulated database failure.");
+        }
+
         _assets.Remove(id);
 
         return Task.CompletedTask;

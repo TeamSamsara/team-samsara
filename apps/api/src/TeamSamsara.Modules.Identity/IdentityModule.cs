@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.11.0
-// Latest commit: feat/account-deletion
+// Version : 1.12.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -64,6 +64,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<AuthenticationSettings>(configuration, AuthenticationSettings.SectionName);
         services.AddValidatedOptions<ProfileSettings>(configuration, ProfileSettings.SectionName);
         services.AddValidatedOptions<PasswordSettings>(configuration, PasswordSettings.SectionName);
+        services.AddValidatedOptions<AccountPurgeSettings>(configuration, AccountPurgeSettings.SectionName);
     }
 
     // Registers shared services; TryAdd defers to registrations made elsewhere.
@@ -101,6 +102,7 @@ public class IdentityModule : IModule
         services.AddScoped<IEmailChangeService, EmailChangeService>();
         services.AddScoped<IEmailChangeDelivery, EmailChangeDelivery>();
         services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+        services.AddScoped<IAccountPurgeService, AccountPurgeService>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());

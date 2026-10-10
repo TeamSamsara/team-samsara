@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/AccountDeletionServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feat/account-deletion
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Proves account deletion: only the right code deletes, once, and the member stops counting as Member at once even with warm caches; revocation or notice failures cannot undo it.
 
@@ -431,6 +431,13 @@ public class AccountDeletionServiceTests
 
         public Task<IReadOnlyList<User>> ListDeletedBeforeAsync(DateTimeOffset cutoff) =>
             _inner.ListDeletedBeforeAsync(cutoff);
+
+        public Task<bool> TryClaimForPurgeAsync(
+            string id,
+            DateTimeOffset cutoff,
+            DateTimeOffset now,
+            DateTimeOffset leaseUntil) =>
+            _inner.TryClaimForPurgeAsync(id, cutoff, now, leaseUntil);
 
         public Task DeleteAsync(string id) => _inner.DeleteAsync(id);
     }

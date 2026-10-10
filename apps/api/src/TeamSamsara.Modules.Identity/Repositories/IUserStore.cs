@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/IUserStore.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Looks up, records, updates, lists and removes user (security/identity) records,
 // independent of where they are stored. Keyed by Firebase uid.
@@ -30,6 +30,15 @@ public interface IUserStore
     // Retrieves every user whose deletion marker is older than the cutoff - the accounts whose
     // 30-day recovery window has expired and are due for purging
     public Task<IReadOnlyList<User>> ListDeletedBeforeAsync(DateTimeOffset cutoff);
+
+    // Atomically claims a deleted account for purging: true only if the user still exists, is
+    // marked deleted before the cutoff and is not held by another purge, and then holds it until
+    // leaseUntil. False means someone restored it, removed it or is purging it already.
+    public Task<bool> TryClaimForPurgeAsync(
+        string id,
+        DateTimeOffset cutoff,
+        DateTimeOffset now,
+        DateTimeOffset leaseUntil);
 
     // Deletes a user record by id
     public Task DeleteAsync(string id);

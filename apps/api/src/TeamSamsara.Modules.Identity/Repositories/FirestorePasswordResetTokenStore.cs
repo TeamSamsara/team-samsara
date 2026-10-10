@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirestorePasswordResetTokenStore.cs
-// Version : 1.0.0
-// Latest commit: feat/password-reset-token-store
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Firestore implementation of the password reset token store.
 
@@ -53,6 +53,29 @@ public class FirestorePasswordResetTokenStore : IPasswordResetTokenStore
 
             return snapshot.ConvertTo<PasswordResetToken>();
         });
+    }
+
+    // Deletes every token of this member in one batch; a member only ever has a handful, short-lived
+    public async Task DeleteForUserAsync(string userId)
+    {
+        var snapshot = await _firestoreDb
+            .Collection(IdentityFirestoreCollections.PasswordResetTokens)
+            .WhereEqualTo(nameof(PasswordResetToken.UserId), userId)
+            .GetSnapshotAsync();
+
+        if (snapshot.Count == 0)
+        {
+            return;
+        }
+
+        var batch = _firestoreDb.StartBatch();
+
+        foreach (var document in snapshot.Documents)
+        {
+            batch.Delete(document.Reference);
+        }
+
+        await batch.CommitAsync();
     }
 
     #endregion

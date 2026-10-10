@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/InMemoryPasswordResetTokenStore.cs
-// Version : 1.0.0
-// Latest commit: feat/password-reset-service
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : In-memory password reset token store; Take removes the record, like the real one.
 
@@ -41,6 +41,21 @@ public class InMemoryPasswordResetTokenStore : IPasswordResetTokenStore
         }
 
         return Task.FromResult<PasswordResetToken?>(token);
+    }
+
+    public Task DeleteForUserAsync(string userId)
+    {
+        var ids = _tokens.Values
+            .Where(token => token.UserId == userId)
+            .Select(token => token.Id)
+            .ToList();
+
+        foreach (var id in ids)
+        {
+            _tokens.Remove(id);
+        }
+
+        return Task.CompletedTask;
     }
 
     // Test helper: reads a record without consuming it.

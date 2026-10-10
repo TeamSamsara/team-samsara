@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Authentication/SignInTracker.cs
-// Version : 1.2.0
-// Latest commit: feat/logout
+// Version : 1.3.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Stores verified sign-ins on the user record and answers the per-request "is this sign-in verified?" question from a short-lived cache.
 
@@ -44,8 +44,33 @@ public class SignInTracker : ISignInTracker, ISignInVerifier
     // Adds the sign-in to the member's verified list, trims the oldest, and drops the cache.
     public async Task RecordVerifiedAsync(string userId, long authTime)
     {
-        await _userStore.ModifyAsync(userId, user => AddSignIn(user, authTime));
-        await _cache.RemoveAsync(CacheKey(userId));
+        await RecordVerifiedAsync(userId, authTime, _ => true);
+    }
+
+    // Records the sign-in in the same write as `prepare`; false (nothing recorded) if `prepare` refuses.
+    public async Task<bool> RecordVerifiedAsync(string userId, long authTime, Func<User, bool> prepare)
+    {
+        var recorded = false;
+
+        await _userStore.ModifyAsync(userId, user =>
+        {
+            recorded = false;
+
+            if (!prepare(user))
+            {
+                return;
+            }
+
+            AddSignIn(user, authTime);
+            recorded = true;
+        });
+
+        if (recorded)
+        {
+            await _cache.RemoveAsync(CacheKey(userId));
+        }
+
+        return recorded;
     }
 
     // Removes one sign-in from the member's verified list and drops the cache; unknown members are ignored.
