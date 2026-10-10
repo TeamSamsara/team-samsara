@@ -270,6 +270,24 @@ Account existence is never revealed:
 | `accountNotFound`                                 | `404` |
 | `cooldownActive`, `tooManyAttempts`               | `429` |
 
+### Logout (`/account/logout`) - verified member
+
+| Method | Path                  | Does                                                                                   |
+| ------ | --------------------- | -------------------------------------------------------------------------------------- |
+| `POST` | `/account/logout`     | Ends this device's sign-in; the member's other devices stay signed in                  |
+| `POST` | `/account/logout/all` | Revokes every refresh token and forgets every verified sign-in, like a password change |
+
+Both answer `204 No Content` with no body, and repeating them is harmless.
+
+- **The client must also call Firebase `signOut()`.** `logout` only stops this API accepting the
+  sign-in as a member. The ID token itself stays valid with Firebase until it expires (up to an
+  hour), and until then it is answered as `403` `verificationRequired`.
+- **`logout/all` takes effect on every device:** refresh tokens are revoked, so no device can get a
+  new ID token, and the verified sign-ins are forgotten at once. Each device has to sign in again.
+- **Verified members only.** A caller still waiting on the new-device code, or on registration, has
+  no verified sign-in to end and gets `403`. To abandon the device challenge the client calls
+  Firebase `signOut()` and returns to the login screen; nothing was recorded on the server.
+
 ### Assets (`/assets`)
 
 | Method   | Path                | Access  | Does                                                                  |
