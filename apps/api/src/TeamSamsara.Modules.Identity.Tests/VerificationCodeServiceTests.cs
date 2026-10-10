@@ -1,9 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/VerificationCodeServiceTests.cs
-// Version : 1.1.0
-// Latest commit: feat/password-reset-purpose
+// Version : 1.2.0
+// Latest commit: feat/decoy-verification-code
 // Author : Gerrah
 // Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, the attempt
-// limit, single use, and that a failed email leaves nothing behind.
+// limit, single use, that a failed email leaves nothing behind, and that a decoy code behaves
+// like a real one without ever being sent.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -21,6 +22,7 @@ public class VerificationCodeServiceTests
     private const string UserId = "user-1";
     private const string Email = "member@example.com";
     private const string WrongCode = "not-the-code";
+    private const string OtherUserId = "user-2";
 
     private readonly InMemoryVerificationCodeStore _store = new();
     private readonly RecordingAlertSender _alerts = new();
@@ -238,6 +240,104 @@ public class VerificationCodeServiceTests
         var result = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, _alerts.LastCode);
 
         result.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_SendsNothing_AndReportsSent()
+    {
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        _alerts.Sent.ShouldBeEmpty();
+        (await _store.GetAsync(UserId, VerificationPurpose.PasswordReset)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task IssueDecoy_GivesTheSameAnswerAndStoredShapeAsARealCode()
+    {
+        var real = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
+        var decoy = await _service.IssueDecoyAsync(OtherUserId, VerificationPurpose.PasswordReset);
+
+        var realStored = await _store.GetAsync(UserId, VerificationPurpose.PasswordReset);
+        var decoyStored = await _store.GetAsync(OtherUserId, VerificationPurpose.PasswordReset);
+
+        decoy.ShouldBe(real);
+        realStored.ShouldNotBeNull();
+        decoyStored.ShouldNotBeNull();
+        decoyStored.CreatedAt.ShouldBe(realStored.CreatedAt);
+        decoyStored.ExpiresAt.ShouldBe(realStored.ExpiresAt);
+        decoyStored.CodeHash.Length.ShouldBe(realStored.CodeHash.Length);
+        decoyStored.Salt.Length.ShouldBe(realStored.Salt.Length);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_UsesThePurposeCodeLength()
+    {
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.CodeLength.ShouldBe(_settings.PasswordResetCodeLength);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_AgainTooSoon_ReportsTheSameCooldownAsARealCode()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+        _clock.Advance(TimeSpan.FromSeconds(20));
+
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.CooldownActive);
+        result.RetryAfterSeconds.ShouldBe(_settings.ResendCooldownSeconds - 20);
+    }
+
+    [Fact]
+    public async Task IssueDecoy_WhenEmailDeliveryIsDown_StillSucceeds()
+    {
+        _alerts.ShouldFail = true;
+
+        var result = await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        (await _store.GetAsync(UserId, VerificationPurpose.PasswordReset)).ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_WrongCodeIsInvalid_NotNotFound()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        result.ShouldBe(VerificationResult.Invalid);
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_TooManyGuessesBurnsIt()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+
+        for (var attempt = 1; attempt < _settings.MaxFailedAttempts; attempt++)
+        {
+            var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+            result.ShouldBe(VerificationResult.Invalid);
+        }
+
+        var final = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+        var after = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        final.ShouldBe(VerificationResult.TooManyAttempts);
+        after.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task Verify_AgainstADecoy_ExpiresLikeARealCode()
+    {
+        await _service.IssueDecoyAsync(UserId, VerificationPurpose.PasswordReset);
+        _clock.Advance(TimeSpan.FromMinutes(_settings.ExpiryMinutes));
+
+        var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
+
+        result.ShouldBe(VerificationResult.Expired);
     }
 
     #endregion
