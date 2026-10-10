@@ -1,10 +1,12 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordService.cs
-// Version : 1.0.0
-// Latest commit: feat/password-change-service
+// Version : 1.1.0
+// Latest commit: fix/password-change-verified-sign-ins
 // Author : Gerrah
 // Purpose : Default IPasswordService. The new password travels with the confirmation code, so
 // the server never stores it between steps. The code is checked only after the password rules,
-// and is consumed only when both pass.
+// and is consumed only when both pass. A change ends every session: Firebase refresh tokens are
+// revoked and the member's verified sign-ins are forgotten, so already-issued ID tokens stop
+// counting as Member immediately instead of lasting out their hour.
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,6 +23,7 @@ public class PasswordService : IPasswordService
 
     private readonly IUserStore _users;
     private readonly IAccountGateway _accounts;
+    private readonly ISignInTracker _signIns;
     private readonly IVerificationCodeService _verification;
     private readonly IAlertSender _alerts;
     private readonly PasswordSettings _settings;
@@ -33,6 +36,7 @@ public class PasswordService : IPasswordService
     public PasswordService(
         IUserStore users,
         IAccountGateway accounts,
+        ISignInTracker signIns,
         IVerificationCodeService verification,
         IAlertSender alerts,
         IOptions<PasswordSettings> settings,
@@ -40,6 +44,7 @@ public class PasswordService : IPasswordService
     {
         _users = users;
         _accounts = accounts;
+        _signIns = signIns;
         _verification = verification;
         _alerts = alerts;
         _settings = settings.Value;
@@ -108,6 +113,7 @@ public class PasswordService : IPasswordService
 
         await _accounts.SetPasswordAsync(userId, newPassword);
         await _accounts.RevokeSessionsAsync(userId);
+        await _signIns.ClearVerifiedAsync(userId);
         await NotifyPasswordChangedAsync(email, cancellationToken);
 
         return PasswordStatus.Success;

@@ -1,9 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/SignInTrackerTests.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/password-change-verified-sign-ins
 // Author : Gerrah
 // Purpose : Proves sign-in verification: only recorded sign-ins count, deleted or unknown
-// members never verify, old sign-ins are trimmed, and the cache is used and invalidated.
+// members never verify, old sign-ins are trimmed, clearing forgets them all, and the cache is
+// used and invalidated.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -132,6 +133,31 @@ public class SignInTrackerTests
         await _tracker.RecordVerifiedAsync(UserId, SignIn);
 
         (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Clearing_ForgetsEverySignIn_AtOnce_EvenWhenTheyWereCached()
+    {
+        _users.Seed(NewUser());
+        await _tracker.RecordVerifiedAsync(UserId, SignIn);
+        await _tracker.RecordVerifiedAsync(UserId, SignIn + 1);
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+
+        await _tracker.ClearVerifiedAsync(UserId);
+
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeFalse();
+        (await _tracker.IsVerifiedAsync(UserId, SignIn + 1)).ShouldBeFalse();
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.VerifiedSignIns.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Clearing_ForAnUnknownMember_Throws()
+    {
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => _tracker.ClearVerifiedAsync("nobody"));
     }
 
     #endregion

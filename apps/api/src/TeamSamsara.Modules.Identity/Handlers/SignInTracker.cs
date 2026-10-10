@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/SignInTracker.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/password-change-verified-sign-ins
 // Author : Gerrah
 // Purpose : Stores verified sign-ins on the user record and answers the per-request
 // "is this sign-in verified?" question from a short-lived cache. Fails closed: a missing or
@@ -47,6 +47,13 @@ public class SignInTracker : ISignInTracker, ISignInVerifier
     public async Task RecordVerifiedAsync(string userId, long authTime)
     {
         await _userStore.ModifyAsync(userId, user => AddSignIn(user, authTime));
+        await _cache.RemoveAsync(CacheKey(userId));
+    }
+
+    // Empties the member's verified list and drops the cache, so the change is seen at once
+    public async Task ClearVerifiedAsync(string userId)
+    {
+        await _userStore.ModifyAsync(userId, user => user.VerifiedSignIns.Clear());
         await _cache.RemoveAsync(CacheKey(userId));
     }
 
