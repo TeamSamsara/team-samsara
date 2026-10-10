@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.5.3
-// Latest commit: feature/identity-module
+// Version : 1.5.4
+// Latest commit: feat/background-task-queue
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -16,6 +16,7 @@ using TeamSamsara.Modules.Identity;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
+using TeamSamsara.Shared.BackgroundTasks;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Email;
 using TeamSamsara.Shared.Http;
@@ -39,6 +40,7 @@ builder.Services.AddPermissionAuthorization();
 builder.Services.AddFirestore(builder.Configuration);
 builder.Services.AddAssetStorage(builder.Configuration);
 builder.Services.AddEmail(builder.Configuration);
+builder.Services.AddBackgroundTasks();
 
 builder.Services.AddValidatedOptions<CorsSettings>(builder.Configuration, "Cors");
 

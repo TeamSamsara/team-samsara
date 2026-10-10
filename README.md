@@ -481,6 +481,56 @@ Inline comments are the exception, not the default. Add one only when the code c
 communicate the intent on its own; keep it to a short sentence or phrase. Don't restate what a
 name, type, or structure already makes clear.
 
+## Background Services
+
+Work that must not hold up a request, or that runs on a schedule, goes through one of two
+mechanisms. Both live in `TeamSamsara.Shared.BackgroundTasks`.
+
+- **Task queue** (`IBackgroundTaskQueue`) - request-triggered work. A handler calls
+  `TryEnqueue` and returns; one worker runs the items in order, each in its own DI scope.
+  The queue is in memory and bounded (1000 items), so queued work is lost if the app restarts
+  and `TryEnqueue` returns `false` when it is full. Only enqueue work that is safe to lose
+  (a user can tap resend) or that is re-derivable.
+- **Scheduled job** - time-triggered work, built as its own `BackgroundService` on a
+  `PeriodicTimer`. Not built yet.
+
+### Implemented
+
+| Service                | Where  | What it does                                                                                       |
+| ---------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| `BackgroundTaskWorker` | Shared | Runs queued work one item at a time, logs failures, never stops on one. Nothing enqueues work yet. |
+
+### Planned
+
+| Work                                         | Mechanism     | Notes                                                                                                                                                                                               |
+| -------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forgot-password lookup, code issue and email | Queue         | Every request gets the same answer; the work happens behind it so timing cannot reveal whether an email has an account.                                                                             |
+| Account purge                                | Scheduled job | Deletes accounts past `RecoveryWindowDays` (30). `IUserStore.ListDeletedBeforeAsync` and `DeleteAsync` already exist; nothing calls them yet. Needs the gateway, profile and asset deletes as well. |
+
+### Audit before starting the frontend
+
+Run this audit once every backend module is built. Findings so far, from the code that exists:
+
+- `AuthenticationService` - the new-login alert is awaited inside the sign-in request and its
+  failure is swallowed. Candidate for the queue.
+- `PasswordService` - the password-changed notice is awaited inside the request and its failure
+  is swallowed. Candidate for the queue.
+- `VerificationCodeService` - the code email stays inline. `IssueAsync` discards the stored code
+  and reports failure if the send throws, so the caller has to know the outcome. Not a candidate
+  as written.
+- `ResendEmailSender` - no retry. A queued send could retry a few times before giving up.
+- Assets - a failed file delete is logged and the file is left behind (`TryDeleteFileAsync`).
+  Candidate for a scheduled sweep of orphaned files.
+- Expired `verificationCodes` and `passwordResetTokens` - cleaned up by a Firestore TTL policy on
+  `ExpiresAt`, not by a service.
+- Catalog, Content, Media, Orders - stubs. Audit each when built (image processing, order and
+  receipt emails, stock and price sync).
+
+For each module, check: anything awaited in a request that the caller does not need the result
+of; anything that fails quietly and leaves leftovers; anything that should expire or be swept on
+a schedule; and whether it can tolerate being lost on restart. If not, it needs a durable outbox
+rather than the in-memory queue.
+
 ## Deferred Implementations
 
 Some interface methods are intentionally stubbed rather than implemented, because building them now would mean guessing at requirements with no real caller driving their shape yet.
