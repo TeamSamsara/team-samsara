@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert.Tests/AlertSenderTests.cs
-// Version : 1.2.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.3.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Proves each alert type becomes one email to the right recipient with its data filled in and HTML-encoded.
 
@@ -19,6 +19,7 @@ public class AlertSenderTests
     private const string Ip = "203.0.113.7";
     private const string Device = "Mozilla/5.0 (Test)";
     private const string MaskedNewEmail = "j***@example.com";
+    private const string RecoveryDays = "30";
 
     private readonly RecordingEmailSender _email = new();
     private readonly AlertSender _sender;
@@ -103,6 +104,20 @@ public class AlertSenderTests
         sent.To.ShouldBe(Recipient);
         sent.Subject.ShouldNotBeNullOrWhiteSpace();
         sent.HtmlBody.ShouldContain(MaskedNewEmail);
+    }
+
+    [Fact]
+    public async Task AccountDeleted_SendsOneEmailNamingTheRecoveryWindow()
+    {
+        var data = new Dictionary<string, string> { [AlertTemplateKeys.RecoveryDays] = RecoveryDays };
+
+        await _sender.SendAlertAsync(Recipient, AlertType.AccountDeleted, data);
+
+        var sent = _email.Sent.ShouldHaveSingleItem();
+        sent.To.ShouldBe(Recipient);
+        sent.Subject.ShouldNotBeNullOrWhiteSpace();
+        sent.HtmlBody.ShouldContain(RecoveryDays);
+        sent.HtmlBody.ShouldNotContain("{{");
     }
 
     [Fact]
@@ -198,7 +213,8 @@ public class AlertSenderTests
             [AlertTemplateKeys.Code] = VerificationCode,
             [AlertTemplateKeys.IpAddress] = Ip,
             [AlertTemplateKeys.UserAgent] = Device,
-            [AlertTemplateKeys.NewEmail] = MaskedNewEmail
+            [AlertTemplateKeys.NewEmail] = MaskedNewEmail,
+            [AlertTemplateKeys.RecoveryDays] = RecoveryDays
         };
 
     #endregion

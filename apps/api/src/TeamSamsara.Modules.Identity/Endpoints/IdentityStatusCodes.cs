@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.4.0
-// Latest commit: feat/email-change-service
+// Version : 1.5.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Translates each Identity step outcome into the HTTP status code the endpoint answers with.
 
@@ -93,6 +93,22 @@ public static class IdentityStatusCodes
             EmailChangeStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
             EmailChangeStatus.InvalidCode => StatusCodes.Status400BadRequest,
             EmailChangeStatus.NoPendingRequest => StatusCodes.Status400BadRequest,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for an account deletion outcome.
+    public static int For(AccountDeletionStatus status)
+    {
+        return status switch
+        {
+            AccountDeletionStatus.Success => StatusCodes.Status200OK,
+            AccountDeletionStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            AccountDeletionStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            AccountDeletionStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            AccountDeletionStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            AccountDeletionStatus.CodeExpired => StatusCodes.Status400BadRequest,
+            AccountDeletionStatus.NoPendingCode => StatusCodes.Status400BadRequest,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

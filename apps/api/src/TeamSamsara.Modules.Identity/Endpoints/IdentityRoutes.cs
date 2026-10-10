@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.6.0
-// Latest commit: feat/logout
+// Version : 1.7.0
+// Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Route paths of the Identity module's endpoints, shared between the endpoint classes and their tests.
 
@@ -43,6 +43,10 @@ public static class IdentityRoutes
     public const string EmailGroup = "/email";
     public const string EmailRequest = "/request";
     public const string EmailConfirm = "/confirm";
+
+    public const string DeleteGroup = "/delete";
+    public const string DeleteRequestCode = "/request-code";
+    public const string DeleteConfirm = "/";
 
     #endregion
 }
