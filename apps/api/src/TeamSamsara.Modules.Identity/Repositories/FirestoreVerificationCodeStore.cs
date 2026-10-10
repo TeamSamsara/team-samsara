@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirestoreVerificationCodeStore.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: fix/verification-code-single-use
 // Author : Gerrah
 // Purpose : Firestore implementation of the verification code store.
 
@@ -64,6 +64,26 @@ public class FirestoreVerificationCodeStore : IVerificationCodeStore
             transaction.Update(document, nameof(VerificationCode.FailedAttempts), attempts);
 
             return (int?)attempts;
+        });
+    }
+
+    // Atomically deletes the code if it still has the given hash; true for the one caller that deleted it
+    public async Task<bool> TryTakeAsync(string userId, VerificationPurpose purpose, string codeHash)
+    {
+        var document = GetDocument(userId, purpose);
+
+        return await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var snapshot = await transaction.GetSnapshotAsync(document);
+
+            if (!snapshot.Exists || snapshot.GetValue<string>(nameof(VerificationCode.CodeHash)) != codeHash)
+            {
+                return false;
+            }
+
+            transaction.Delete(document);
+
+            return true;
         });
     }
 
