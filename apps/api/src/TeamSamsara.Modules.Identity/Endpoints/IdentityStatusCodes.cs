@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.3.0
-// Latest commit: feat/password-reset-token-store
+// Version : 1.4.0
+// Latest commit: feat/email-change-service
 // Author : Gerrah
-// Purpose : Translates the outcome of a registration, authentication, profile or password step
-// into the HTTP status code the endpoint answers with. The outcome itself always travels in the
-// body too, so the client can react to the exact reason.
+// Purpose : Translates each Identity step outcome into the HTTP status code the endpoint answers with.
 
 using Microsoft.AspNetCore.Http;
 using TeamSamsara.Modules.Identity.Models;
@@ -15,7 +13,7 @@ public static class IdentityStatusCodes
 {
     #region Public Methods
 
-    // HTTP status for a registration outcome
+    // HTTP status for a registration outcome.
     public static int For(RegistrationStatus status)
     {
         return status switch
@@ -32,7 +30,7 @@ public static class IdentityStatusCodes
         };
     }
 
-    // HTTP status for an authentication outcome
+    // HTTP status for an authentication outcome.
     public static int For(AuthenticationStatus status)
     {
         return status switch
@@ -50,7 +48,7 @@ public static class IdentityStatusCodes
         };
     }
 
-    // HTTP status for a profile outcome
+    // HTTP status for a profile outcome.
     public static int For(ProfileStatus status)
     {
         return status switch
@@ -65,7 +63,7 @@ public static class IdentityStatusCodes
         };
     }
 
-    // HTTP status for a password outcome
+    // HTTP status for a password outcome.
     public static int For(PasswordStatus status)
     {
         return status switch
@@ -79,6 +77,22 @@ public static class IdentityStatusCodes
             PasswordStatus.CodeExpired => StatusCodes.Status400BadRequest,
             PasswordStatus.NoPendingCode => StatusCodes.Status400BadRequest,
             PasswordStatus.InvalidResetToken => StatusCodes.Status400BadRequest,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for an email change outcome.
+    public static int For(EmailChangeStatus status)
+    {
+        return status switch
+        {
+            EmailChangeStatus.Success => StatusCodes.Status200OK,
+            EmailChangeStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            EmailChangeStatus.InvalidEmail => StatusCodes.Status400BadRequest,
+            EmailChangeStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            EmailChangeStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            EmailChangeStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            EmailChangeStatus.NoPendingRequest => StatusCodes.Status400BadRequest,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

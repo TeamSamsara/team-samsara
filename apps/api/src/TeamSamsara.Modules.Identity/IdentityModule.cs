@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.7.0
-// Latest commit: feat/email-change-request-store
+// Version : 1.8.0
+// Latest commit: feat/email-change-service
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -25,7 +25,7 @@ public class IdentityModule : IModule
 {
     #region Public Methods
 
-    // Registers settings, infrastructure, stores and handlers
+    // Registers settings, infrastructure, stores and handlers.
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         RegisterSettings(services, configuration);
@@ -34,7 +34,7 @@ public class IdentityModule : IModule
         RegisterHandlers(services);
     }
 
-    // Maps the signed-in endpoint group, plus password reset for callers who are signed out
+    // Maps the signed-in endpoint group, plus password reset for callers who are signed out.
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
         var group = endpoints
@@ -53,7 +53,7 @@ public class IdentityModule : IModule
 
     #region Private Methods
 
-    // Binds and validates settings; the app refuses to start if they are invalid
+    // Binds and validates settings; the app refuses to start if they are invalid.
     private static void RegisterSettings(IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<VerificationSettings>(configuration, VerificationSettings.SectionName);
@@ -63,7 +63,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<PasswordSettings>(configuration, PasswordSettings.SectionName);
     }
 
-    // Registers shared services; TryAdd defers to registrations made elsewhere
+    // Registers shared services; TryAdd defers to registrations made elsewhere.
     private static void RegisterInfrastructure(IServiceCollection services)
     {
         services.AddHttpContextAccessor();
@@ -72,7 +72,7 @@ public class IdentityModule : IModule
         services.TryAddSingleton<IClock, SystemClock>();
     }
 
-    // Registers the Firestore stores and the Firebase account gateway
+    // Registers the Firestore stores and the Firebase account gateway.
     private static void RegisterRepositories(IServiceCollection services)
     {
         services.AddScoped<IUserStore, FirestoreUserStore>();
@@ -83,7 +83,7 @@ public class IdentityModule : IModule
         services.AddScoped<IAccountGateway, FirebaseAccountGateway>();
     }
 
-    // Registers the module's services; SignInTracker backs both ISignInTracker and ISignInVerifier
+    // Registers the module's services; SignInTracker backs both ISignInTracker and ISignInVerifier.
     private static void RegisterHandlers(IServiceCollection services)
     {
         services.AddScoped<IGuardDog, GuardDog>();
@@ -94,6 +94,8 @@ public class IdentityModule : IModule
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
         services.AddScoped<IPasswordResetDelivery, PasswordResetDelivery>();
+        services.AddScoped<IEmailChangeService, EmailChangeService>();
+        services.AddScoped<IEmailChangeDelivery, EmailChangeDelivery>();
 
         services.AddScoped<SignInTracker>();
         services.AddScoped<ISignInTracker>(provider => provider.GetRequiredService<SignInTracker>());
