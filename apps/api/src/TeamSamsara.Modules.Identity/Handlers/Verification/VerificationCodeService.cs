@@ -1,11 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/VerificationCodeService.cs
-// Version : 1.3.0
-// Latest commit: feat/decoy-verification-code
+// Version : 1.4.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Issues and checks one-time verification codes. Codes are delivered through
-// IAlertSender, throttled on resend, and burned after too many wrong guesses. A decoy code
-// is stored the same way but never delivered. Cryptography lives in VerificationCodeCrypto;
-// this class is the workflow only.
+// Purpose : Issues and checks one-time verification codes, delivered through IAlertSender and burned after too many wrong guesses.
 
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
@@ -44,7 +41,7 @@ public class VerificationCodeService : IVerificationCodeService
 
     #region Public Methods
 
-    // Generates, stores (hashed) and emails a code, unless one was sent too recently
+    // Stores a hashed code and emails it, unless one was sent too recently
     public Task<VerificationIssueResult> IssueAsync(
         string userId,
         VerificationPurpose purpose,
@@ -58,8 +55,7 @@ public class VerificationCodeService : IVerificationCodeService
                 userId, purpose, email, profile.AlertType, code, cancellationToken));
     }
 
-    // Does everything IssueAsync does except email the code. The stored code can never be
-    // read, so it behaves like a real one that was lost: same cooldown, expiry and attempt limit.
+    // Stores a code like IssueAsync but never sends it, so the caller does not reveal who exists
     public Task<VerificationIssueResult> IssueDecoyAsync(
         string userId,
         VerificationPurpose purpose,
@@ -68,7 +64,7 @@ public class VerificationCodeService : IVerificationCodeService
         return IssueCoreAsync(userId, purpose, (_, _) => Task.CompletedTask);
     }
 
-    // Checks a submitted code and consumes it if valid
+    // Checks a submitted code; a valid code is consumed and cannot be reused
     public async Task<VerificationResult> VerifyAsync(
         string userId,
         VerificationPurpose purpose,
@@ -87,7 +83,7 @@ public class VerificationCodeService : IVerificationCodeService
             return await ConsumeAsync(userId, purpose, VerificationResult.Expired);
         }
 
-        // Count the attempt BEFORE comparing, so parallel guesses each get a distinct count.
+        // The attempt is counted before comparing, so parallel guesses each get a distinct count.
         var attempts = await _store.IncrementFailedAttemptsAsync(userId, purpose);
 
         if (attempts is null)
@@ -138,7 +134,7 @@ public class VerificationCodeService : IVerificationCodeService
             VerificationIssueStatus.Sent, profile.CodeLength, _settings.ResendCooldownSeconds);
     }
 
-    // The settings that vary by purpose, resolved in one place
+    // Resolves the code length and alert wording for a purpose
     private PurposeProfile GetPurposeProfile(VerificationPurpose purpose)
     {
         return purpose switch
@@ -149,15 +145,17 @@ public class VerificationCodeService : IVerificationCodeService
             VerificationPurpose.StepUp =>
                 new PurposeProfile(_settings.StepUpCodeLength, AlertType.StepUpCode),
 
-            // The login challenge reuses the step-up wording; the separate "new login attempt"
-            // notice is sent by the login flow.
+            // Reuses the step-up wording; the login flow sends its own "new login attempt" notice.
             VerificationPurpose.LoginChallenge =>
                 new PurposeProfile(_settings.LoginChallengeCodeLength, AlertType.StepUpCode),
 
-            // The reset code reuses the step-up wording; the separate "password reset requested"
-            // notice is sent by the reset flow when the request comes from an unknown client.
+            // Reuses the step-up wording; the reset flow sends its own notice for unknown clients.
             VerificationPurpose.PasswordReset =>
                 new PurposeProfile(_settings.PasswordResetCodeLength, AlertType.StepUpCode),
+
+            // Both email-change codes reuse the step-up wording.
+            VerificationPurpose.EmailChangeOld or VerificationPurpose.EmailChangeNew =>
+                new PurposeProfile(_settings.EmailChangeCodeLength, AlertType.StepUpCode),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(purpose), purpose, "Unknown verification purpose.")
@@ -180,7 +178,7 @@ public class VerificationCodeService : IVerificationCodeService
         return remaining > TimeSpan.Zero ? (int)Math.Ceiling(remaining.TotalSeconds) : 0;
     }
 
-    // Stores a new code for the member, keeping only its salted hash
+    // Stores a new code, keeping only its salted hash
     private async Task SaveCodeAsync(string userId, VerificationPurpose purpose, string code)
     {
         var now = _clock.UtcNow;
@@ -198,8 +196,7 @@ public class VerificationCodeService : IVerificationCodeService
         });
     }
 
-    // Emails the code. If the email fails, the stored code is dropped - otherwise the
-    // cooldown would make the member wait to retry for a message they never received.
+    // Emails the code; if the send fails the stored code is dropped so the cooldown does not lock the member out
     private async Task SendCodeOrDiscardAsync(
         string userId,
         VerificationPurpose purpose,
@@ -224,7 +221,7 @@ public class VerificationCodeService : IVerificationCodeService
         }
     }
 
-    // Deletes the pending code and returns the given result, so a code can never be reused
+    // Deletes the pending code and returns the given result, so a code is never reused
     private async Task<VerificationResult> ConsumeAsync(
         string userId,
         VerificationPurpose purpose,

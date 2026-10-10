@@ -351,7 +351,7 @@ dotnet test apps/api/TeamSamsara.sln
 dotnet format apps/api/TeamSamsara.sln --verify-no-changes
 ```
 
-All three must be clean, and CI must pass on the pull request. Nothing is merged with a failing build. After merging, update `dev`, rebuild and retest: the combined result must also pass.
+All three must be clean, and CI must pass on the pull request. Nothing is merged with a failing build. After merging, update `dev`, rebuild and retest: the combined result must also pass. New and changed code also follows [Code Comments](#code-comments).
 
 ### Merging and cleanup
 
@@ -473,13 +473,37 @@ should reference its own named constant, not an inline string.
 
 ### Code Comments
 
-File headers keep the required format, but `Purpose` is one short sentence describing what the
-file does - not the reasoning behind it, not how other files interact with it, not what would
-happen if something were misused.
+Comments are short and state intent. Code that reads well needs few of them.
 
-Inline comments are the exception, not the default. Add one only when the code cannot reasonably
-communicate the intent on its own; keep it to a short sentence or phrase. Don't restate what a
-name, type, or structure already makes clear.
+**File header.** Keep the required format (`File`, `Version`, `Latest commit`, `Author`,
+`Purpose`). `Purpose` is one sentence saying what the file does - not the reasoning behind it, not
+how other files use it, not what would happen if it were misused. Version, commit and author lines
+are never dropped when a file is rewritten.
+
+**Methods.** Every method, public or private, has a one-line comment above it stating its primary
+responsibility or an important contract the caller must know (single-use, expiry, security,
+ordering). Constructors, fields and trivial properties need none.
+
+**Inline comments.** The exception, not the default. Add one only when the code cannot
+communicate the intent on its own, and keep it to a short sentence or phrase.
+
+**Do not write:**
+
+- Narration of what the code does, line by line.
+- Conversational justification ("we do this because we considered...").
+- Text that restates a name, type or structure that is already clear.
+- A paragraph where one line says it.
+
+**Readability.** Prefer flat code to comments that explain nesting: early returns, and small named
+helper methods, so a method reads top to bottom without deeply nested `if` blocks.
+
+**Existing code.** Bring a file in line when it is next touched for another reason. Do not change
+behavior just to shorten a comment, and do not remove documentation that carries real meaning.
+
+```csharp
+// Consumes the code so it can never be used twice.
+private async Task<VerificationResult> ConsumeAsync(...)
+```
 
 ## Background Services
 

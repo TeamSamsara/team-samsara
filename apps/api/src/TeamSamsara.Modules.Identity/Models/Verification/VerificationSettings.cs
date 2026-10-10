@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationSettings.cs
-// Version : 1.1.0
-// Latest commit: feat/password-reset-purpose
+// Version : 1.2.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Configuration for verification codes. The server alone decides code length and
-// limits; clients are told the length in the response, never asked for it.
+// Purpose : Configuration for verification codes: lengths, expiry and attempt limits.
 
 using System.ComponentModel.DataAnnotations;
 
@@ -31,7 +30,11 @@ public class VerificationSettings
     [AllowedValues(4, 6, 8, 10)]
     public int PasswordResetCodeLength { get; set; } = 8;
 
-    // How long a code stays valid
+    // Length of both codes sent during an email change
+    [AllowedValues(4, 6, 8, 10)]
+    public int EmailChangeCodeLength { get; set; } = 8;
+
+    // Minutes a code stays valid
     [Range(1, 60)]
     public int ExpiryMinutes { get; set; } = 10;
 
@@ -39,8 +42,7 @@ public class VerificationSettings
     [Range(1, 10)]
     public int MaxFailedAttempts { get; set; } = 5;
 
-    // Minimum wait before another code can be sent for the same member and purpose, so the
-    // send endpoint cannot be used to flood an inbox
+    // Minimum wait before another code can be sent for the same member and purpose
     [Range(0, 600)]
     public int ResendCooldownSeconds { get; set; } = 60;
 

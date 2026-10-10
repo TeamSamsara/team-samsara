@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/VerificationCodeServiceTests.cs
-// Version : 1.2.0
-// Latest commit: feat/decoy-verification-code
+// Version : 1.3.0
+// Latest commit: feat/email-change-foundation
 // Author : Gerrah
-// Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, the attempt
-// limit, single use, that a failed email leaves nothing behind, and that a decoy code behaves
-// like a real one without ever being sent.
+// Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, attempt limit, single use, and decoys.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -21,6 +19,7 @@ public class VerificationCodeServiceTests
 
     private const string UserId = "user-1";
     private const string Email = "member@example.com";
+    private const string NewEmail = "new.member@example.com";
     private const string WrongCode = "not-the-code";
     private const string OtherUserId = "user-2";
 
@@ -100,6 +99,35 @@ public class VerificationCodeServiceTests
         reset.Status.ShouldBe(VerificationIssueStatus.Sent);
         _alerts.Sent.Count.ShouldBe(2);
         verification.ShouldBe(VerificationResult.Valid);
+    }
+
+    [Theory]
+    [InlineData(VerificationPurpose.EmailChangeOld)]
+    [InlineData(VerificationPurpose.EmailChangeNew)]
+    public async Task Issue_EmailChange_UsesTheEmailChangeLengthAndTheStepUpAlert(VerificationPurpose purpose)
+    {
+        var result = await _service.IssueAsync(UserId, purpose, Email);
+
+        result.Status.ShouldBe(VerificationIssueStatus.Sent);
+        result.CodeLength.ShouldBe(_settings.EmailChangeCodeLength);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.LastCode.Length.ShouldBe(_settings.EmailChangeCodeLength);
+    }
+
+    [Fact]
+    public async Task Issue_EmailChange_OldAndNewCodesAreIndependent()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.EmailChangeOld, Email);
+        var oldCode = _alerts.LastCode;
+        await _service.IssueAsync(UserId, VerificationPurpose.EmailChangeNew, NewEmail);
+        var newCode = _alerts.LastCode;
+
+        var newResult = await _service.VerifyAsync(UserId, VerificationPurpose.EmailChangeNew, newCode);
+        var oldResult = await _service.VerifyAsync(UserId, VerificationPurpose.EmailChangeOld, oldCode);
+
+        _alerts.Sent.Select(sent => sent.To).ShouldBe(new[] { Email, NewEmail });
+        newResult.ShouldBe(VerificationResult.Valid);
+        oldResult.ShouldBe(VerificationResult.Valid);
     }
 
     [Fact]
