@@ -40,6 +40,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ===== PASSWORD RESET TOKENS COLLECTION =====
+    // Owned by the API (Admin SDK bypasses rules). Holds token hashes, so no client access.
+    match /passwordResetTokens/{tokenId} {
+      allow read, write: if false;
+    }
+
     // ===== VERIFICATIONS COLLECTION (LEGACY) =====
     // No longer used by anything. The old rules let anyone read documents that had a
     // CodeHash and let any signed-in user create documents, so it is closed completely.

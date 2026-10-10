@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.3.0
-// Latest commit: feat/password-change-endpoints
+// Version : 1.4.0
+// Latest commit: feat/password-reset-token-store
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its HTTP endpoints. Every
 // endpoint requires a signed-in caller (any access level): registration is used by accounts
@@ -78,6 +78,7 @@ public class IdentityModule : IModule
         services.AddScoped<IUserStore, FirestoreUserStore>();
         services.AddScoped<IProfileStore, FirestoreProfileStore>();
         services.AddScoped<IVerificationCodeStore, FirestoreVerificationCodeStore>();
+        services.AddScoped<IPasswordResetTokenStore, FirestorePasswordResetTokenStore>();
         services.AddScoped<IAccountGateway, FirebaseAccountGateway>();
     }
 
