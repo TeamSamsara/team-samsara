@@ -193,6 +193,83 @@ Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
 Text is stored exactly as typed. It is not HTML-cleaned, so the frontend must always render it as
 text, never as raw HTML. Replacing an image deletes the one it replaces.
 
+### Password (`/account/password`) - verified member
+
+Changing a password takes two calls. The new password travels with the code, so the server never
+stores it between steps.
+
+| Method | Path                             | Does                                                                                        | Answers                                     |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/password/request-code` | Checks `{"newPassword"}` against the rules and emails a confirmation code                   | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/password/change`       | Checks `{"newPassword", "code"}`, replaces the password and signs the member out everywhere | `status`                                    |
+
+The password must be 8-128 characters (`Identity:Password`). An unacceptable password is refused
+with `invalidPassword` before the code is checked, so it does not use the code up. A change ends
+every session: refresh tokens are revoked, verified sign-ins are forgotten, and the member gets a
+password-changed email.
+
+### Password reset (`/account/password/reset`) - signed out
+
+For a member who forgot their password. The three calls run in order, and none needs a token.
+
+| Method | Path                              | Does                                                                     | Answers                                     |
+| ------ | --------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| `POST` | `/account/password/reset/request` | Emails a reset code to `{"email"}` if it belongs to a member             | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/password/reset/verify`  | Checks `{"email", "code"}` and returns a one-time reset token            | `status`, `resetToken`                      |
+| `POST` | `/account/password/reset/confirm` | Sets `{"resetToken", "newPassword"}` and signs the member out everywhere | `status`                                    |
+
+- **Same answer for every address:** `request` answers identically whether or not the email has an
+  account. The lookup and the email happen in the background, so the response time reveals nothing
+  either.
+- **Reset token:** single use, valid for 10 minutes (`Identity:Password:ResetTokenMinutes`). A weak
+  password does not use it up, so the member can retry.
+- **Rate limit:** every call is limited per client IP (default 10 per 60 seconds, `RateLimit`
+  section) and answers `429` with a `Retry-After` header when exceeded.
+- **Session end:** a successful reset ends every session and emails a password-changed notice.
+
+Password outcomes (change and reset) map to HTTP like this:
+
+| Outcome (`status`)                                                                    | HTTP  |
+| ------------------------------------------------------------------------------------- | ----- |
+| `success`                                                                             | `200` |
+| `invalidPassword`, `invalidCode`, `codeExpired`, `noPendingCode`, `invalidResetToken` | `400` |
+| `accountNotFound`                                                                     | `404` |
+| `cooldownActive`, `tooManyAttempts`                                                   | `429` |
+
+### Email change (`/account/email`) - verified member
+
+Changing the sign-in address needs proof of both mailboxes, so a stolen session alone cannot take
+over the account.
+
+| Method | Path                     | Does                                                                                    | Answers                                     |
+| ------ | ------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `POST` | `/account/email/request` | Takes `{"newEmail"}`, emails one code to the current address and one to the new address | `status`, `codeLength`, `retryAfterSeconds` |
+| `POST` | `/account/email/confirm` | Checks `{"oldCode", "newCode"}` and, if both are right, switches the address            | `status`                                    |
+
+1. `request` saves the pending change and queues two 8-digit codes: one to the **current** address
+   and one to the **new** address. Codes expire after 10 minutes. Asking again within 60 seconds
+   answers `cooldownActive`.
+2. `confirm` needs both codes. A code that was accepted is remembered, so after a typo the client
+   only has to resend the other one.
+3. On success the address changes, every session ends, and the **old** address gets an
+   email-changed notice naming the new address in masked form (`j***@example.com`). The client must
+   sign the member in again with the new address.
+
+Account existence is never revealed:
+
+- `request` answers identically whether the new address is free, taken or the member's own. A taken
+  address receives no email; a decoy code is stored instead, and the check runs in the background.
+- Every wrong, missing or expired code, and an address taken while the change was pending, answers
+  `invalidCode`. The response never says which code failed.
+- Five wrong guesses cancel the change (`tooManyAttempts`), a decoy code included.
+
+| Outcome (`status`)                                | HTTP  |
+| ------------------------------------------------- | ----- |
+| `success`                                         | `200` |
+| `invalidEmail`, `invalidCode`, `noPendingRequest` | `400` |
+| `accountNotFound`                                 | `404` |
+| `cooldownActive`, `tooManyAttempts`               | `429` |
+
 ### Assets (`/assets`)
 
 | Method   | Path                | Access  | Does                                                                  |
@@ -520,16 +597,15 @@ mechanisms. Both live in `TeamSamsara.Shared.BackgroundTasks`.
 
 ### Implemented
 
-| Service                | Where  | What it does                                                                                       |
-| ---------------------- | ------ | -------------------------------------------------------------------------------------------------- |
-| `BackgroundTaskWorker` | Shared | Runs queued work one item at a time, logs failures, never stops on one. Nothing enqueues work yet. |
+| Service                | Where  | What it does                                                                                                                |
+| ---------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `BackgroundTaskWorker` | Shared | Runs queued work one item at a time, logs failures, never stops on one. Runs password reset and email change code delivery. |
 
 ### Planned
 
-| Work                                         | Mechanism     | Notes                                                                                                                                                                                               |
-| -------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forgot-password lookup, code issue and email | Queue         | Every request gets the same answer; the work happens behind it so timing cannot reveal whether an email has an account.                                                                             |
-| Account purge                                | Scheduled job | Deletes accounts past `RecoveryWindowDays` (30). `IUserStore.ListDeletedBeforeAsync` and `DeleteAsync` already exist; nothing calls them yet. Needs the gateway, profile and asset deletes as well. |
+| Work          | Mechanism     | Notes                                                                                                                                                                                               |
+| ------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Account purge | Scheduled job | Deletes accounts past `RecoveryWindowDays` (30). `IUserStore.ListDeletedBeforeAsync` and `DeleteAsync` already exist; nothing calls them yet. Needs the gateway, profile and asset deletes as well. |
 
 ### Audit before starting the frontend
 
@@ -545,8 +621,8 @@ Run this audit once every backend module is built. Findings so far, from the cod
 - `ResendEmailSender` - no retry. A queued send could retry a few times before giving up.
 - Assets - a failed file delete is logged and the file is left behind (`TryDeleteFileAsync`).
   Candidate for a scheduled sweep of orphaned files.
-- Expired `verificationCodes` and `passwordResetTokens` - cleaned up by a Firestore TTL policy on
-  `ExpiresAt`, not by a service.
+- Expired `verificationCodes`, `passwordResetTokens` and `emailChangeRequests` - cleaned up by a
+  Firestore TTL policy on `ExpiresAt`, not by a service.
 - Catalog, Content, Media, Orders - stubs. Audit each when built (image processing, order and
   receipt emails, stock and price sync).
 
