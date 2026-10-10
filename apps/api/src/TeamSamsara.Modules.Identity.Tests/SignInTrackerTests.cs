@@ -1,10 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/SignInTrackerTests.cs
-// Version : 1.1.0
-// Latest commit: fix/password-change-verified-sign-ins
+// Version : 1.2.0
+// Latest commit: feat/logout
 // Author : Gerrah
-// Purpose : Proves sign-in verification: only recorded sign-ins count, deleted or unknown
-// members never verify, old sign-ins are trimmed, clearing forgets them all, and the cache is
-// used and invalidated.
+// Purpose : Proves sign-in verification: only recorded sign-ins count, removing or clearing forgets them at once, and the cache is used and invalidated.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -133,6 +131,37 @@ public class SignInTrackerTests
         await _tracker.RecordVerifiedAsync(UserId, SignIn);
 
         (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Removing_ForgetsOnlyThatSignIn_AtOnce_EvenWhenItWasCached()
+    {
+        _users.Seed(NewUser());
+        await _tracker.RecordVerifiedAsync(UserId, SignIn);
+        await _tracker.RecordVerifiedAsync(UserId, SignIn + 1);
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+
+        await _tracker.RemoveVerifiedAsync(UserId, SignIn);
+
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeFalse();
+        (await _tracker.IsVerifiedAsync(UserId, SignIn + 1)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Removing_ASignInThatWasNeverRecorded_ChangesNothing()
+    {
+        _users.Seed(NewUser());
+        await _tracker.RecordVerifiedAsync(UserId, SignIn);
+
+        await _tracker.RemoveVerifiedAsync(UserId, SignIn + 1);
+
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Removing_ForAnUnknownMember_DoesNothing()
+    {
+        await Should.NotThrowAsync(() => _tracker.RemoveVerifiedAsync("nobody", SignIn));
     }
 
     [Fact]

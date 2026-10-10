@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.9.0
-// Latest commit: feat/email-change-endpoints
+// Version : 1.10.0
+// Latest commit: feat/logout
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -43,6 +43,7 @@ public class IdentityModule : IModule
 
         RegistrationEndpoints.Map(group);
         AuthenticationEndpoints.Map(group);
+        LogoutEndpoints.Map(group);
         ProfileEndpoints.Map(group);
         PasswordEndpoints.Map(group);
         EmailChangeEndpoints.Map(group);
@@ -91,6 +92,7 @@ public class IdentityModule : IModule
         services.AddScoped<IVerificationCodeService, VerificationCodeService>();
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<IPasswordResetService, PasswordResetService>();
