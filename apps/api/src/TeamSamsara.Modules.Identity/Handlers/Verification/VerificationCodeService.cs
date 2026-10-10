@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/VerificationCodeService.cs
-// Version : 1.4.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.5.0
+// Latest commit: fix/verification-code-single-use
 // Author : Gerrah
 // Purpose : Issues and checks one-time verification codes, delivered through IAlertSender and burned after too many wrong guesses.
 
@@ -98,7 +98,7 @@ public class VerificationCodeService : IVerificationCodeService
 
         if (VerificationCodeCrypto.Matches(code.Trim(), stored.Salt, stored.CodeHash))
         {
-            return await ConsumeAsync(userId, purpose, VerificationResult.Valid);
+            return await TakeAsync(userId, purpose, stored.CodeHash);
         }
 
         return attempts >= _settings.MaxFailedAttempts
@@ -219,6 +219,14 @@ public class VerificationCodeService : IVerificationCodeService
             await _store.DeleteAsync(userId, purpose);
             throw;
         }
+    }
+
+    // Consumes the matched code atomically, so only the one caller that deleted it gets Valid
+    private async Task<VerificationResult> TakeAsync(string userId, VerificationPurpose purpose, string codeHash)
+    {
+        var taken = await _store.TryTakeAsync(userId, purpose, codeHash);
+
+        return taken ? VerificationResult.Valid : VerificationResult.NotFound;
     }
 
     // Deletes the pending code and returns the given result, so a code is never reused

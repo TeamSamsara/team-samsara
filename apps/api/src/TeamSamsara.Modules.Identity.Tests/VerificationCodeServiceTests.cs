@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/VerificationCodeServiceTests.cs
-// Version : 1.3.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.4.0
+// Latest commit: fix/verification-code-single-use
 // Author : Gerrah
 // Purpose : Proves the verification code rules: length per purpose, cooldown, expiry, attempt limit, single use, and decoys.
 
@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Shouldly;
 using TeamSamsara.Modules.Identity.Handlers;
 using TeamSamsara.Modules.Identity.Models;
+using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Modules.Identity.Tests.Fakes;
 using TeamSamsara.Shared.Alert;
 
@@ -366,6 +367,119 @@ public class VerificationCodeServiceTests
         var result = await _service.VerifyAsync(UserId, VerificationPurpose.PasswordReset, WrongCode);
 
         result.ShouldBe(VerificationResult.Expired);
+    }
+
+    [Fact]
+    public async Task Verify_TwoParallelSubmissionsOfTheSameValidCode_OnlyOneIsValid()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var code = _alerts.LastCode;
+        var arrived = 0;
+        var gate = new TaskCompletionSource();
+        var store = new InterceptingCodeStore(_store, () =>
+        {
+            if (Interlocked.Increment(ref arrived) == 2)
+            {
+                gate.SetResult();
+            }
+
+            return gate.Task;
+        });
+        var service = new VerificationCodeService(store, _alerts, _clock, Options.Create(_settings));
+
+        var results = await Task.WhenAll(
+            service.VerifyAsync(UserId, VerificationPurpose.StepUp, code),
+            service.VerifyAsync(UserId, VerificationPurpose.StepUp, code));
+
+        results.Count(result => result == VerificationResult.Valid).ShouldBe(1);
+        results.Count(result => result == VerificationResult.NotFound).ShouldBe(1);
+        (await _store.GetAsync(UserId, VerificationPurpose.StepUp)).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Verify_AfterAValidCode_TheSameCodeIsNotFound()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var code = _alerts.LastCode;
+
+        var first = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, code);
+        var second = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, code);
+
+        first.ShouldBe(VerificationResult.Valid);
+        second.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task Verify_ACodeReissuedMidCheck_IsNotConsumedBySubmissionForTheOldOne()
+    {
+        await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+        var oldCode = _alerts.LastCode;
+        _clock.Advance(TimeSpan.FromSeconds(_settings.ResendCooldownSeconds));
+        var newCode = string.Empty;
+        var reissued = false;
+        var store = new InterceptingCodeStore(_store, async () =>
+        {
+            if (reissued)
+            {
+                return;
+            }
+
+            reissued = true;
+            await _service.IssueAsync(UserId, VerificationPurpose.StepUp, Email);
+            newCode = _alerts.LastCode;
+        });
+        var service = new VerificationCodeService(store, _alerts, _clock, Options.Create(_settings));
+
+        var oldResult = await service.VerifyAsync(UserId, VerificationPurpose.StepUp, oldCode);
+        var newResult = await _service.VerifyAsync(UserId, VerificationPurpose.StepUp, newCode);
+
+        oldResult.ShouldBe(VerificationResult.NotFound);
+        newResult.ShouldBe(VerificationResult.Valid);
+    }
+
+    #endregion
+
+    #region Nested Types
+
+    // Store that runs a step after every read, so a test can interleave other work between a read and the write that follows
+    private sealed class InterceptingCodeStore : IVerificationCodeStore
+    {
+        private readonly InMemoryVerificationCodeStore _inner;
+        private readonly Func<Task> _afterGet;
+
+        public InterceptingCodeStore(InMemoryVerificationCodeStore inner, Func<Task> afterGet)
+        {
+            _inner = inner;
+            _afterGet = afterGet;
+        }
+
+        public async Task<VerificationCode?> GetAsync(string userId, VerificationPurpose purpose)
+        {
+            var code = await _inner.GetAsync(userId, purpose);
+            await _afterGet();
+
+            return code;
+        }
+
+        public Task SaveAsync(VerificationCode code)
+        {
+            return _inner.SaveAsync(code);
+        }
+
+        public Task<int?> IncrementFailedAttemptsAsync(string userId, VerificationPurpose purpose)
+        {
+            return _inner.IncrementFailedAttemptsAsync(userId, purpose);
+        }
+
+        public Task<bool> TryTakeAsync(string userId, VerificationPurpose purpose, string codeHash)
+        {
+            return _inner.TryTakeAsync(userId, purpose, codeHash);
+        }
+
+        public Task DeleteAsync(string userId, VerificationPurpose purpose)
+        {
+            return _inner.DeleteAsync(userId, purpose);
+        }
     }
 
     #endregion
