@@ -1,0 +1,114 @@
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/PasswordEndpoints.cs
+// Version : 1.0.0
+// Latest commit: feat/password-change-endpoints
+// Author : Gerrah
+// Purpose : HTTP endpoints for a member changing their own password: request the confirmation
+// code, then submit the new password with that code.
+
+using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using TeamSamsara.Modules.Identity.Handlers;
+using TeamSamsara.Modules.Identity.Models;
+using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Http;
+
+namespace TeamSamsara.Modules.Identity.Endpoints;
+
+public static class PasswordEndpoints
+{
+    #region Public Methods
+
+    // Maps the password endpoints onto the given route group, open to verified members only
+    public static void Map(IEndpointRouteBuilder routes)
+    {
+        var group = routes
+            .MapGroup(IdentityRoutes.PasswordGroup)
+            .AddEndpointFilter<MemberOnlyEndpointFilter>();
+
+        group.MapPost(IdentityRoutes.PasswordRequestCode, RequestCodeAsync);
+        group.MapPost(IdentityRoutes.PasswordChange, ChangeAsync);
+    }
+
+    #endregion
+
+    #region Private Methods
+
+    // Checks the wanted password against the rules and emails the member a confirmation code
+    private static async Task<IResult> RequestCodeAsync(
+        HttpRequest request,
+        ICurrentUserContext context,
+        IPasswordService passwords,
+        CancellationToken cancellationToken)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var body = await ReadBodyAsync<PasswordCodeRequest>(request, cancellationToken);
+
+        if (body is null || string.IsNullOrEmpty(body.NewPassword))
+        {
+            return Results.BadRequest();
+        }
+
+        var result = await passwords.RequestChangeCodeAsync(
+            context.UserId, body.NewPassword, cancellationToken);
+
+        return Results.Json(result, statusCode: IdentityStatusCodes.For(result.Status));
+    }
+
+    // Checks the code and, if valid, replaces the password and signs the member out everywhere
+    private static async Task<IResult> ChangeAsync(
+        HttpRequest request,
+        ICurrentUserContext context,
+        IPasswordService passwords,
+        CancellationToken cancellationToken)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var body = await ReadBodyAsync<ChangePasswordRequest>(request, cancellationToken);
+
+        if (body is null
+            || string.IsNullOrEmpty(body.NewPassword)
+            || string.IsNullOrWhiteSpace(body.Code))
+        {
+            return Results.BadRequest();
+        }
+
+        var status = await passwords.ChangeAsync(
+            context.UserId, body.NewPassword, body.Code, cancellationToken);
+
+        return Results.Json(
+            new StatusResponse<PasswordStatus>(status),
+            statusCode: IdentityStatusCodes.For(status));
+    }
+
+    // Reads the JSON body here, not as a bound parameter, because binding happens before the
+    // member-only filter and would let non-members get a 400 instead of a 401 or 403.
+    // Returns null when the request is not JSON or the JSON is malformed.
+    private static async Task<T?> ReadBodyAsync<T>(HttpRequest request, CancellationToken cancellationToken)
+        where T : class
+    {
+        if (!request.HasJsonContentType())
+        {
+            return null;
+        }
+
+        try
+        {
+            return await request.ReadFromJsonAsync<T>(cancellationToken);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    #endregion
+}

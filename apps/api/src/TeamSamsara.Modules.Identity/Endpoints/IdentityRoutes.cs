@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.2.0
-// Latest commit: feature/identity-profile
+// Version : 1.3.0
+// Latest commit: feat/password-change-endpoints
 // Author : Gerrah
 // Purpose : Route paths of the Identity module's endpoints, shared between the endpoint
 // classes and their tests.
@@ -27,6 +27,10 @@ public static class IdentityRoutes
     public const string ProfileRoot = "/";
     public const string ProfilePicture = "/picture";
     public const string ProfileBanner = "/banner";
+
+    public const string PasswordGroup = "/password";
+    public const string PasswordRequestCode = "/request-code";
+    public const string PasswordChange = "/change";
 
     #endregion
 }

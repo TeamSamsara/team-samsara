@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-profile
+// Version : 1.2.0
+// Latest commit: feat/password-change-endpoints
 // Author : Gerrah
-// Purpose : Translates the outcome of a registration, authentication or profile step into the
-// HTTP status code the endpoint answers with. The outcome itself always travels in the body
-// too, so the client can react to the exact reason.
+// Purpose : Translates the outcome of a registration, authentication, profile or password step
+// into the HTTP status code the endpoint answers with. The outcome itself always travels in the
+// body too, so the client can react to the exact reason.
 
 using Microsoft.AspNetCore.Http;
 using TeamSamsara.Modules.Identity.Models;
@@ -61,6 +61,23 @@ public static class IdentityStatusCodes
             ProfileStatus.InvalidBio => StatusCodes.Status400BadRequest,
             ProfileStatus.ImageUnsupportedType => StatusCodes.Status415UnsupportedMediaType,
             ProfileStatus.ImageTooLarge => StatusCodes.Status413PayloadTooLarge,
+            _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+        };
+    }
+
+    // HTTP status for a password outcome
+    public static int For(PasswordStatus status)
+    {
+        return status switch
+        {
+            PasswordStatus.Success => StatusCodes.Status200OK,
+            PasswordStatus.AccountNotFound => StatusCodes.Status404NotFound,
+            PasswordStatus.InvalidPassword => StatusCodes.Status400BadRequest,
+            PasswordStatus.CooldownActive => StatusCodes.Status429TooManyRequests,
+            PasswordStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
+            PasswordStatus.InvalidCode => StatusCodes.Status400BadRequest,
+            PasswordStatus.CodeExpired => StatusCodes.Status400BadRequest,
+            PasswordStatus.NoPendingCode => StatusCodes.Status400BadRequest,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }
