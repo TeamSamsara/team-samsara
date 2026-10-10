@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.5.4
-// Latest commit: feat/background-task-queue
+// Version : 1.6.0
+// Latest commit: feat/password-reset-endpoints
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -43,8 +43,15 @@ builder.Services.AddEmail(builder.Configuration);
 builder.Services.AddBackgroundTasks();
 
 builder.Services.AddValidatedOptions<CorsSettings>(builder.Configuration, "Cors");
+builder.Services.AddValidatedOptions<RateLimitSettings>(builder.Configuration, RateLimitSettings.SectionName);
 
 var corsSettings = builder.Configuration.GetSection("Cors").Get<CorsSettings>() ?? new CorsSettings();
+
+var rateLimitSettings = builder.Configuration
+    .GetSection(RateLimitSettings.SectionName)
+    .Get<RateLimitSettings>() ?? new RateLimitSettings();
+
+builder.Services.AddSamsaraRateLimiting(rateLimitSettings);
 
 builder.Services.AddCors(options =>
 {
@@ -171,6 +178,10 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseSerilogRequestLogging();
 app.UseRouting();
 app.UseCors("Default");
+
+// After forwarded headers (real client IP) and routing (endpoint policies), before auth work.
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRequestTimeouts();

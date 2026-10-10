@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.3.0
-// Latest commit: feat/password-change-endpoints
+// Version : 1.4.0
+// Latest commit: feat/password-reset-endpoints
 // Author : Gerrah
 // Purpose : Route paths of the Identity module's endpoints, shared between the endpoint
 // classes and their tests.
@@ -31,6 +31,12 @@ public static class IdentityRoutes
     public const string PasswordGroup = "/password";
     public const string PasswordRequestCode = "/request-code";
     public const string PasswordChange = "/change";
+
+    // Signed-out reset: mapped outside the authorized group, so it carries the full path
+    public const string PasswordResetGroup = Group + "/password/reset";
+    public const string PasswordResetRequest = "/request";
+    public const string PasswordResetVerify = "/verify";
+    public const string PasswordResetConfirm = "/confirm";
 
     #endregion
 }
