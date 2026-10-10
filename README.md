@@ -100,6 +100,45 @@ frontend can reach it: `http://localhost:5173/ping` should render `pong`.
 
 A `scripts/bootstrap.ps1` / `.sh` script may be added once the manual setup process is stable and documented.
 
+### Staging smoke tests
+
+Two PowerShell scripts in `scripts/` check the live Staging API (`teamsamsara-api-staging.onrender.com`)
+end to end, with the real Firebase, Firestore, Storage and email behind it. Unit tests cannot cover
+that. Each step prints `PASS` or `FAIL`, and the script ends with a count.
+
+| Script                              | Account it needs                                            | Covers                                                                                                                                       |
+| ----------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/staging-profile-smoke.ps1` | A verified member (it restores the name and bio afterwards) | Reading and editing the profile, picture and banner upload, replace and delete, size and type limits, and the guest and anonymous refusals   |
+| `scripts/staging-account-smoke.ps1` | None: it creates its own throwaway account                  | Registration, `logout/all`, account deletion with its immediate block and revoked sessions, the deletion notice, and restoring by signing in |
+
+Run either one from the repository root:
+
+```powershell
+.\scripts\staging-profile-smoke.ps1
+.\scripts\staging-account-smoke.ps1
+```
+
+Both read the Firebase web API key from `apps/web/.env.staging`; `-Api` and `-EnvFile` override the API address and
+that file. If PowerShell blocks the script, run
+`Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` in the same window first.
+
+- **The account script deletes the account it creates.** Use a throwaway mailbox that really receives mail,
+  such as a plus-address (`you+smoke1@example.com`), and a new one every run. It asks for each emailed code in turn
+  (registration, login if asked, deletion, a second deletion) and for whether the deletion notice arrived.
+  Check the spam folder too.
+- **Passwords never touch a file.** The profile script prompts for the member's password. The account script
+  generates a random one and does not print it.
+- **Never paste a token, password or emailed code into a chat or an issue.**
+
+**Testing the purge by hand.** The account script leaves its account deleted, and prints that account's user id.
+The purge needs an account deleted more than `RecoveryWindowDays` (30) ago, so:
+
+1. In the Staging Firestore, open `users/<that id>` and set `DeletedAt` to a date more than 30 days in the past.
+   Keep it a timestamp, and check the date is in the past.
+2. Restart the Staging service on Render once, and wait a minute. The purge runs at startup.
+3. The logs show `Account purge finished: 1 purged, 0 skipped`. `users/<id>` and `profiles/<id>` are gone, and so
+   is the Firebase Authentication user.
+
 ## API Endpoints
 
 This is the human summary. The machine-readable contract is the OpenAPI document at
