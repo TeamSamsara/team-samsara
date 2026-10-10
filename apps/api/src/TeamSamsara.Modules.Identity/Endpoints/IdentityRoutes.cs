@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.4.0
-// Latest commit: feat/password-reset-endpoints
+// Version : 1.5.0
+// Latest commit: feat/email-change-endpoints
 // Author : Gerrah
-// Purpose : Route paths of the Identity module's endpoints, shared between the endpoint
-// classes and their tests.
+// Purpose : Route paths of the Identity module's endpoints, shared between the endpoint classes and their tests.
 
 namespace TeamSamsara.Modules.Identity.Endpoints;
 
@@ -37,6 +36,10 @@ public static class IdentityRoutes
     public const string PasswordResetRequest = "/request";
     public const string PasswordResetVerify = "/verify";
     public const string PasswordResetConfirm = "/confirm";
+
+    public const string EmailGroup = "/email";
+    public const string EmailRequest = "/request";
+    public const string EmailConfirm = "/confirm";
 
     #endregion
 }
