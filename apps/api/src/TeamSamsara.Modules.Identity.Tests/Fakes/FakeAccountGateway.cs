@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/FakeAccountGateway.cs
-// Version : 1.3.0
-// Latest commit: feat/account-deletion
+// Version : 1.4.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : A stand-in for the Firebase account operations that records what was applied.
 
@@ -28,6 +28,9 @@ public class FakeAccountGateway : IAccountGateway
     // Every account whose sessions were revoked, in order
     public List<string> RevokedSessions { get; } = new();
 
+    // Every account that was asked to be deleted, in order (repeats included)
+    public List<string> DeletedAccounts { get; } = new();
+
     // When true, setting the access level throws
     public bool SetAccessLevelShouldFail { get; set; }
 
@@ -39,6 +42,9 @@ public class FakeAccountGateway : IAccountGateway
 
     // When true, revoking sessions throws
     public bool RevokeSessionsShouldFail { get; set; }
+
+    // When true, deleting an account throws
+    public bool DeleteShouldFail { get; set; }
 
     #endregion
 
@@ -135,6 +141,12 @@ public class FakeAccountGateway : IAccountGateway
 
     public Task DeleteAsync(string uid)
     {
+        if (DeleteShouldFail)
+        {
+            throw new InvalidOperationException("Simulated failure deleting the account.");
+        }
+
+        DeletedAccounts.Add(uid);
         _emails.Remove(uid);
 
         return Task.CompletedTask;

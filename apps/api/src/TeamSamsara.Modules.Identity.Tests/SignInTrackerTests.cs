@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/SignInTrackerTests.cs
-// Version : 1.2.0
-// Latest commit: feat/logout
+// Version : 1.3.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
-// Purpose : Proves sign-in verification: only recorded sign-ins count, removing or clearing forgets them at once, and the cache is used and invalidated.
+// Purpose : Proves sign-in verification: only recorded sign-ins count, removing or clearing forgets them at once, the cache is used and invalidated, and recording together with a change to the member is one write that can refuse.
 
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -131,6 +131,64 @@ public class SignInTrackerTests
         await _tracker.RecordVerifiedAsync(UserId, SignIn);
 
         (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RecordingWithAChange_AppliesTheChangeAndTheSignInTogether()
+    {
+        var user = NewUser();
+        user.DeletedAt = _clock.UtcNow;
+        _users.Seed(user);
+
+        var recorded = await _tracker.RecordVerifiedAsync(UserId, SignIn, member =>
+        {
+            member.DeletedAt = null;
+            return true;
+        });
+
+        recorded.ShouldBeTrue();
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.DeletedAt.ShouldBeNull();
+        stored.VerifiedSignIns.ShouldHaveSingleItem().ShouldBe(SignIn);
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RecordingWithAChange_ClearsTheCache_SoTheNewSignInIsSeenAtOnce()
+    {
+        _users.Seed(NewUser());
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeFalse();
+
+        await _tracker.RecordVerifiedAsync(UserId, SignIn, _ => true);
+
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task RecordingWithAChange_ThatRefuses_RecordsNothing_AndLeavesTheMemberAsItWas()
+    {
+        var user = NewUser();
+        user.DeletedAt = _clock.UtcNow;
+        _users.Seed(user);
+
+        var recorded = await _tracker.RecordVerifiedAsync(UserId, SignIn, _ => false);
+
+        recorded.ShouldBeFalse();
+
+        var stored = await _users.GetByIdAsync(UserId);
+        stored.ShouldNotBeNull();
+        stored.DeletedAt.ShouldBe(_clock.UtcNow);
+        stored.VerifiedSignIns.ShouldBeEmpty();
+        (await _tracker.IsVerifiedAsync(UserId, SignIn)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task RecordingWithAChange_ForAnUnknownMember_Throws()
+    {
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => _tracker.RecordVerifiedAsync("nobody", SignIn, _ => true));
     }
 
     [Fact]

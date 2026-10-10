@@ -1,9 +1,9 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Assets.Tests/MemberImageServiceTests.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: feat/account-purge
 // Author: Gerrah
 //
-// Purpose: Proves member image storage: formats, per-kind size limits, rejections, and deletion.
+// Purpose: Proves member image storage: formats, per-kind size limits, rejections, and deletion that never leaves an orphan file and can always be retried.
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -12,6 +12,8 @@ using TeamSamsara.Modules.Assets.Models;
 using TeamSamsara.Modules.Assets.Services;
 using TeamSamsara.Modules.Assets.Tests.Fakes;
 using TeamSamsara.Shared.Assets;
+using TeamSamsara.Shared.Http;
+using TeamSamsara.Shared.Results;
 
 namespace TeamSamsara.Modules.Assets.Tests;
 
@@ -162,6 +164,55 @@ public class MemberImageServiceTests
     public async Task DeletingAnUnknownImage_DoesNothing()
     {
         await Should.NotThrowAsync(() => _service.DeleteAsync("nobody"));
+    }
+
+    [Fact]
+    public async Task DeletingAnImage_WhenTheFileCannotBeDeleted_FailsAndKeepsEverythingForARetry()
+    {
+        var stored = await _service.StoreAsync(MemberImageKind.ProfilePicture, ImageStream("png", 50));
+        _storage.FailDeletes = true;
+
+        var exception = await Should.ThrowAsync<AppException>(() => _service.DeleteAsync(stored.AssetId!));
+
+        exception.Error.Code.ShouldBe(ErrorCodes.AssetFileDeletionFailed);
+        _metadata.Assets.ContainsKey(stored.AssetId!).ShouldBeTrue();
+        _storage.Files.Count.ShouldBe(1);
+
+        _storage.FailDeletes = false;
+        await _service.DeleteAsync(stored.AssetId!);
+
+        _metadata.Assets.ShouldBeEmpty();
+        _storage.Files.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task DeletingAnImage_WhenTheMetadataCannotBeDeleted_LeavesNoOrphanFile_AndARetryFinishesTheJob()
+    {
+        var stored = await _service.StoreAsync(MemberImageKind.ProfilePicture, ImageStream("png", 50));
+        _metadata.FailDeletes = true;
+
+        var exception = await Should.ThrowAsync<AppException>(() => _service.DeleteAsync(stored.AssetId!));
+
+        exception.Error.Code.ShouldBe(ErrorCodes.AssetMetadataDeletionFailed);
+        _metadata.Assets.ContainsKey(stored.AssetId!).ShouldBeTrue();
+        _storage.Files.ShouldBeEmpty();
+
+        _metadata.FailDeletes = false;
+        await _service.DeleteAsync(stored.AssetId!);
+
+        _metadata.Assets.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task DeletingAnImage_WhoseFileIsAlreadyGone_StillRemovesTheMetadata()
+    {
+        var stored = await _service.StoreAsync(MemberImageKind.ProfilePicture, ImageStream("png", 50));
+        var metadata = _metadata.Assets[stored.AssetId!];
+        await _storage.DeleteAsync(metadata.type, metadata.FileRelativePath);
+
+        await Should.NotThrowAsync(() => _service.DeleteAsync(stored.AssetId!));
+
+        _metadata.Assets.ShouldBeEmpty();
     }
 
     #endregion

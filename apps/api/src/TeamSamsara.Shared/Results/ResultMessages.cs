@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Results/ResultMessages.cs
-// Version : 1.0.2
-// Latest commit: feature/assets-module
+// Version : 1.0.3
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Messages used by Result/Result<T> and the global exception handler.
 
@@ -16,6 +16,7 @@ public static class ResultMessages
     public const string UnexpectedError = "An unexpected error occurred.";
     public const string AssetMetadataCreationFailed = "Failed to create the asset metadata record.";
     public const string AssetMetadataDeletionFailed = "Failed to delete the asset metadata record.";
+    public const string AssetFileDeletionFailed = "Failed to delete the stored asset file.";
 
     #endregion
 }

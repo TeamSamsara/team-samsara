@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/User.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : The security/identity record for an account.
 // Distinct from Profile (display data) and from the Firebase Auth account (credentials).
@@ -28,6 +28,11 @@ public class User
     // recovery window. Null means the account is active.
     [FirestoreProperty]
     public DateTimeOffset? DeletedAt { get; set; }
+
+    // Set while one instance is purging this deleted account, so no other instance purges it and
+    // no login restores it meanwhile; a crashed purge simply lets it lapse and is retried.
+    [FirestoreProperty]
+    public DateTimeOffset? PurgeLeaseUntil { get; set; }
 
     // Fingerprints the member has logged in from before. A login from an unknown one triggers
     // the new-device challenge.

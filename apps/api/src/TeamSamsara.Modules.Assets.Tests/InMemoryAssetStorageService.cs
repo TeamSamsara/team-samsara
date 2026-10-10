@@ -1,6 +1,6 @@
 // File: /team-samsara/apps/api/src/TeamSamsara.Modules.Assets.Tests/Fakes/InMemoryAssetStorageService.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
+// Version: 1.1.0
+// Latest commit: feat/account-purge
 // Author: Gerrah
 //
 // Purpose: An in-memory asset file storage that remembers what was uploaded.
@@ -21,6 +21,9 @@ public class InMemoryAssetStorageService : IAssetStorageService
 
     // Everything currently stored, keyed by relative path
     public IReadOnlyDictionary<string, StoredFile> Files => _files;
+
+    // When true, deleting a file throws, as a failing storage backend would
+    public bool FailDeletes { get; set; }
 
     #endregion
 
@@ -43,6 +46,11 @@ public class InMemoryAssetStorageService : IAssetStorageService
 
     public Task DeleteAsync(AssetType type, string relativePath)
     {
+        if (FailDeletes)
+        {
+            throw new InvalidOperationException("Simulated storage failure.");
+        }
+
         _files.Remove(relativePath);
 
         return Task.CompletedTask;

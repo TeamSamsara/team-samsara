@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirestoreUserStore.cs
-// Version : 1.1.0
-// Latest commit: feature/identity-module
+// Version : 1.2.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : Firestore implementation of the user store.
 
@@ -89,6 +89,47 @@ public class FirestoreUserStore : IUserStore
             .GetSnapshotAsync();
 
         return snapshot.Documents.Select(document => document.ConvertTo<User>()).ToList();
+    }
+
+    // Claims a deleted account for purging inside one transaction, so only one instance can hold it
+    public async Task<bool> TryClaimForPurgeAsync(
+        string id,
+        DateTimeOffset cutoff,
+        DateTimeOffset now,
+        DateTimeOffset leaseUntil)
+    {
+        var reference = _firestoreDb
+            .Collection(IdentityFirestoreCollections.Users)
+            .Document(id);
+
+        return await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var snapshot = await transaction.GetSnapshotAsync(reference);
+
+            if (!snapshot.Exists)
+            {
+                return false;
+            }
+
+            var user = snapshot.ConvertTo<User>();
+
+            if (user.DeletedAt is not { } deletedAt || deletedAt >= cutoff)
+            {
+                return false;
+            }
+
+            if (user.PurgeLeaseUntil is { } heldUntil && heldUntil > now)
+            {
+                return false;
+            }
+
+            transaction.Update(
+                reference,
+                nameof(User.PurgeLeaseUntil),
+                Timestamp.FromDateTimeOffset(leaseUntil));
+
+            return true;
+        });
     }
 
     // Deletes a user record by id

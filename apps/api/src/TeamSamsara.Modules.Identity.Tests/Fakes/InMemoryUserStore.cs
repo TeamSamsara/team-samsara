@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/InMemoryUserStore.cs
-// Version : 1.0.0
-// Latest commit: feature/identity-module
+// Version : 1.1.0
+// Latest commit: feat/account-purge
 // Author : Gerrah
 // Purpose : An in-memory user store. Stores and returns copies, like a real database, so a
 // service that changes a user but forgets to save it is caught by the tests.
@@ -66,6 +66,34 @@ public class InMemoryUserStore : IUserStore
         return Task.FromResult(result);
     }
 
+    public Task<bool> TryClaimForPurgeAsync(
+        string id,
+        DateTimeOffset cutoff,
+        DateTimeOffset now,
+        DateTimeOffset leaseUntil)
+    {
+        if (!_users.TryGetValue(id, out var stored))
+        {
+            return Task.FromResult(false);
+        }
+
+        if (stored.DeletedAt is not { } deletedAt || deletedAt >= cutoff)
+        {
+            return Task.FromResult(false);
+        }
+
+        if (stored.PurgeLeaseUntil is { } heldUntil && heldUntil > now)
+        {
+            return Task.FromResult(false);
+        }
+
+        var copy = Copy(stored);
+        copy.PurgeLeaseUntil = leaseUntil;
+        _users[id] = copy;
+
+        return Task.FromResult(true);
+    }
+
     public Task DeleteAsync(string id)
     {
         _users.Remove(id);
@@ -91,6 +119,7 @@ public class InMemoryUserStore : IUserStore
             AccessLevel = user.AccessLevel,
             CreatedAt = user.CreatedAt,
             DeletedAt = user.DeletedAt,
+            PurgeLeaseUntil = user.PurgeLeaseUntil,
             KnownFingerprints = user.KnownFingerprints
                 .Select(fingerprint => new KnownFingerprint
                 {
