@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordResetDelivery.cs
-// Version : 1.0.0
-// Latest commit: feat/password-reset-service
+// Version : 1.1.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : Issues reset codes in the background and warns members of requests from unknown clients.
 
@@ -27,7 +27,7 @@ public class PasswordResetDelivery : IPasswordResetDelivery
 
     #region Constructors
 
-    // Initializes the delivery with its stores, code service and notification channel.
+    // Initializes the delivery with its stores, code service and alert sender.
     public PasswordResetDelivery(
         IUserStore users,
         IAccountGateway accounts,
@@ -108,11 +108,11 @@ public class PasswordResetDelivery : IPasswordResetDelivery
             return;
         }
 
-        await NotifyResetRequestedAsync(email, client, cancellationToken);
+        await AlertResetRequestedAsync(email, client, cancellationToken);
     }
 
     // Best effort: the code has already been sent.
-    private async Task NotifyResetRequestedAsync(
+    private async Task AlertResetRequestedAsync(
         string email,
         ClientInfo client,
         CancellationToken cancellationToken)
@@ -130,7 +130,7 @@ public class PasswordResetDelivery : IPasswordResetDelivery
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not send the password-reset-requested notice.");
+            _logger.LogWarning(exception, "Could not send the password-reset-requested alert.");
         }
     }
 

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordResetService.cs
-// Version : 1.0.0
-// Latest commit: feat/password-reset-service
+// Version : 1.1.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : Password reset for signed-out members: reset code, one-time token, new password.
 
@@ -36,7 +36,7 @@ public class PasswordResetService : IPasswordResetService
 
     #region Constructors
 
-    // Initializes the service with its stores, queue, notification channel and settings.
+    // Initializes the service with its stores, queue, alert sender and settings.
     public PasswordResetService(
         IBackgroundTaskQueue queue,
         IGuardDog guardDog,
@@ -213,7 +213,7 @@ public class PasswordResetService : IPasswordResetService
         return user is { AccessLevel: AccessLevel.Member };
     }
 
-    // Replaces the password, ends every session and notifies the member.
+    // Replaces the password, ends every session and alerts the member.
     private async Task ApplyNewPasswordAsync(
         string userId,
         string newPassword,
@@ -222,24 +222,24 @@ public class PasswordResetService : IPasswordResetService
         await _accounts.SetPasswordAsync(userId, newPassword);
         await _accounts.RevokeSessionsAsync(userId);
         await _signIns.ClearVerifiedAsync(userId);
-        await NotifyPasswordChangedAsync(userId, cancellationToken);
+        await AlertPasswordChangedAsync(userId, cancellationToken);
     }
 
-    // Best effort: a failed notice must not fail a completed reset.
-    private async Task NotifyPasswordChangedAsync(string userId, CancellationToken cancellationToken)
+    // Best effort: a failed alert must not fail a completed reset.
+    private async Task AlertPasswordChangedAsync(string userId, CancellationToken cancellationToken)
     {
         try
         {
-            await SendPasswordChangedNoticeAsync(userId, cancellationToken);
+            await SendPasswordChangedAlertAsync(userId, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not send the password-changed notice.");
+            _logger.LogWarning(exception, "Could not send the password-changed alert.");
         }
     }
 
-    // Emails the password-changed notice to the account's address.
-    private async Task SendPasswordChangedNoticeAsync(string userId, CancellationToken cancellationToken)
+    // Emails the password-changed alert to the account's address.
+    private async Task SendPasswordChangedAlertAsync(string userId, CancellationToken cancellationToken)
     {
         var email = await _accounts.GetEmailAsync(userId);
 

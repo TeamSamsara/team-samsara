@@ -153,6 +153,26 @@ This is the human summary. The machine-readable contract is the OpenAPI document
 - **Outcome in the body:** the flow endpoints answer with a `status` in the body as well as an HTTP
   status code, so a client reacts to the exact reason rather than to the code alone.
 
+### Response contract
+
+Every failure reaches the client in one of these shapes, so a frontend can handle them in order:
+
+1. **Flow outcome:** an HTTP status plus a `status` string in the body (and, when relevant,
+   `codeLength`, `retryAfterSeconds` or `profile`). The `status` is the precise reason; the HTTP
+   code is derived from it in one place (`IdentityStatusCodes`).
+2. **Authentication and access:** `401` with an empty body for an unknown caller, and `403` with
+   an `authState` body on verified-member endpoints (see below). Login checks answer `403` with a
+   `status` body instead.
+3. **Rate limiting:** `429` with an empty body and a `Retry-After` header, or `429` with
+   `cooldownActive` in the body when a code was requested too soon.
+4. **Unexpected failures:** `application/problem+json`, where `title` is a snake_case code and
+   `detail` is an English message for developers, not for display.
+5. **Malformed requests:** `400` with an empty body, for example a code sent as a number.
+
+The API never sends display text. The frontend decides what the member reads, from the `status`
+first, then the problem `title`, then the HTTP code alone. Browsers can read the `Retry-After` and
+`X-Correlation-Id` headers because the CORS policy exposes them.
+
 ### Who can call what
 
 | Access          | Meaning                                                                |
