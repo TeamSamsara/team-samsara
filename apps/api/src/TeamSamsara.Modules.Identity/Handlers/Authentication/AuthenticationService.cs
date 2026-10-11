@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AuthenticationService.cs
-// Version : 1.1.0
-// Latest commit: feat/account-purge
+// Version : 1.2.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : Default IAuthenticationService. A sign-in only becomes verified (and so honored as
 // Member by the authentication handler) once the client is recognized or the emailed
@@ -204,7 +204,7 @@ public class AuthenticationService : IAuthenticationService
 
         if (issue.Status == VerificationIssueStatus.Sent)
         {
-            await NotifyNewLoginAsync(email, client, cancellationToken);
+            await AlertNewLoginAsync(email, client, cancellationToken);
         }
 
         return new LoginResult(
@@ -213,7 +213,7 @@ public class AuthenticationService : IAuthenticationService
 
     // Courtesy email about the attempt. The code email already went out, so a failure here is
     // logged and must not break the login.
-    private async Task NotifyNewLoginAsync(
+    private async Task AlertNewLoginAsync(
         string email,
         ClientInfo client,
         CancellationToken cancellationToken)

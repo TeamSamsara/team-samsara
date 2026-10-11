@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.6.0
-// Latest commit: feat/password-reset-endpoints
+// Version : 1.7.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -57,7 +57,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Default", policy =>
     {
-        policy.WithOrigins(corsSettings.AllowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins(corsSettings.AllowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders(HttpConstants.RetryAfterHeader, HttpConstants.CorrelationIdHeader);
     });
 });
 

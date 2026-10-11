@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/EmailChangeService.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.1.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : Email change for signed-in members, answering the same way whether the new address is free or taken.
 
@@ -37,7 +37,7 @@ public class EmailChangeService : IEmailChangeService
 
     #region Constructors
 
-    // Initializes the service with its stores, queue, notification channel and settings.
+    // Initializes the service with its stores, queue, alert sender and settings.
     public EmailChangeService(
         IBackgroundTaskQueue queue,
         IVerificationCodeService verification,
@@ -99,7 +99,7 @@ public class EmailChangeService : IEmailChangeService
             EmailChangeStatus.Success, _settings.EmailChangeCodeLength, _settings.ResendCooldownSeconds);
     }
 
-    // Checks both codes, then switches the address, ends every session and notifies the old address.
+    // Checks both codes, then switches the address, ends every session and alerts the old address.
     public async Task<EmailChangeStatus> ConfirmAsync(
         string userId,
         string oldCode,
@@ -292,13 +292,13 @@ public class EmailChangeService : IEmailChangeService
         await _accounts.SetEmailAsync(userId, request.NewEmail);
         await _accounts.RevokeSessionsAsync(userId);
         await _signIns.ClearVerifiedAsync(userId);
-        await NotifyEmailChangedAsync(currentEmail, request.NewEmail, cancellationToken);
+        await AlertEmailChangedAsync(currentEmail, request.NewEmail, cancellationToken);
 
         return EmailChangeStatus.Success;
     }
 
-    // Best effort: a failed notice must not fail a completed change.
-    private async Task NotifyEmailChangedAsync(
+    // Best effort: a failed alert must not fail a completed change.
+    private async Task AlertEmailChangedAsync(
         string oldEmail,
         string newEmail,
         CancellationToken cancellationToken)
@@ -314,7 +314,7 @@ public class EmailChangeService : IEmailChangeService
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not send the email-changed notice.");
+            _logger.LogWarning(exception, "Could not send the email-changed alert.");
         }
     }
 
