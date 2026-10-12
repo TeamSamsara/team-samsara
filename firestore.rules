@@ -52,6 +52,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ===== NOTIFICATIONS COLLECTION =====
+    // Owned by the API (Admin SDK bypasses rules). Members read their inbox through the API, so no client access.
+    match /notifications/{notificationId} {
+      allow read, write: if false;
+    }
+
     // ===== VERIFICATIONS COLLECTION (LEGACY) =====
     // No longer used by anything. The old rules let anyone read documents that had a
     // CodeHash and let any signed-in user create documents, so it is closed completely.

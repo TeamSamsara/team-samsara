@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.7.0
-// Latest commit: chore/api-contract-baseline
+// Version : 1.8.0
+// Latest commit: feat/notification-send-path
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -13,6 +13,7 @@ using Serilog;
 using TeamSamsara.Modules.Alert;
 using TeamSamsara.Modules.Assets;
 using TeamSamsara.Modules.Identity;
+using TeamSamsara.Modules.Notification;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
@@ -127,7 +128,8 @@ var modules = new List<IModule>
     new PingPongModule(),
     new AssetsModule(),
     new AlertModule(),
-    new IdentityModule()
+    new IdentityModule(),
+    new NotificationModule()
 };
 
 foreach (var module in modules)

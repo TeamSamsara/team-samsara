@@ -427,6 +427,79 @@ twice in a row; that is logged.
 | `GET`  | `/ping`         | Public    | Answers `pong`; used to check the frontend reaches the API |
 | `GET`  | `/ping/secure`  | Signed in | `401` without a token                                      |
 
+## Notifications
+
+The Notification module keeps a member's inbox. Other modules send into it through
+`INotificationSender` from `TeamSamsara.Shared`; nothing reads the inbox yet, because the inbox
+endpoints come in a later change.
+
+```csharp
+NotificationResult result = await sender.SendNotificationAsync(
+    new NotificationRequest(recipientId, "order.shipped", data, dedupeKey), cancellationToken);
+```
+
+| Field         | Rule                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `RecipientId` | The member's Firebase uid (`A-Z a-z 0-9 _ -`, up to 128 characters)                                         |
+| `Key`         | `category.event`: 2-4 lowercase tokens joined by dots, each `[a-z][a-z0-9-]{0,31}`                          |
+| `Data`        | Optional flat map of strings: up to 20 entries, names `[a-z][A-Za-z0-9]{0,39}`, values up to 500 characters |
+| `DedupeKey`   | Optional, `A-Z a-z 0-9 . _ : -`, up to 100 characters                                                       |
+
+A malformed request throws `ArgumentException` (a bug in the caller, not a runtime condition).
+The category is the text before the first dot of `Key`; it is derived and never stored.
+
+| Status      | Meaning                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `Stored`    | The notification was written; `Id` is its document id                                                        |
+| `Duplicate` | The same `DedupeKey` was already stored with the same `Key` and `Data`; nothing was written                  |
+| `Conflict`  | The `DedupeKey` was already used for a different `Key` or `Data`; nothing was written and an error is logged |
+| `Failed`    | The write could not be confirmed; it may or may not have happened                                            |
+
+- **Dedupe.** A `DedupeKey` is scoped to one recipient, and the document id is a hash of the two,
+  so a repeat lands on the same document. The window lasts as long as the document does: until
+  the retention period ends and the Firestore TTL deletes it. Without a `DedupeKey` every call
+  makes a new notification.
+- **Best effort.** Sending is at most once per call and a notification can be lost. The sender
+  gives up after `WriteTimeoutSeconds` and reports `Failed`; it rethrows only the caller's own
+  cancellation, and lets unexpected exceptions (bugs) through. A producer whose business
+  operation has already committed must guard the call itself so a failure cannot undo it.
+- **Frontend compatibility.** The frontend turns `Key` and `Data` into text, so: an unknown key
+  gets a generic localized fallback; unknown `Data` fields are ignored and missing ones tolerated;
+  `Data` values are untrusted text, never HTML; dates are ISO-8601 strings the frontend formats;
+  where a notification leads is decided by the frontend; translation keys are
+  `notifications.<key>`. A key never changes meaning (a new meaning is a new key), `Data` only
+  gains optional fields, and a renderer stays until its producer is gone and the retention period
+  has passed.
+
+| Setting (`Notification`) | Default | Range | Meaning                                                    |
+| ------------------------ | ------- | ----- | ---------------------------------------------------------- |
+| `RetentionDays`          | `90`    | 1-365 | How long a notification lives before the TTL may delete it |
+| `WriteTimeoutSeconds`    | `5`     | 1-30  | How long one storage call may take before `Failed`         |
+
+`RetentionDays` is a policy choice, not a confirmed requirement. `ExpiresAt` is stored with each
+notification and the Firestore TTL policy on `notifications.ExpiresAt` does the deleting, usually
+within a day of expiry. Expired documents still appear in queries until then.
+
+### Notifications deployment
+
+Nothing in CI deploys Firestore configuration; it is applied by hand with
+`firebase deploy --only firestore --project staging` (or `production`). Before any module sends a
+notification:
+
+1. **TTL policy.** `firestore.indexes.json` declares it; confirm in the Firebase console that the
+   policy on `notifications.ExpiresAt` is active. Without it, notifications are never deleted.
+2. **Security rules.** `firestore.rules` denies all client access to `notifications`; the API
+   reads and writes through the Admin SDK. Deploying rules overwrites the live ones, so compare
+   them with the console first.
+3. **Indexes.** The inbox endpoints will need a composite index on `RecipientId` and `CreatedAt`;
+   it must be deployed and Ready before they are merged. The first deploy of
+   `firestore.indexes.json` may offer to delete live indexes that are not in the file; read that
+   prompt before answering.
+
+Until the member-data eraser is added, the account purge does not remove a member's notifications:
+they only leave through the TTL, so a purged account can leave documents for up to the retention
+period. Do not wire a producer before that change is merged.
+
 ## Git Workflow
 
 Replace every `<...>` placeholder before running a command.
