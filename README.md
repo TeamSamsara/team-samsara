@@ -371,7 +371,8 @@ it for good.
    purge is already working on the account, the sign-in answers `accountNotFound`.
 6. **Purge.** After the window the scheduled job (see Background Services) removes the profile
    images, the profile, every verification code, password reset token and email-change request
-   the account still has, the Firebase account, and finally the user record.
+   the account still has, what other modules hold about the member (the notification inbox, for
+   example), the Firebase account, and finally the user record.
 
 - **The client must call Firebase `signOut()` after a successful delete.** The API already refuses
   the old token as a member, but the Firebase session is still open on the device until the client
@@ -480,6 +481,12 @@ The category is the text before the first dot of `Key`; it is derived and never 
 notification and the Firestore TTL policy on `notifications.ExpiresAt` does the deleting, usually
 within a day of expiry. Expired documents still appear in queries until then.
 
+**Account purge.** When an account is purged, the Notification module erases the member's whole
+inbox (`NotificationMemberDataEraser`, in batches of up to 500) before the Firebase account is
+deleted; if that fails, the account is retried on the next purge run. A notification written for
+the member while their purge is running can be missed by that run and then stays until the TTL
+deletes it, at most `RetentionDays` later.
+
 ### Notifications deployment
 
 Nothing in CI deploys Firestore configuration; it is applied by hand with
@@ -495,10 +502,6 @@ notification:
    it must be deployed and Ready before they are merged. The first deploy of
    `firestore.indexes.json` may offer to delete live indexes that are not in the file; read that
    prompt before answering.
-
-Until the member-data eraser is added, the account purge does not remove a member's notifications:
-they only leave through the TTL, so a purged account can leave documents for up to the retention
-period. Do not wire a producer before that change is merged.
 
 ## Git Workflow
 
@@ -827,8 +830,12 @@ the member's side.
   run takes the account over. A member who signs in during a lease is not restored.
 - **Retry safety.** Each step can be repeated, and something already gone counts as success. The
   order is images, profile, verification codes, password reset tokens, email-change request,
-  Firebase account, and the user record last, so an account that stopped halfway is still listed
-  and the next run finishes it.
+  other modules' data, Firebase account, and the user record last, so an account that stopped
+  halfway is still listed and the next run finishes it.
+- **Other modules' data.** A module that holds member data registers an `IMemberDataEraser`
+  (`TeamSamsara.Shared.Members`). The purge runs them one after another, after the leftover
+  documents and before the Firebase account is deleted. An eraser that fails stops the purge of
+  that account, which stays listed and is retried on the next run.
 - **Failures.** A failure on one account is logged and counted, and the rest of the batch goes on.
   The account stays listed and is retried on every later run. A run that logs failed accounts is
   a warning.

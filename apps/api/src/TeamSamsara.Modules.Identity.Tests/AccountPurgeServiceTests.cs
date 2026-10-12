@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/AccountPurgeServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feat/account-purge
+// Version : 1.1.0
+// Latest commit: feat/notification-erasure
 // Author : Gerrah
-// Purpose : Proves the purge removes only accounts past the recovery window, removes everything they own, and survives failures, leases, restores and repeated runs without losing track of an account.
+// Purpose : Proves the purge removes only accounts past the recovery window, removes everything they own including what other modules erase, and survives failures, leases, restores and repeated runs without losing track of an account.
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -13,6 +13,7 @@ using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Modules.Identity.Tests.Fakes;
 using TeamSamsara.Shared.Assets;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Members;
 
 namespace TeamSamsara.Modules.Identity.Tests;
 
@@ -30,6 +31,7 @@ public class AccountPurgeServiceTests
     private readonly InMemoryEmailChangeRequestStore _emailChanges = new();
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeMemberImageService _images = new();
+    private readonly RecordingMemberDataEraser _eraser = new();
     private readonly FakeClock _clock = new();
     private readonly AuthenticationSettings _authenticationSettings = new();
     private readonly AccountPurgeSettings _purgeSettings = new();
@@ -73,6 +75,7 @@ public class AccountPurgeServiceTests
         result.ShouldBe(new AccountPurgeResult(0, 0, 0));
         (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
         _accounts.DeletedAccounts.ShouldBeEmpty();
+        _eraser.ErasedUserIds.ShouldBeEmpty();
     }
 
     [Fact]
@@ -99,6 +102,7 @@ public class AccountPurgeServiceTests
         result.ShouldBe(new AccountPurgeResult(0, 0, 0));
         (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
         _accounts.DeletedAccounts.ShouldBeEmpty();
+        _eraser.ErasedUserIds.ShouldBeEmpty();
     }
 
     [Fact]
@@ -127,6 +131,7 @@ public class AccountPurgeServiceTests
         _resetTokens.Find("token-" + OtherUserId).ShouldNotBeNull();
         _emailChanges.Find(OtherUserId).ShouldNotBeNull();
         (await _codes.GetAsync(OtherUserId, VerificationPurpose.StepUp)).ShouldNotBeNull();
+        _eraser.ErasedUserIds.ShouldBe(new[] { UserId });
     }
 
     [Fact]
@@ -199,6 +204,7 @@ public class AccountPurgeServiceTests
         result.ShouldBe(new AccountPurgeResult(0, 1, 0));
         (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
         _accounts.DeletedAccounts.ShouldBeEmpty();
+        _eraser.ErasedUserIds.ShouldBeEmpty();
     }
 
     [Fact]
@@ -229,6 +235,7 @@ public class AccountPurgeServiceTests
         (await _profiles.GetByIdAsync(UserId)).ShouldNotBeNull();
         _accounts.DeletedAccounts.ShouldBeEmpty();
         _images.DeletedAssetIds.ShouldBeEmpty();
+        _eraser.ErasedUserIds.ShouldBeEmpty();
     }
 
     [Fact]
@@ -255,12 +262,112 @@ public class AccountPurgeServiceTests
         (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task AnExpiredAccount_IsErasedByTheModulesThatHoldItsData()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+
+        var result = await _service.PurgeExpiredAsync();
+
+        result.ShouldBe(new AccountPurgeResult(1, 0, 0));
+        _eraser.ErasedUserIds.ShouldBe(new[] { UserId });
+    }
+
+    [Fact]
+    public async Task TheErasers_RunBeforeTheFirebaseAccountAndTheUserRecordAreRemoved()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        var accountsDeletedWhenErasing = -1;
+        User? userWhenErasing = null;
+        _eraser.OnErase = async userId =>
+        {
+            accountsDeletedWhenErasing = _accounts.DeletedAccounts.Count();
+            userWhenErasing = await _users.GetByIdAsync(userId);
+        };
+
+        await _service.PurgeExpiredAsync();
+
+        accountsDeletedWhenErasing.ShouldBe(0);
+        userWhenErasing.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task WhenAnEraserFails_TheAccountFails_KeepsItsAccountAndUserRecord_AndALaterRunFinishesIt()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        _eraser.FailErase = true;
+
+        var failed = await _service.PurgeExpiredAsync();
+
+        failed.ShouldBe(new AccountPurgeResult(0, 0, 1));
+        (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
+        _accounts.DeletedAccounts.ShouldBeEmpty();
+
+        _eraser.FailErase = false;
+        PassTheLease();
+        var retried = await _service.PurgeExpiredAsync();
+
+        retried.ShouldBe(new AccountPurgeResult(1, 0, 0));
+        (await _users.GetByIdAsync(UserId)).ShouldBeNull();
+        _accounts.DeletedAccounts.ShouldBe(new[] { UserId });
+        _eraser.ErasedUserIds.ShouldBe(new[] { UserId });
+    }
+
+    [Fact]
+    public async Task WhenTheFirstEraserFails_TheNextOneIsNotRun()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        var second = new RecordingMemberDataEraser();
+        _eraser.FailErase = true;
+        var service = CreateService(_users, new IMemberDataEraser[] { _eraser, second });
+
+        var result = await service.PurgeExpiredAsync();
+
+        result.ShouldBe(new AccountPurgeResult(0, 0, 1));
+        second.ErasedUserIds.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task TheRunsCancellationToken_ReachesTheEraser()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        using var source = new CancellationTokenSource();
+
+        await _service.PurgeExpiredAsync(source.Token);
+
+        _eraser.LastCancellationToken.ShouldBe(source.Token);
+    }
+
+    [Fact]
+    public async Task ACancellationInsideAnEraser_IsRethrown_NotCountedAsAFailure()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        _eraser.OnErase = _ => Task.FromException(new OperationCanceledException());
+
+        await Should.ThrowAsync<OperationCanceledException>(() => _service.PurgeExpiredAsync());
+
+        (await _users.GetByIdAsync(UserId)).ShouldNotBeNull();
+        _accounts.DeletedAccounts.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task WithoutAnyEraser_TheAccountIsStillPurged()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        var service = CreateService(_users, Array.Empty<IMemberDataEraser>());
+
+        var result = await service.PurgeExpiredAsync();
+
+        result.ShouldBe(new AccountPurgeResult(1, 0, 0));
+        (await _users.GetByIdAsync(UserId)).ShouldBeNull();
+    }
+
     #endregion
 
     #region Private Methods
 
-    // Builds the service over the given user store; everything else is shared with the test
-    private AccountPurgeService CreateService(IUserStore users)
+    // Builds the service over the given user store and erasers (the recording eraser when none are given); everything else is shared with the test
+    private AccountPurgeService CreateService(IUserStore users, IEnumerable<IMemberDataEraser>? erasers = null)
     {
         return new AccountPurgeService(
             users,
@@ -270,6 +377,7 @@ public class AccountPurgeServiceTests
             _emailChanges,
             _accounts,
             _images,
+            erasers ?? new IMemberDataEraser[] { _eraser },
             _clock,
             Options.Create(_authenticationSettings),
             Options.Create(_purgeSettings),
