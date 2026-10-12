@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Repositories/FirestoreInboxNotificationStore.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-send-path
+// Version : 1.1.0
+// Latest commit: feat/notification-erasure
 // Author : Gerrah
 // Purpose : Firestore implementation of the inbox notification store.
 
@@ -13,6 +13,9 @@ namespace TeamSamsara.Modules.Notification.Repositories;
 public class FirestoreInboxNotificationStore : IInboxNotificationStore
 {
     #region Fields
+
+    // The most writes one Firestore batch accepts
+    private const int DeleteBatchSize = 500;
 
     private readonly FirestoreDb _firestoreDb;
 
@@ -68,6 +71,42 @@ public class FirestoreInboxNotificationStore : IInboxNotificationStore
         {
             throw new NotificationStoreException(
                 $"Could not read notification '{id}' ({exception.StatusCode}).", exception);
+        }
+    }
+
+    // Deletes up to one batch of the recipient's notifications and returns how many it found, 0 once none are left; a cancelled caller gets the cancellation, any other server failure becomes NotificationStoreException
+    public async Task<int> DeleteBatchByRecipientAsync(string recipientId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var snapshot = await _firestoreDb
+                .Collection(NotificationFirestoreCollections.Notifications)
+                .WhereEqualTo(nameof(InboxNotification.RecipientId), recipientId)
+                .Limit(DeleteBatchSize)
+                .GetSnapshotAsync(cancellationToken);
+
+            if (snapshot.Count == 0)
+            {
+                return 0;
+            }
+
+            var batch = _firestoreDb.StartBatch();
+
+            foreach (var document in snapshot.Documents)
+            {
+                batch.Delete(document.Reference);
+            }
+
+            await batch.CommitAsync(cancellationToken);
+
+            return snapshot.Count;
+        }
+        catch (RpcException exception)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            throw new NotificationStoreException(
+                $"Could not delete the notifications of member '{recipientId}' ({exception.StatusCode}).", exception);
         }
     }
 

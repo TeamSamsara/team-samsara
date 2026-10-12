@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Repositories/IInboxNotificationStore.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-send-path
+// Version : 1.1.0
+// Latest commit: feat/notification-erasure
 // Author : Gerrah
 // Purpose : Storage contract for inbox notifications.
 
@@ -17,6 +17,9 @@ public interface IInboxNotificationStore
 
     // Retrieves a notification by id, or null if none exists
     public Task<InboxNotification?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+
+    // Deletes one batch of the recipient's notifications and returns how many it deleted, 0 once none are left; throws NotificationStoreException when the deletion fails
+    public Task<int> DeleteBatchByRecipientAsync(string recipientId, CancellationToken cancellationToken = default);
 
     #endregion
 }

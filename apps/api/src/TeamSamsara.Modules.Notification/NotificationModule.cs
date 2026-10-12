@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/NotificationModule.cs
-// Version : 1.1.0
-// Latest commit: feat/notification-send-path
+// Version : 1.2.0
+// Latest commit: feat/notification-erasure
 // Author : Gerrah
 // Purpose : Registers the Notification module's services; it has no HTTP endpoints yet.
 
@@ -13,6 +13,7 @@ using TeamSamsara.Modules.Notification.Models;
 using TeamSamsara.Modules.Notification.Repositories;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Members;
 using TeamSamsara.Shared.Modules;
 using TeamSamsara.Shared.Notification;
 
@@ -31,6 +32,7 @@ public class NotificationModule : IModule
 
         services.AddScoped<IInboxNotificationStore, FirestoreInboxNotificationStore>();
         services.AddScoped<INotificationSender, NotificationSender>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IMemberDataEraser, NotificationMemberDataEraser>());
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

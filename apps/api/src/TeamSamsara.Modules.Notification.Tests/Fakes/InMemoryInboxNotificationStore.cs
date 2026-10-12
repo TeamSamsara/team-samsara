@@ -1,9 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification.Tests/Fakes/InMemoryInboxNotificationStore.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-send-path
+// Version : 1.1.0
+// Latest commit: feat/notification-erasure
 // Author : Gerrah
-// Purpose : An in-memory inbox store that, like Firestore, refuses to overwrite an existing id, and
-// can be made to fail or hang so the sender's error paths can be tested.
+// Purpose : An in-memory inbox store that, like Firestore, refuses to overwrite an existing id, and can be made to fail or hang so the sender's error paths can be tested.
 
 using TeamSamsara.Modules.Notification.Models;
 using TeamSamsara.Modules.Notification.Repositories;
@@ -13,6 +12,8 @@ namespace TeamSamsara.Modules.Notification.Tests.Fakes;
 public class InMemoryInboxNotificationStore : IInboxNotificationStore
 {
     #region Fields
+
+    private const int DefaultDeleteBatchSize = 500;
 
     private readonly object _lock = new();
     private readonly Dictionary<string, InboxNotification> _documents = new();
@@ -25,7 +26,11 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
 
     public bool HangUntilCancelled { get; set; }
 
+    public int DeleteBatchSize { get; set; } = DefaultDeleteBatchSize;
+
     public int CreateCalls { get; private set; }
+
+    public int DeleteBatchCalls { get; private set; }
 
     public IReadOnlyList<InboxNotification> Documents
     {
@@ -75,6 +80,35 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
         lock (_lock)
         {
             return Task.FromResult(_documents.TryGetValue(id, out var document) ? Copy(document) : null);
+        }
+    }
+
+    public Task<int> DeleteBatchByRecipientAsync(string recipientId, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            DeleteBatchCalls++;
+        }
+
+        if (FailureToThrow is not null)
+        {
+            throw FailureToThrow;
+        }
+
+        lock (_lock)
+        {
+            var ids = _documents.Values
+                .Where(document => document.RecipientId == recipientId)
+                .Take(DeleteBatchSize)
+                .Select(document => document.Id)
+                .ToList();
+
+            foreach (var id in ids)
+            {
+                _documents.Remove(id);
+            }
+
+            return Task.FromResult(ids.Count);
         }
     }
 
