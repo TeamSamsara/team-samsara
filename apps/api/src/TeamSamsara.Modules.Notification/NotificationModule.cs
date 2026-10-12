@@ -1,13 +1,20 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/NotificationModule.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-module-scaffold
+// Version : 1.1.0
+// Latest commit: feat/notification-send-path
 // Author : Gerrah
-// Purpose : Registers the Notification module's services and HTTP endpoints; both are empty until the module is built.
+// Purpose : Registers the Notification module's services; it has no HTTP endpoints yet.
 
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using TeamSamsara.Modules.Notification.Handlers;
+using TeamSamsara.Modules.Notification.Models;
+using TeamSamsara.Modules.Notification.Repositories;
+using TeamSamsara.Shared.Configuration;
+using TeamSamsara.Shared.Context;
 using TeamSamsara.Shared.Modules;
+using TeamSamsara.Shared.Notification;
 
 namespace TeamSamsara.Modules.Notification;
 
@@ -17,12 +24,18 @@ public class NotificationModule : IModule
 
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Nothing to register yet.
+        services.AddValidatedOptions<NotificationSettings>(configuration, NotificationSettings.SectionName);
+
+        services.TryAddSingleton<IClock, SystemClock>();
+        services.TryAddSingleton<IIdGenerator, GuidV7IdGenerator>();
+
+        services.AddScoped<IInboxNotificationStore, FirestoreInboxNotificationStore>();
+        services.AddScoped<INotificationSender, NotificationSender>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)
     {
-        // Nothing to map yet.
+        // Nothing to map yet - the inbox endpoints come later.
     }
 
     #endregion

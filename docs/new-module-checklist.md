@@ -10,7 +10,7 @@ following the pattern established by `TeamSamsara.Modules.PingPong`.
       `ArchitectureTests`)
 - [ ] Add the project to `TeamSamsara.sln`
 - [ ] Scaffold the four standard folders: `Endpoints/`, `Handlers/`, `Repositories/`, `Models/`
-      (add a `.gitkeep` to any left empty)
+      (add a `.gitkeep` to any left empty, and delete it once the folder has a file)
 
 ## Implementation
 
@@ -18,10 +18,11 @@ following the pattern established by `TeamSamsara.Modules.PingPong`.
 - [ ] Register the module in `Program.cs`'s module list
 - [ ] Add permission strings for this module to `Shared/Authorization/Permissions.cs`, following
       the `domain.resource.action` naming convention
-- [ ] Add any module-specific constants (routes, response text, collection names) to a
-      `<Name>Constants.cs` file inside the module itself - not `Shared`, unless the value is
-      genuinely used across modules
-- [ ] Add any Firestore collection names to `Shared/Persistence/FirestoreCollections.cs`
+- [ ] Add any module-specific constants (routes, response text) to a `<Name>Constants.cs` file
+      inside the module itself - not `Shared`, unless the value is genuinely used across modules
+- [ ] Add any Firestore collection names to a `<Name>FirestoreCollections.cs` file inside the
+      module (for example `Repositories/NotificationFirestoreCollections.cs`) - not
+      `Shared/Persistence/FirestoreCollections.cs`
 - [ ] Follow the project's string/magic-value convention (see `README.md`) - no unnamed semantic
       literals
 
@@ -29,9 +30,10 @@ following the pattern established by `TeamSamsara.Modules.PingPong`.
 
 - [ ] Add a matching `TeamSamsara.Modules.<Name>.Tests` project, referencing
       `TeamSamsara.Shared.Testing`
-- [ ] Confirm `ModuleIsolationTests` picks up the new module automatically (it's driven by the
-      assembly-name list in `ArchitectureTests`) - add the new module's assembly name there if
-      it isn't detected
+- [ ] Make `ArchitectureTests` load the new module: add a `ProjectReference` to it in
+      `TeamSamsara.ArchitectureTests.csproj` (the test loads assemblies by name and fails with
+      `FileNotFoundException` without it) and add its assembly name to `_moduleAssemblyNames` in
+      `ModuleIsolationTests`
 - [ ] Write at least one endpoint test proving the module's real behavior, not just that it
       compiles
 
