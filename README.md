@@ -432,7 +432,7 @@ twice in a row; that is logged.
 
 The Notification module keeps a member's inbox. Other modules send into it through
 `INotificationSender` from `TeamSamsara.Shared`; nothing reads the inbox yet, because the inbox
-endpoints come in a later change.
+API is not built (see Planned work below).
 
 ```csharp
 NotificationResult result = await sender.SendNotificationAsync(
@@ -502,6 +502,51 @@ notification:
    it must be deployed and Ready before they are merged. The first deploy of
    `firestore.indexes.json` may offer to delete live indexes that are not in the file; read that
    prompt before answering.
+
+### Notifications planned work
+
+**Inbox API (designed, not built).** Nothing needs it yet, so it is built when the first feature
+has something to tell a member, such as the shop's order updates. It is member-only (verified
+member), and every call reads or changes the caller's own notifications.
+
+| Method | Path                          | Does                                                                        |
+| ------ | ----------------------------- | --------------------------------------------------------------------------- |
+| `GET`  | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor` |
+| `GET`  | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                |
+| `POST` | `/notifications/{id}/read`    | Marks one notification read                                                 |
+
+- **Items.** Each one is `{id, key, data, createdAt, readAt}`. The category is not sent; the
+  frontend derives it from `key`.
+- **Order and paging.** Newest first by `CreatedAt`, then by document id. The list fetches one
+  more than `limit` to know whether another page exists. `limit` defaults to 20 and is clamped to 50. The cursor is opaque, versioned and built from the last item's stored timestamp and id; a
+  malformed cursor answers `400`.
+- **Unread count.** A Firestore count of the caller's notifications whose `ReadAt` is empty.
+- **Mark read.** Idempotent: a second call keeps the first `readAt` and answers `204` as well. The
+  id must look like a notification id (32 or 64 lowercase hex characters); an unknown id or
+  someone else's answers `404` with an empty body. The change runs in a transaction.
+- **Needs.** A composite index on `RecipientId` ascending and `CreatedAt` descending, added to
+  `firestore.indexes.json` and deployed and Ready before the PR merges; `.Produces<>` metadata on
+  the endpoints so the OpenAPI contract stays accurate; and a pass against the Firestore emulator,
+  because the in-memory fakes cannot reproduce empty-value equality, counting, cursors or index
+  requirements.
+- **Not planned yet.** Mark all read, mark unread, delete, per-member preferences, other delivery
+  channels (email, push) and sending one notification to many members.
+
+**Before the first producer.** The first module that calls `INotificationSender` in code that
+reaches `dev` does these, in this order:
+
+1. Deploy the TTL policy and rules to Staging with the commands in Notifications deployment, and
+   confirm the TTL policy is active in the Firebase console.
+2. Run the batch delete once against the Firestore emulator: store more than 500 notifications for
+   one member, run `NotificationMemberDataEraser`, and check they are all gone. The unit tests use
+   a fake store, so this is the only check against real Firestore behavior.
+3. Decide how a failed send is handled in the producer (guard the call so it cannot undo a
+   business operation that already committed) and what its `DedupeKey` is, if any.
+4. Repeat step 1 for the production project at cutover.
+
+A producer whose notification a member must see waits for the inbox API above. Until then
+notifications are stored and expire normally, but nothing shows them. A feature that only emails
+someone, such as the contact form, needs none of this.
 
 ## Git Workflow
 
