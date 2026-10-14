@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.8.0
-// Latest commit: feat/notification-send-path
+// Version : 1.9.0
+// Latest commit: feat/contact-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using TeamSamsara.Modules.Alert;
 using TeamSamsara.Modules.Assets;
+using TeamSamsara.Modules.Contact;
 using TeamSamsara.Modules.Identity;
 using TeamSamsara.Modules.Notification;
 using TeamSamsara.Modules.PingPong;
@@ -129,7 +130,8 @@ var modules = new List<IModule>
     new AssetsModule(),
     new AlertModule(),
     new IdentityModule(),
-    new NotificationModule()
+    new NotificationModule(),
+    new ContactModule()
 };
 
 foreach (var module in modules)

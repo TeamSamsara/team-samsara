@@ -30,6 +30,7 @@
     <ProjectReference Include="..\TeamSamsara.Modules.Assets\TeamSamsara.Modules.Assets.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.Alert\TeamSamsara.Modules.Alert.csproj" />
     <ProjectReference Include="..\TeamSamsara.Modules.Notification\TeamSamsara.Modules.Notification.csproj" />
+    <ProjectReference Include="..\TeamSamsara.Modules.Contact\TeamSamsara.Modules.Contact.csproj" />
   </ItemGroup>
 
 </Project>

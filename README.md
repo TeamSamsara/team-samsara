@@ -419,6 +419,86 @@ repeat after a partial failure succeeds. If the file cannot be deleted the reque
 error. A file can still be left without metadata only if the cleanup after a failed upload fails
 twice in a row; that is logged.
 
+### Contact (`/contact`) - public
+
+The website's contact form. One call emails the team; nothing is stored.
+
+| Method | Path       | Access                 | Does                                                |
+| ------ | ---------- | ---------------------- | --------------------------------------------------- |
+| `POST` | `/contact` | Public, limited per IP | Emails the form to the team for the chosen category |
+
+The body is `multipart/form-data`:
+
+| Field                   | Required | Rule                                                              |
+| ----------------------- | -------- | ----------------------------------------------------------------- |
+| `firstName`, `lastName` | yes      | Up to 100 characters each, no control characters                  |
+| `email`                 | yes      | One plain address (no display name), up to 254 characters         |
+| `phone`                 | no       | Up to 30 characters: digits, spaces and `+ - ( ) .`               |
+| `category`              | yes      | `sponsorship`, `general-inquiries`, `media` or `customer-service` |
+| `message`               | yes      | Up to 5000 characters; line breaks allowed                        |
+| `files`                 | no       | Up to 5 files; repeat the field once per file                     |
+| `website`               | no       | Hidden honeypot field: people leave it empty (see below)          |
+
+- **Attachments:** PNG, JPEG, WebP, PDF, DOCX, PPTX and XLSX only. The extension and the file's
+  first bytes must both match, so a renamed file is refused; anything else (zip, macro-enabled
+  Office files, executables) is refused. At most 5 files, 5 MiB each and 8 MiB together; the whole
+  request is capped at 10 MiB. File names are cleaned (any path and control characters removed,
+  at most 100 characters). Files are attached to the email directly and never stored.
+- **Routing:** each category goes to its own list of recipients (see Contact configuration).
+  One email is sent to everyone on the list, with the visitor's address as `Reply-To`, so a staff
+  member answers by replying. The sender is the shared `Email:FromAddress`.
+- **Honeypot:** a filled `website` field answers `sent` exactly like a real submission but sends
+  nothing, so a bot cannot tell it was dropped. The form must keep the field hidden and empty.
+- **Rate limit:** at most 5 submissions per 10 minutes per IP address. More answers `429` with a
+  `Retry-After` header and an empty body. A honeypot hit counts toward the limit.
+- **No confirmation email:** the visitor is not emailed, so the form cannot be used to send mail
+  to other people. The frontend shows its own thank-you screen on `sent`.
+- **Failure keeps the form:** `deliveryFailed` (`503`) means the email could not be sent and
+  nothing was recorded, so the frontend keeps the visitor's text and files and lets them retry.
+
+Every answer except `429` has the body `{"status": "..."}`, and the HTTP code follows the status:
+
+| Outcome (`status`)                                                      | HTTP  |
+| ----------------------------------------------------------------------- | ----- |
+| `sent`                                                                  | `200` |
+| `invalidRequest`, `invalidField`, `tooManyFiles`, `unsupportedFileType` | `400` |
+| `fileTooLarge`                                                          | `413` |
+| `deliveryFailed`                                                        | `503` |
+
+### Contact configuration
+
+| Setting (`Contact`)          | Default           | Range        | Meaning                                                |
+| ---------------------------- | ----------------- | ------------ | ------------------------------------------------------ |
+| `SponsorshipRecipients`      | required          | -            | Comma-separated addresses for the Sponsorship category |
+| `GeneralInquiriesRecipients` | required          | -            | Comma-separated addresses for General inquiries        |
+| `MediaRecipients`            | required          | -            | Comma-separated addresses for Media                    |
+| `CustomerServiceRecipients`  | required          | -            | Comma-separated addresses for Customer service         |
+| `MaxFiles`                   | `5`               | 1-10         | Most files one submission may attach                   |
+| `MaxFileBytes`               | `5242880` (5 MiB) | up to 10 MiB | Largest single attachment                              |
+| `MaxTotalBytes`              | `8388608` (8 MiB) | up to 10 MiB | Largest combined size of all attachments               |
+| `RateLimitPermitLimit`       | `5`               | 1-1000       | Submissions one IP address may make per window         |
+| `RateLimitWindowSeconds`     | `600`             | 1-86400      | Length of that window                                  |
+
+- **Recipients:** comma-separated addresses, at most 50 per category. They are checked at startup:
+  the API does not start if a category has no valid address or if `MaxFileBytes` is larger than
+  `MaxTotalBytes`.
+- **Where they live:** Staging reads them from `appsettings.Staging.json`. Production has no file
+  for them, so they are set as Render environment variables at cutover
+  (`Contact__SponsorshipRecipients`, `Contact__GeneralInquiriesRecipients`,
+  `Contact__MediaRecipients`, `Contact__CustomerServiceRecipients`); the API will not start
+  without them. A change needs a restart, and so does a new rate limit value.
+- **Local development** uses fake `@example.com` addresses from `appsettings.Development.json`, so
+  nothing reaches a real inbox.
+- **Staging test.** Real addresses receive this, so tell them first:
+
+```bash
+curl -F firstName=Ada -F lastName=Lovelace -F email=you@example.com \
+  -F category=media -F message=Hello -F files=@file.pdf \
+  https://<staging-host>/contact
+```
+
+It should answer `{"status":"sent"}` and deliver to the Media recipients.
+
 ### Health and utility
 
 | Method | Path            | Access    | Does                                                       |
