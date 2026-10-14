@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Email/ResendEmailSender.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.1.0
+// Latest commit: feat/email-message-attachments
 // Author : Gerrah
 // Purpose : IEmailSender implementation backed by the Resend transactional email API.
 
@@ -16,6 +16,9 @@ public class ResendEmailSender : IEmailSender
     #region Fields
 
     private const string SendEmailPath = "/emails";
+
+    // Most recipients Resend accepts on one email
+    private const int MaxRecipients = 50;
 
     private readonly HttpClient _httpClient;
     private readonly EmailSettings _settings;
@@ -39,18 +42,46 @@ public class ResendEmailSender : IEmailSender
 
     #region Public Methods
 
-    public async Task SendEmailAsync(
+    // Sends one HTML email to a single recipient
+    public Task SendEmailAsync(
         string to,
         string subject,
         string htmlBody,
         CancellationToken cancellationToken = default)
     {
+        var message = new EmailMessage
+        {
+            To = new[] { to },
+            Subject = subject,
+            HtmlBody = htmlBody
+        };
+
+        return SendEmailAsync(message, cancellationToken);
+    }
+
+    // Sends one HTML email to one or more recipients, with an optional reply address and attachments
+    public async Task SendEmailAsync(
+        EmailMessage message,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+
+        if (message.To.Count is 0 or > MaxRecipients)
+        {
+            throw new ArgumentException(
+                $"An email needs between 1 and {MaxRecipients} recipients.", nameof(message));
+        }
+
         var request = new ResendEmailRequest
         {
             From = _settings.FromAddress,
-            To = new[] { to },
-            Subject = subject,
-            Html = htmlBody
+            To = message.To.ToArray(),
+            Subject = message.Subject,
+            Html = message.HtmlBody,
+            ReplyTo = message.ReplyTo,
+            Attachments = message.Attachments.Count == 0
+                ? null
+                : message.Attachments.Select(ToResendAttachment).ToArray()
         };
 
         using var response = await _httpClient
@@ -72,6 +103,20 @@ public class ResendEmailSender : IEmailSender
 
     #endregion
 
+    #region Private Methods
+
+    // Converts an attachment to Resend's shape, with the file content as base64
+    private static ResendAttachment ToResendAttachment(EmailAttachment attachment)
+    {
+        return new ResendAttachment
+        {
+            FileName = attachment.FileName,
+            Content = Convert.ToBase64String(attachment.Content)
+        };
+    }
+
+    #endregion
+
     #region Nested Types
 
     private class ResendEmailRequest
@@ -87,6 +132,23 @@ public class ResendEmailSender : IEmailSender
 
         [JsonPropertyName("html")]
         public string Html { get; set; } = string.Empty;
+
+        [JsonPropertyName("reply_to")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ReplyTo { get; set; }
+
+        [JsonPropertyName("attachments")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ResendAttachment[]? Attachments { get; set; }
+    }
+
+    private class ResendAttachment
+    {
+        [JsonPropertyName("filename")]
+        public string FileName { get; set; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
     }
 
     #endregion
