@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.ArchitectureTests/ModuleIsolationTests.cs
-// Version : 1.2.0
-// Latest commit: feat/notification-send-path
+// Version : 1.3.0
+// Latest commit: feat/contact-module
 // Author : Gerrah
 // Purpose : Enforces that no business module references another business
 // module - modules may depend only on Shared. Loads each module by assembly
@@ -28,7 +28,8 @@ public class ModuleIsolationTests
         "TeamSamsara.Modules.PingPong",
         "TeamSamsara.Modules.Assets",
         "TeamSamsara.Modules.Alert",
-        "TeamSamsara.Modules.Notification"
+        "TeamSamsara.Modules.Notification",
+        "TeamSamsara.Modules.Contact"
     };
 
     #endregion
