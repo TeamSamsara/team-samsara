@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Email/IEmailSender.cs
-// Version : 1.0.0
-// Latest commit: feature/alerts-module
+// Version : 1.1.0
+// Latest commit: feat/email-message-attachments
 // Author : Gerrah
 // Purpose : Generic contract for delivering an email.
 
@@ -15,6 +15,11 @@ public interface IEmailSender
         string to,
         string subject,
         string htmlBody,
+        CancellationToken cancellationToken = default);
+
+    // Sends one HTML email to one or more recipients, with an optional reply address and attachments
+    public Task SendEmailAsync(
+        EmailMessage message,
         CancellationToken cancellationToken = default);
 
     #endregion
