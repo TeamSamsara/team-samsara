@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/web/src/features/home/data/heroSlides.ts
-// Version : 1.1.0
+// Version : 1.1.1
 // Latest commit: feature/web-home-page
 // Author : Gerrah
 // Purpose : Content of the home hero carousel. Each slide points at an image
@@ -38,7 +38,7 @@ const brandCta = { label: "JOIN US", to: routePaths.register };
 export const heroSlides: readonly HeroSlide[] = [
   {
     id: "aeon-1",
-    assetId: "c44b9e63-195c-49ae-a7f4-6d0112566e05",
+    assetId: "3c1caf15-e972-472e-ae31-74a7810804eb",
     alt: "Team Samsara player wearing a headset and competing at a gaming PC",
     title: brandTitle,
     subtitle: brandSubtitle,
@@ -46,7 +46,7 @@ export const heroSlides: readonly HeroSlide[] = [
   },
   {
     id: "aeon-2",
-    assetId: "2e381428-a63b-4f45-b6a0-ec1a190a6ad8",
+    assetId: "72673d9a-81c3-4316-a749-b03aeb10bbac",
     alt: "Smiling Team Samsara player in a green jersey making a peace sign",
     focus: "50% 10%",
     title: brandTitle,
@@ -55,7 +55,7 @@ export const heroSlides: readonly HeroSlide[] = [
   },
   {
     id: "champions",
-    assetId: "73d4e4e1-6ca1-462d-be09-ddb3b518625d",
+    assetId: "1f7b25ab-58b6-475c-a31f-05c258f99d9f",
     alt: "Close-up of the green Team Samsara jersey with a hand holding a pin",
     title: brandTitle,
     subtitle: brandSubtitle,
@@ -63,7 +63,7 @@ export const heroSlides: readonly HeroSlide[] = [
   },
   {
     id: "kappa-1",
-    assetId: "a2f0d9aa-5adc-473f-8833-5f9292755868",
+    assetId: "1745dbc1-000a-4804-a8b2-05e258f7c5a7",
     alt: "Team Samsara player in a green jersey seated at a gaming setup",
     title: brandTitle,
     subtitle: brandSubtitle,
@@ -71,7 +71,7 @@ export const heroSlides: readonly HeroSlide[] = [
   },
   {
     id: "kappa-beep-1",
-    assetId: "579048d6-1de3-4e53-8393-d4b1241cb78f",
+    assetId: "38075894-6cc3-40e3-81e1-8e55874e703c",
     alt: "Two Team Samsara players in green jerseys posing outdoors",
     title: brandTitle,
     subtitle: brandSubtitle,

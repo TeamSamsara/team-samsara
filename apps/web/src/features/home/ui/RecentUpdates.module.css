@@ -1,0 +1,39 @@
+/* File : /team-samsara/apps/web/src/features/home/ui/RecentUpdates.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : The brick layout of the Recent Updates grid, from the Figma landing page: three columns where a wide tile spans two and a narrow tile takes one, swapping sides on every second row. */
+
+.section {
+  /* 84 Figma px under the hero, 162 from the left edge. */
+  width: calc(1581 * var(--px));
+  margin: calc(84 * var(--px)) 0 0 calc(162 * var(--px));
+}
+
+/* 505 + 521 + 505 with 25 gaps: a wide tile (two columns) is 1051 wide, a narrow one 505. */
+.grid {
+  display: grid;
+  grid-template-columns: 505fr 521fr 505fr;
+  grid-auto-rows: calc(582 * var(--px));
+  gap: calc(25 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The pattern repeats every four tiles: wide + narrow, then narrow + wide. */
+.tile:nth-child(4n + 1) {
+  grid-column: 1 / 3;
+}
+
+.tile:nth-child(4n + 2) {
+  grid-column: 3;
+}
+
+.tile:nth-child(4n + 3) {
+  grid-column: 1;
+}
+
+.tile:nth-child(4n + 4) {
+  grid-column: 2 / 4;
+}
