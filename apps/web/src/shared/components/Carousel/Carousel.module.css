@@ -1,0 +1,35 @@
+/* File : /team-samsara/apps/web/src/shared/components/Carousel/Carousel.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : The mechanics of a one-slide-at-a-time carousel: slides stacked in one spot, only the active one visible. No colors or sizes; each page adds its own look. */
+
+.viewport {
+  display: grid;
+  overflow: hidden;
+}
+
+/* Every slide sits in the same grid cell, so the viewport is as tall as the tallest slide. */
+.slide {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 1;
+  transition:
+    opacity var(--carousel-fade-duration, 500ms) ease,
+    visibility 0s linear 0s;
+}
+
+.slide[data-active="false"] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--carousel-fade-duration, 500ms) ease,
+    visibility 0s linear var(--carousel-fade-duration, 500ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide,
+  .slide[data-active="false"] {
+    transition: none;
+  }
+}

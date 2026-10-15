@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/api/src/TeamSamsara.Modules.Contact/ContactMessages.cs
-   Version : 1.0.0
-   Latest commit: feat/contact-module
+   Version : 1.0.1
+   Latest commit: feature/web-home-page
    Author : Gerrah
    Purpose : Subject, formats and HTML template of the staff notification email sent for each contact form submission. */
 
@@ -33,9 +33,17 @@ internal static class ContactMessages
     private const string FontBody = "Arial,Helvetica,sans-serif";
     private const string FontHeading = "Anton,Impact,Arial,sans-serif";
 
+    private const string ContentWidthPx = "600";
+
+    private const string TableAttributes =
+        "role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"";
+
     private const string PageStyle =
         "margin:0;padding:0;background-color:" + ColorPage + ";font-family:" + FontBody + ";";
-    private const string ContainerStyle = "max-width:600px;margin:0 auto;padding:20px;";
+    private const string OuterTableStyle = "background-color:" + ColorPage + ";";
+    private const string OuterCellStyle = "padding:20px;";
+    private const string InnerTableStyle = "width:100%;max-width:" + ContentWidthPx + "px;";
+    private const string InnerCellStyle = "text-align:left;";
     private const string HeaderStyle =
         "background-color:" + ColorHeader + ";color:" + ColorWhite + ";padding:30px;text-align:center;"
         + "border-radius:8px 8px 0 0;";
@@ -66,9 +74,13 @@ internal static class ContactMessages
 
     public const string Body =
         "<!DOCTYPE html>"
-        + "<html><head><meta charset=\"UTF-8\"></head>"
+        + "<html><head><meta charset=\"UTF-8\">"
+        + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"></head>"
         + "<body style=\"" + PageStyle + "\">"
-        + "<div style=\"" + ContainerStyle + "\">"
+        + "<table " + TableAttributes + " width=\"100%\" style=\"" + OuterTableStyle + "\">"
+        + "<tr><td align=\"center\" style=\"" + OuterCellStyle + "\">"
+        + "<table " + TableAttributes + " width=\"" + ContentWidthPx + "\" style=\"" + InnerTableStyle + "\">"
+        + "<tr><td align=\"left\" style=\"" + InnerCellStyle + "\">"
         + "<div style=\"" + HeaderStyle + "\">"
         + "<h1 style=\"" + HeadingStyle + "\">Website Contact Form</h1>"
         + "</div>"
@@ -92,5 +104,7 @@ internal static class ContactMessages
         + "<p style=\"" + FooterLineStyle + "\">This is an automated notification from the Samsara website contact form.</p>"
         + "<p style=\"" + FooterLineStyle + "\">Reply directly to this email to respond to the sender.</p>"
         + "</div>"
-        + "</div></body></html>";
+        + "</td></tr></table>"
+        + "</td></tr></table>"
+        + "</body></html>";
 }

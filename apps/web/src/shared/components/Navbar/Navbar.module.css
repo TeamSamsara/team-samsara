@@ -1,0 +1,264 @@
+/* File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.module.css
+   Version : 1.1.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Styles the fixed Navbar: transparent over a hero, solid after scrolling, with the guest and signed-in controls. */
+
+.navbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 100;
+  display: grid;
+  /* The links sit in the middle column. The empty left column is kept for the logo. */
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  height: var(--navbar-height);
+  background-color: transparent;
+  color: var(--color-text-on-dark);
+  font-family: var(--font-ui);
+  text-transform: uppercase;
+  --item-gap: calc(25 * var(--px));
+  --cta-fill-duration: 1000ms;
+  --cta-wave-duration: 2500ms;
+  --cta-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --cta-wave-ease: cubic-bezier(0.35, 0, 0.15, 1);
+  transition: background-color 250ms ease;
+}
+
+/* Dark gradient behind the transparent bar, so the links stay readable on bright images. */
+.navbar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: -1;
+  height: calc(var(--navbar-height) * 2);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-surface-dark) 75%, transparent),
+    transparent
+  );
+  pointer-events: none;
+  transition: opacity 250ms ease;
+}
+
+.solid {
+  background-color: var(--color-surface-dark);
+}
+
+.solid::before {
+  opacity: 0;
+}
+
+.links {
+  grid-column: 2;
+  display: flex;
+  padding-top: calc(2 * var(--px));
+  gap: calc(64 * var(--px));
+}
+
+.link {
+  color: var(--color-text-on-dark);
+  font-size: var(--text-nav-link);
+  line-height: 1;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.link:hover,
+.linkActive {
+  color: var(--color-accent);
+}
+
+.actions {
+  grid-column: 3;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--item-gap);
+  padding-bottom: calc(2 * var(--px));
+  margin-inline-end: calc(33 * var(--px));
+}
+
+.language {
+  display: flex;
+  align-items: center;
+  gap: calc(7 * var(--px));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-control);
+  line-height: 1;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.chevron {
+  width: calc(20 * var(--px));
+  height: calc(20 * var(--px));
+  /* The icon has 5 Figma px of empty space on each side of the glyph. */
+  margin-inline-end: calc(-5 * var(--px));
+}
+
+.buttons {
+  display: flex;
+  gap: calc(14 * var(--px));
+}
+
+/* SIGN IN and LOG IN: a parallelogram drawn by skewing a pseudo-element, so the text stays upright. */
+.cta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(120 * var(--px));
+  height: calc(29 * var(--px));
+  font-size: var(--text-control);
+  line-height: 1;
+  text-decoration: none;
+  /* The text changes color a little after the fill starts, so it flips once the fill is under it. */
+  transition: color calc(var(--cta-fill-duration) * 0.65) var(--cta-ease)
+    calc(var(--cta-fill-duration) * 0.2);
+}
+
+.cta::before,
+.cta::after {
+  content: "";
+  position: absolute;
+  inset: 0 calc(5.8 * var(--px));
+  z-index: -1;
+  border-radius: calc(5 * var(--px));
+  transform: skewX(-22deg);
+}
+
+.cta::before {
+  border: 1px solid var(--color-accent);
+}
+
+/* The metallic wave: a bright band with a thin trailing line, like light moving over brushed metal.
+   It waits off the left edge, crosses the button on hover, and fades out where it is if the pointer leaves. */
+.cta::after {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-text-on-dark) 20%, transparent) 40%,
+    color-mix(in srgb, var(--color-text-on-dark) 75%, transparent) 47%,
+    color-mix(in srgb, var(--color-text-on-dark) 20%, transparent) 53%,
+    transparent 58%,
+    color-mix(in srgb, var(--color-text-on-dark) 30%, transparent) 62%,
+    transparent 66%
+  );
+  background-size: 300% 100%;
+  background-position: 120% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 350ms var(--cta-ease),
+    background-position 0s linear 350ms;
+}
+
+.cta:hover::after,
+.cta:focus-visible::after {
+  opacity: 1;
+  background-position: -20% 0;
+  transition:
+    opacity 150ms ease-out,
+    background-position var(--cta-wave-duration) var(--cta-wave-ease);
+}
+
+.ctaOutline {
+  color: var(--color-text-on-dark);
+}
+
+/* SIGN IN: the accent fill flows in from the left with a soft leading edge, and the text turns dark. */
+.ctaOutline::before {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-accent) 40%,
+    transparent 50%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 0;
+  transition: background-position var(--cta-fill-duration) var(--cta-ease);
+}
+
+.ctaOutline:hover,
+.ctaOutline:focus-visible {
+  color: var(--color-text-on-accent);
+}
+
+.ctaOutline:hover::before,
+.ctaOutline:focus-visible::before {
+  background-position: 0 0;
+}
+
+.ctaFilled {
+  color: var(--color-text-on-accent);
+}
+
+/* LOG IN: already filled, so it glows in while the wave passes over it, and the glow eases out after. */
+.ctaFilled::before {
+  background-color: var(--color-accent);
+  transition: filter calc(var(--cta-fill-duration) * 1.2) var(--cta-ease);
+}
+
+.ctaFilled:hover::before,
+.ctaFilled:focus-visible::before {
+  filter: drop-shadow(
+    0 0 calc(8 * var(--px))
+      color-mix(in srgb, var(--color-accent) 80%, transparent)
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta,
+  .ctaOutline::before,
+  .ctaFilled::before {
+    transition: none;
+  }
+
+  .cta::after {
+    display: none;
+  }
+}
+
+/* Notification box: the same technique, with a gentler slant. */
+.notification {
+  position: relative;
+  isolation: isolate;
+  width: calc(47 * var(--px));
+  height: calc(31 * var(--px));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.notification::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(2 * var(--px));
+  z-index: -1;
+  border-radius: calc(5 * var(--px));
+  background-color: var(--color-accent);
+  transform: skewX(-7.5deg);
+}
+
+.avatar {
+  display: block;
+  width: calc(42 * var(--px));
+  height: calc(42 * var(--px));
+  border-radius: 50%;
+  background-color: var(--color-avatar-placeholder);
+}
+
+.link:focus-visible,
+.language:focus-visible,
+.cta:focus-visible,
+.notification:focus-visible,
+.avatar:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}

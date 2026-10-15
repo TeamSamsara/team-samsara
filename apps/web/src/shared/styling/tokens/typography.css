@@ -1,0 +1,28 @@
+/* File : /team-samsara/apps/web/src/shared/styling/tokens/typography.css
+   Version : 1.1.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Defines the font roles and the text sizes components use, sized in Figma pixels through --px. */
+
+:root {
+  /* Font roles: components use these names, never the font names. */
+  --font-display: "Anton", "Impact", sans-serif;
+  --font-ui: "Agdasima", "Arial Narrow", sans-serif;
+  --font-heading: "Norwester", "Impact", sans-serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+
+  /* Text sizes: the Figma size is the number inside calc(). */
+  --text-hero-title: calc(128 * var(--px));
+  --text-hero-subtitle: calc(70 * var(--px));
+  --text-section-heading: calc(70 * var(--px));
+  --text-footer-heading: calc(45 * var(--px));
+  --text-button: calc(48 * var(--px));
+  --text-link: calc(35 * var(--px));
+  --text-nav-link: calc(32 * var(--px));
+
+  /* Small text: never below 14px, so it stays readable at 1280. */
+  --text-control: max(14px, calc(20 * var(--px)));
+
+  /* Letter spacing: Figma uses -3% on the Norwester headings. */
+  --tracking-heading: -0.03em;
+}

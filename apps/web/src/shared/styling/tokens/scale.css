@@ -1,0 +1,21 @@
+/* File : /team-samsara/apps/web/src/shared/styling/tokens/scale.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Defines --px, the size of one Figma pixel at the current viewport width. */
+
+:root {
+  /* Width every Figma frame is drawn at. */
+  --design-width: 1920;
+
+  /* Viewport widths between which the page scales proportionally. */
+  --scale-min-width: 1280px;
+  --scale-max-width: 2560px;
+
+  /* 1 Figma px = --px: exact at 1920, proportional from 1280 to 2560, frozen outside that range. */
+  --px: clamp(
+    calc(var(--scale-min-width) / var(--design-width)),
+    calc(100vw / var(--design-width)),
+    calc(var(--scale-max-width) / var(--design-width))
+  );
+}
