@@ -1,5 +1,5 @@
 /* File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.module.css
-   Version : 1.1.0
+   Version : 1.2.0
    Latest commit: feature/web-home-page
    Author : Gerrah
    Purpose : Styles the fixed Navbar: transparent over a hero, solid after scrolling, with the guest and signed-in controls. */
@@ -99,6 +99,50 @@
   height: calc(20 * var(--px));
   /* The icon has 5 Figma px of empty space on each side of the glyph. */
   margin-inline-end: calc(-5 * var(--px));
+}
+
+/* The list that opens under the language button. */
+.languagePanel {
+  display: flex;
+  flex-direction: column;
+  min-width: calc(86 * var(--px));
+  padding: calc(6 * var(--px));
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  border-radius: calc(5 * var(--px));
+  background-color: var(--color-surface-dark);
+  box-shadow: 0 calc(10 * var(--px)) calc(30 * var(--px))
+    color-mix(in srgb, black 40%, transparent);
+}
+
+.languageItem {
+  padding: calc(8 * var(--px)) calc(14 * var(--px));
+  border: 0;
+  border-radius: calc(3 * var(--px));
+  background: none;
+  color: var(--color-text-on-dark);
+  font: inherit;
+  font-size: var(--text-control);
+  line-height: 1;
+  text-align: start;
+  text-transform: inherit;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+
+.languageItem:hover,
+.languageItem[data-highlighted] {
+  background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+}
+
+.languageItem[data-selected] {
+  color: var(--color-accent);
+}
+
+.languageItem:focus-visible {
+  outline: none;
 }
 
 .buttons {

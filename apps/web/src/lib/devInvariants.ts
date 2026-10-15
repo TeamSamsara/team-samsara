@@ -11,4 +11,6 @@ export const DevInvariants = {
   useAuthOutsideProvider: "useAuth must be used within an AuthProvider",
   carouselPartOutsideCarousel:
     "Carousel parts must be used inside a <Carousel> component",
+  dropdownPartOutsideDropdown:
+    "Dropdown parts must be used inside a <Dropdown> component",
 } as const;

@@ -1,0 +1,44 @@
+/* File : /team-samsara/apps/web/src/shared/components/Dropdown/Dropdown.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : The mechanics of a dropdown: the panel floats next to its trigger on the side and edge chosen by data-placement, at the distance given by --dropdown-offset. No colors, sizes or fonts; each page adds its own look. */
+
+.root {
+  position: relative;
+  display: inline-block;
+}
+
+.panel {
+  position: absolute;
+  z-index: 1;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+/* The gap comes from the offset prop, in design pixels. */
+.panel[data-placement="bottom-start"] {
+  top: 100%;
+  left: 0;
+  margin-top: var(--dropdown-offset, 0);
+}
+
+.panel[data-placement="bottom-end"] {
+  top: 100%;
+  right: 0;
+  margin-top: var(--dropdown-offset, 0);
+}
+
+.panel[data-placement="top-start"] {
+  bottom: 100%;
+  left: 0;
+  margin-bottom: var(--dropdown-offset, 0);
+}
+
+.panel[data-placement="top-end"] {
+  bottom: 100%;
+  right: 0;
+  margin-bottom: var(--dropdown-offset, 0);
+}

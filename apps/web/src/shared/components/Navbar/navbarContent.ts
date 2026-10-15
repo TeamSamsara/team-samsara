@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/navbarContent.ts
-// Version : 1.0.0
+// Version : 1.1.0
 // Latest commit: feature/web-home-page
 // Author : Gerrah
 // Purpose : The Navbar's link list, visible text and scroll threshold, kept
@@ -16,8 +16,8 @@ export const navbarLinks = [
 
 export const NavbarText = {
   mainNavigation: "Main Navigation",
-  language: "ENG",
   changeLanguage: "Change language",
+  languageMenu: "Languages",
   signIn: "Sign in",
   logIn: "Log in",
   notifications: "Notifications",

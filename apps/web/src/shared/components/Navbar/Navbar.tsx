@@ -1,12 +1,11 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.tsx
-// Version : 1.0.0
+// Version : 1.1.0
 // Latest commit: feature/web-home-page
 // Author : Gerrah
 // Purpose : The fixed top navigation bar shown on every page: transparent over
 // a hero until the page scrolls, then solid. Shows Sign in / Log in for guests
 // and the notification box and avatar for signed-in users.
 
-import { ChevronDown } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
 import { routePaths } from "@/shared/constants/routePaths";
@@ -16,6 +15,7 @@ import {
   navbarLinks,
   navbarSolidAfterScrollY,
 } from "./navbarContent";
+import { NavbarLanguage } from "./NavbarLanguage";
 import styles from "./Navbar.module.css";
 
 interface NavbarProps {
@@ -45,18 +45,7 @@ export function Navbar({ transparentAtTop = false }: NavbarProps) {
       </nav>
 
       <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.language}
-          aria-label={NavbarText.changeLanguage}
-        >
-          {NavbarText.language}
-          <ChevronDown
-            className={styles.chevron}
-            strokeWidth={2.6}
-            aria-hidden="true"
-          />
-        </button>
+        <NavbarLanguage />
 
         {user ? (
           <>
