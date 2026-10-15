@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/web/src/lib/apiClient.ts
-// Version : 1.1.0
-// Latest commit: feature/web-home-page
+// Version : 1.2.0
+// Latest commit: task/web-auth-foundation
 // Author : Gerrah
 // Purpose : Thin fetch wrapper used by every feature's service layer.
-// apiFetch throws ApiError on any failure. apiFetchResult returns the status
-// and JSON body instead, for endpoints whose non-2xx answers are expected outcomes.
+// apiFetch throws ApiError on any failure. apiFetchResult returns the status, JSON body
+// and Retry-After seconds instead, for endpoints whose non-2xx answers are expected outcomes.
 
 import { getAuth } from "firebase/auth";
 import { appConfig } from "@/config/appConfig";
@@ -17,6 +17,8 @@ export interface ApiResult<T> {
   readonly httpStatus: number;
   /** The parsed JSON body, or null when the response has none. */
   readonly body: T | null;
+  /** Seconds from the Retry-After header (a rate-limit answer), or null when absent. */
+  readonly retryAfterSeconds: number | null;
 }
 
 async function send(
@@ -40,6 +42,17 @@ async function send(
 
   const contentType = response.headers.get("content-type");
   return { response, isJson: contentType?.includes("json") ?? false };
+}
+
+// Retry-After may also be an HTTP date; only the whole-seconds form is used.
+function readRetryAfterSeconds(response: Response): number | null {
+  const value = response.headers.get(HttpConstants.retryAfterHeaderName);
+
+  if (value === null || !/^\d+$/.test(value.trim())) {
+    return null;
+  }
+
+  return Number(value.trim());
 }
 
 export async function apiFetch<T>(
@@ -77,5 +90,10 @@ export async function apiFetchResult<T>(
     ? ((await response.json().catch(() => null)) as T | null)
     : null;
 
-  return { ok: response.ok, httpStatus: response.status, body };
+  return {
+    ok: response.ok,
+    httpStatus: response.status,
+    body,
+    retryAfterSeconds: readRetryAfterSeconds(response),
+  };
 }

@@ -1,0 +1,54 @@
+/* File : /team-samsara/apps/web/src/shared/components/RouteGuard/RouteGuard.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-foundation
+   Author : Gerrah
+   Purpose : Look of the retry message a protected page shows when the server cannot be reached. */
+
+.unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(24 * var(--px));
+  min-height: 60svh;
+  padding: 0 var(--page-margin);
+  text-align: center;
+  color: var(--color-text-on-light);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: calc(48 * var(--px));
+  font-weight: 400;
+  letter-spacing: var(--tracking-heading);
+  text-transform: uppercase;
+}
+
+.body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-control);
+}
+
+.retry {
+  padding: calc(10 * var(--px)) calc(40 * var(--px));
+  border: 0;
+  border-radius: var(--radius-tile);
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-family: var(--font-ui);
+  font-size: var(--text-link);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.retry:hover {
+  background-color: var(--color-accent-soft);
+}
+
+.retry:focus-visible {
+  outline: 2px solid var(--color-text-on-light);
+  outline-offset: 4px;
+}
