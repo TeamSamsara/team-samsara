@@ -1,0 +1,28 @@
+/* File : /team-samsara/apps/web/src/shared/styling/tokens/colors.css
+   Version : 1.1.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Defines the brand palette and the semantic color roles every component uses. */
+
+:root {
+  /* Palette: raw brand values read from Figma. Components never use these directly. */
+  --palette-dark: #151d23;
+  --palette-slate: #242b31;
+  --palette-green: #95ff50;
+  --palette-green-soft: #95ec5d;
+  --palette-green-muted: #6f9954;
+  --palette-grey-light: #ededed;
+  --palette-grey-placeholder: #d9d9d9;
+  --palette-grey-page: #f3f3f3;
+
+  /* Roles: what components use. */
+  --color-page: var(--palette-grey-page);
+  --color-surface-dark: var(--palette-dark);
+  --color-text-on-light: var(--palette-dark);
+  --color-text-on-dark: var(--palette-grey-light);
+  --color-text-on-accent: var(--palette-slate);
+  --color-accent: var(--palette-green);
+  --color-accent-soft: var(--palette-green-soft);
+  --color-accent-muted: var(--palette-green-muted);
+  --color-avatar-placeholder: var(--palette-grey-placeholder);
+}

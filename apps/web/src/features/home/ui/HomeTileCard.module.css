@@ -1,0 +1,36 @@
+/* File : /team-samsara/apps/web/src/features/home/ui/HomeTileCard.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : What a home page tile shows over its picture: the kind and the title at the bottom left, on a dark fade so they stay readable on any photo. */
+
+.content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: calc(6 * var(--px));
+  padding: calc(28 * var(--px));
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--color-surface-dark) 85%, transparent),
+    transparent 55%
+  );
+  color: var(--color-text-on-dark);
+}
+
+.label {
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: calc(32 * var(--px));
+  letter-spacing: var(--tracking-heading);
+  line-height: 1.1;
+}

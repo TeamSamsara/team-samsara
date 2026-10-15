@@ -1,0 +1,20 @@
+/* File : /team-samsara/apps/web/src/shared/components/SiteLayout/SiteLayout.module.css
+   Version : 1.2.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Keeps page content below the fixed Navbar, except on pages that start under it (the home hero), and keeps the Footer at the bottom of the window on short pages. */
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+.main {
+  flex: 1;
+  padding-top: var(--navbar-height);
+}
+
+.flush {
+  padding-top: 0;
+}

@@ -1,9 +1,14 @@
 /* File : /team-samsara/apps/web/src/shared/styling/global.css
-   Version : 1.0.0
-   Latest commit: feature/apps-web-foundation
+   Version : 1.2.0
+   Latest commit: feature/web-home-page
    Author : Gerrah
-   Purpose : The one global stylesheet. Reset and box-sizing only — design
-   tokens (colors, type scale, spacing) are Phase 3's job, not this file. */
+   Purpose : The one global stylesheet. Loads the fonts and design tokens, then applies the reset and the page defaults. */
+
+@import "./fonts.css";
+@import "./tokens/scale.css";
+@import "./tokens/colors.css";
+@import "./tokens/typography.css";
+@import "./tokens/spacing.css";
 
 *,
 *::before,
@@ -20,9 +25,8 @@ body,
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  background-color: var(--color-page);
+  color: var(--color-text-on-light);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }

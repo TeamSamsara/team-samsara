@@ -1,0 +1,67 @@
+/* File : /team-samsara/apps/web/src/shared/components/Footer/Footer.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Look of the footer, from the Figma landing page (frame 1920 x 394): a dark band with green column headings and white links on the left, and the copyright line at the bottom right. */
+
+.footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: calc(394 * var(--px));
+  /* Columns start 86 px from the left and the first heading sits 68 px from the top. */
+  padding: calc(68 * var(--px)) calc(86 * var(--px)) calc(53 * var(--px));
+  background-color: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+}
+
+.sections {
+  display: flex;
+  gap: calc(90 * var(--px));
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-footer-heading);
+  font-weight: 400;
+  letter-spacing: var(--tracking-heading);
+  line-height: calc(45 * var(--px));
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* Links are 45 px apart, and the first one starts 8 px under the heading. */
+.links {
+  margin: calc(8 * var(--px)) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: var(--text-link);
+  line-height: calc(45 * var(--px));
+  color: var(--color-text-on-dark);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.link:hover {
+  color: var(--color-accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.copyright {
+  align-self: flex-end;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+  line-height: 1;
+  color: var(--color-accent-muted);
+}
