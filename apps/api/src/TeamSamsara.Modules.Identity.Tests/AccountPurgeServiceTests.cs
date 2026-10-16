@@ -26,6 +26,7 @@ public class AccountPurgeServiceTests
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryProfileStore _profiles = new();
+    private readonly InMemoryHandleStore _handles;
     private readonly InMemoryVerificationCodeStore _codes = new();
     private readonly InMemoryPasswordResetTokenStore _resetTokens = new();
     private readonly InMemoryEmailChangeRequestStore _emailChanges = new();
@@ -43,6 +44,7 @@ public class AccountPurgeServiceTests
 
     public AccountPurgeServiceTests()
     {
+        _handles = new InMemoryHandleStore(_profiles);
         _service = CreateService(_users);
     }
 
@@ -63,6 +65,17 @@ public class AccountPurgeServiceTests
         _accounts.DeletedAccounts.ShouldBe(new[] { UserId });
         _images.DeletedAssetIds.ShouldBe(assets, ignoreOrder: true);
         await AssertNoLeftoversAsync(UserId);
+    }
+
+    [Fact]
+    public async Task AnExpiredAccount_FreesItsHandle()
+    {
+        await SeedDeletedAccountAsync(UserId, DaysAgo(31));
+        await _handles.ClaimAsync(UserId, "gerrah", null);
+
+        await _service.PurgeExpiredAsync();
+
+        (await _handles.GetOwnerAsync("gerrah")).ShouldBeNull();
     }
 
     [Fact]
@@ -372,6 +385,7 @@ public class AccountPurgeServiceTests
         return new AccountPurgeService(
             users,
             _profiles,
+            _handles,
             _codes,
             _resetTokens,
             _emailChanges,

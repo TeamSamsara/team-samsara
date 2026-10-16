@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AccountDeletion/AccountPurgeService.cs
-// Version : 1.1.0
-// Latest commit: feat/notification-erasure
+// Version : 1.2.0
+// Latest commit: task/api-profile-onboarding
 // Author : Gerrah
 // Purpose : Default IAccountPurgeService: claims each expired account with a lease, then removes it in an order whose every step can be repeated, user record last, so a half-finished purge is found and finished by the next run.
 
@@ -20,6 +20,7 @@ public class AccountPurgeService : IAccountPurgeService
 
     private readonly IUserStore _users;
     private readonly IProfileStore _profiles;
+    private readonly IHandleStore _handles;
     private readonly IVerificationCodeStore _codes;
     private readonly IPasswordResetTokenStore _resetTokens;
     private readonly IEmailChangeRequestStore _emailChanges;
@@ -38,6 +39,7 @@ public class AccountPurgeService : IAccountPurgeService
     public AccountPurgeService(
         IUserStore users,
         IProfileStore profiles,
+        IHandleStore handles,
         IVerificationCodeStore codes,
         IPasswordResetTokenStore resetTokens,
         IEmailChangeRequestStore emailChanges,
@@ -51,6 +53,7 @@ public class AccountPurgeService : IAccountPurgeService
     {
         _users = users;
         _profiles = profiles;
+        _handles = handles;
         _codes = codes;
         _resetTokens = resetTokens;
         _emailChanges = emailChanges;
@@ -139,9 +142,11 @@ public class AccountPurgeService : IAccountPurgeService
         await _users.DeleteAsync(userId);
     }
 
-    // Deletes the profile images, then the profile, so a retry can still find the image ids it needs
+    // Frees the handle, deletes the profile images, then the profile, so a retry can still find the image ids it needs
     private async Task RemoveProfileAsync(string userId)
     {
+        await _handles.ReleaseAsync(userId);
+
         var profile = await _profiles.GetByIdAsync(userId);
 
         if (profile is null)

@@ -1,8 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.5.0
-// Latest commit: feat/account-deletion
+// Version : 1.6.0
+// Latest commit: task/api-profile-onboarding
 // Author : Gerrah
-// Purpose : Translates each Identity step outcome into the HTTP status code the endpoint answers with.
+// Purpose : Translates each Identity step outcome into the HTTP status code the
+// endpoint answers with.
 
 using Microsoft.AspNetCore.Http;
 using TeamSamsara.Modules.Identity.Models;
@@ -59,6 +60,9 @@ public static class IdentityStatusCodes
             ProfileStatus.InvalidBio => StatusCodes.Status400BadRequest,
             ProfileStatus.ImageUnsupportedType => StatusCodes.Status415UnsupportedMediaType,
             ProfileStatus.ImageTooLarge => StatusCodes.Status413PayloadTooLarge,
+            ProfileStatus.InvalidHandle => StatusCodes.Status400BadRequest,
+            ProfileStatus.HandleTaken => StatusCodes.Status409Conflict,
+            ProfileStatus.HandleCooldown => StatusCodes.Status429TooManyRequests,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

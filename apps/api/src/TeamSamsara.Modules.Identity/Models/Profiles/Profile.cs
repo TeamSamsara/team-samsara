@@ -20,6 +20,12 @@ public class Profile
     public required string DisplayName { get; set; }
 
     [FirestoreProperty]
+    public string? Handle { get; set; }
+
+    [FirestoreProperty]
+    public DateTimeOffset? HandleChangedAt { get; set; }
+
+    [FirestoreProperty]
     public string? Bio { get; set; }
 
     // Asset id of the profile picture in the Assets module, or null if none is set
@@ -29,4 +35,7 @@ public class Profile
     // Asset id of the banner image in the Assets module, or null if none is set
     [FirestoreProperty]
     public string? BannerAssetId { get; set; }
+
+    [FirestoreProperty]
+    public bool OnboardingCompleted { get; set; }
 }

@@ -1032,3 +1032,14 @@ Any method that throws `NotImplementedException` must be documented here, alongs
   still have multi-sentence `Purpose` lines explaining implementation reasoning rather than
   stating what the file does. Not yet trimmed; revisit as those files are next touched, or as a
   dedicated pass.
+
+# Blocked word lists
+
+`BlockedWords.en.txt` and `BlockedWords.fr.txt` come from the LDNOOBW project,
+"List of Dirty, Naughty, Obscene, and Otherwise Bad Words"
+(https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words),
+by Shutterstock, Inc. and its contributors, under the CC BY 4.0 license.
+The full license text is in `LDNOOBW-LICENSE.txt`.
+
+The files are unchanged copies of the project's `en` and `fr` lists, only renamed.
+No endorsement by the authors is claimed or implied.
