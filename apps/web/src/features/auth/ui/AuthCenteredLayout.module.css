@@ -1,0 +1,15 @@
+/* File : /team-samsara/apps/web/src/features/auth/ui/AuthCenteredLayout.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-screens
+   Author : Gerrah
+   Purpose : Look of the centered auth frame: the form sits in the middle of a full-height page. */
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100svh;
+  padding: calc(60 * var(--px)) calc(40 * var(--px));
+  background-color: var(--color-page);
+}

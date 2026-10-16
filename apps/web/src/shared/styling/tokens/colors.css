@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/styling/tokens/colors.css
-   Version : 1.1.0
-   Latest commit: feature/web-home-page
+   Version : 1.2.0
+   Latest commit: task/web-auth-screens
    Author : Gerrah
    Purpose : Defines the brand palette and the semantic color roles every component uses. */
 
@@ -14,6 +14,8 @@
   --palette-grey-light: #ededed;
   --palette-grey-placeholder: #d9d9d9;
   --palette-grey-page: #f3f3f3;
+  --palette-grey-border: #c2bcbc;
+  --palette-red: #c0392b;
 
   /* Roles: what components use. */
   --color-page: var(--palette-grey-page);
@@ -25,4 +27,6 @@
   --color-accent-soft: var(--palette-green-soft);
   --color-accent-muted: var(--palette-green-muted);
   --color-avatar-placeholder: var(--palette-grey-placeholder);
+  --color-border-control: var(--palette-grey-border);
+  --color-error: var(--palette-red);
 }

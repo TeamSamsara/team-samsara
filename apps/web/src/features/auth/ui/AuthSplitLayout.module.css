@@ -1,0 +1,83 @@
+/* File : /team-samsara/apps/web/src/features/auth/ui/AuthSplitLayout.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-screens
+   Author : Gerrah
+   Purpose : Look of the split sign-up frame, from the Figma register frame (1920 x 1080): a 1058 px dark panel on the left with the headline on two dark bars, and the form column on the right. */
+
+.layout {
+  display: grid;
+  grid-template-columns: calc(1058 * var(--px)) 1fr;
+  min-height: 100svh;
+  background-color: var(--color-page);
+}
+
+.art {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: calc(52 * var(--px));
+  overflow: hidden;
+  background-color: var(--color-surface-dark);
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Darkens the photo so the text stays readable. */
+.shade {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-dark) 60%,
+    transparent
+  );
+  backdrop-filter: blur(1.75px);
+}
+
+.headline {
+  position: relative;
+  width: calc(954 * var(--px));
+  margin: 0;
+}
+
+/* Each line sits on its own dark bar, 126 px tall with a 4 px gap between them. */
+.line {
+  display: block;
+  background-color: var(--color-surface-dark);
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-hero-title);
+  line-height: calc(126 * var(--px));
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.line + .line {
+  margin-top: calc(4 * var(--px));
+}
+
+.body {
+  position: relative;
+  width: calc(908 * var(--px));
+  margin: calc(23 * var(--px)) 0 0 calc(56 * var(--px));
+  color: var(--color-text-on-dark);
+  font-family: var(--font-ui);
+  font-size: calc(45 * var(--px));
+  letter-spacing: -0.03em;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(60 * var(--px)) calc(40 * var(--px));
+}
