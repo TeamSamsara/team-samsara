@@ -43,7 +43,12 @@ public class ProfileServiceTests
 
         _store = new ThrowingProfileStore(_profiles);
         _service = new ProfileService(
-            _store, _images, Options.Create(settings), NullLogger<ProfileService>.Instance);
+            _store,
+            new InMemoryHandleStore(_profiles),
+            _images,
+            Options.Create(settings),
+            new FakeClock(),
+            NullLogger<ProfileService>.Instance);
     }
 
     #endregion

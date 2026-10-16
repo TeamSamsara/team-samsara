@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.13.0
-// Latest commit: feat/account-purge-job
+// Version : 1.14.0
+// Latest commit: feat/api-profile-onboarding
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -18,18 +18,28 @@ using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Caching;
 using TeamSamsara.Shared.Configuration;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Http;
 using TeamSamsara.Shared.Modules;
 
 namespace TeamSamsara.Modules.Identity;
 
 public class IdentityModule : IModule
 {
+    #region Fields
+
+    // Public profile lookups allowed per IP address in each window
+    private const int PublicReadPermitLimit = 60;
+    private const int PublicReadWindowSeconds = 60;
+
+    #endregion
+
     #region Public Methods
 
     // Registers settings, infrastructure, stores, handlers and workers.
     public void RegisterServices(IServiceCollection services, IConfiguration configuration)
     {
         RegisterSettings(services, configuration);
+        RegisterRateLimits(services);
         RegisterInfrastructure(services);
         RegisterRepositories(services);
         RegisterHandlers(services);
@@ -52,6 +62,7 @@ public class IdentityModule : IModule
         AccountDeletionEndpoints.Map(group);
 
         PasswordResetEndpoints.Map(endpoints);
+        PublicProfileEndpoints.Map(endpoints);
     }
 
     #endregion
@@ -69,6 +80,15 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<AccountPurgeSettings>(configuration, AccountPurgeSettings.SectionName);
     }
 
+    // Registers the per-IP limit on anonymous public profile lookups.
+    private static void RegisterRateLimits(IServiceCollection services)
+    {
+        services.AddPerIpRateLimitPolicy(
+            PublicProfileEndpoints.RateLimitPolicyName,
+            PublicReadPermitLimit,
+            PublicReadWindowSeconds);
+    }
+
     // Registers shared services; TryAdd defers to registrations made elsewhere.
     private static void RegisterInfrastructure(IServiceCollection services)
     {
@@ -83,6 +103,7 @@ public class IdentityModule : IModule
     {
         services.AddScoped<IUserStore, FirestoreUserStore>();
         services.AddScoped<IProfileStore, FirestoreProfileStore>();
+        services.AddScoped<IHandleStore, FirestoreHandleStore>();
         services.AddScoped<IVerificationCodeStore, FirestoreVerificationCodeStore>();
         services.AddScoped<IPasswordResetTokenStore, FirestorePasswordResetTokenStore>();
         services.AddScoped<IEmailChangeRequestStore, FirestoreEmailChangeRequestStore>();

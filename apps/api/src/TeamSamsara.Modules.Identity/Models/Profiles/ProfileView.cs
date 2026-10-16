@@ -9,6 +9,8 @@ namespace TeamSamsara.Modules.Identity.Models;
 
 public record ProfileView(
     string DisplayName,
+    string? Handle,
     string? Bio,
     string? ProfilePictureAssetId,
-    string? BannerAssetId);
+    string? BannerAssetId,
+    bool OnboardingCompleted);

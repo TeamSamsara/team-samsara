@@ -41,7 +41,12 @@ public class ProfileServiceConcurrencyTests
         };
 
         _service = new ProfileService(
-            _profiles, _images, Options.Create(settings), NullLogger<ProfileService>.Instance);
+            _profiles,
+            new InMemoryHandleStore(_profiles),
+            _images,
+            Options.Create(settings),
+            new FakeClock(),
+            NullLogger<ProfileService>.Instance);
     }
 
     #endregion

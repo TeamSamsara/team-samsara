@@ -1,17 +1,19 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/ProfileService.cs
-// Version: 1.1.0
-// Latest commit: fix/profile-atomic-update
-// Author: Gerrah
-//
-// Purpose: Default IProfileService: validates profile text and keeps images and profile in step.
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/ProfileService.cs
+// Version : 1.2.0
+// Latest commit: task/api-profile-onboarding
+// Author : Gerrah
+// Purpose : Default IProfileService: validates profile text and handles, and keeps images,
+// handle and profile in step.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Shared.Assets;
+using TeamSamsara.Shared.Context;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
 
@@ -21,10 +23,19 @@ public class ProfileService : IProfileService
 
     private const char LineFeed = '\n';
     private const char CarriageReturn = '\r';
+    private const char HandleSeparator = '_';
+    private const string NeutralHandle = "member";
+    private const int SuffixDigits = 4;
+    private const int SuffixAttempts = 8;
+    private const int SuffixMin = 1000;
+    private const int SuffixMax = 10000;
+    private const int LastResortIdLength = 8;
 
     private readonly IProfileStore _profiles;
+    private readonly IHandleStore _handles;
     private readonly IMemberImageService _images;
     private readonly ProfileSettings _settings;
+    private readonly IClock _clock;
     private readonly ILogger<ProfileService> _logger;
 
     #endregion
@@ -33,13 +44,17 @@ public class ProfileService : IProfileService
 
     public ProfileService(
         IProfileStore profiles,
+        IHandleStore handles,
         IMemberImageService images,
         IOptions<ProfileSettings> settings,
+        IClock clock,
         ILogger<ProfileService> logger)
     {
         _profiles = profiles;
+        _handles = handles;
         _images = images;
         _settings = settings.Value;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -47,12 +62,24 @@ public class ProfileService : IProfileService
 
     #region Public Methods
 
-    // Returns the member's profile, or ProfileNotFound if they have none
+    // Returns the member's profile, or ProfileNotFound if they have none. A profile without a
+    // handle is given one first, which is how profiles made before handles existed catch up.
     public async Task<ProfileResult> GetAsync(string userId)
     {
         var profile = await _profiles.GetByIdAsync(userId);
 
-        return profile is null ? Failure(ProfileStatus.ProfileNotFound) : Success(profile);
+        if (profile is null)
+        {
+            return Failure(ProfileStatus.ProfileNotFound);
+        }
+
+        if (profile.Handle is null)
+        {
+            await EnsureHandleAsync(userId);
+            profile = await _profiles.GetByIdAsync(userId) ?? profile;
+        }
+
+        return Success(profile);
     }
 
     // Replaces the display name and bio once both pass validation
@@ -155,11 +182,135 @@ public class ProfileService : IProfileService
         return Success(profile);
     }
 
+    // Gives the member a handle made from their display name, trying a few numbered variants
+    // when it is taken. Does nothing if they already have one or have no profile.
+    public async Task EnsureHandleAsync(string userId)
+    {
+        var profile = await _profiles.GetByIdAsync(userId);
+
+        if (profile is null || profile.Handle is not null)
+        {
+            return;
+        }
+
+        foreach (var candidate in CandidateHandles(profile.DisplayName))
+        {
+            var status = await _handles.ClaimAsync(userId, candidate, null);
+
+            if (status != HandleClaimStatus.HandleTaken)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException($"No free handle could be found for member '{userId}'.");
+    }
+
+    // Tells whether the member could take this handle, without changing anything
+    public async Task<ProfileStatus> CheckHandleAsync(string userId, string handle)
+    {
+        var normalized = NormalizeHandle(handle);
+
+        if (!IsValidHandle(normalized))
+        {
+            return ProfileStatus.InvalidHandle;
+        }
+
+        if (IsForbiddenHandle(normalized))
+        {
+            return ProfileStatus.HandleTaken;
+        }
+
+        var owner = await _handles.GetOwnerAsync(normalized);
+
+        return owner is null || owner == userId ? ProfileStatus.Success : ProfileStatus.HandleTaken;
+    }
+
+    // Changes the handle. Keeping the current handle succeeds without starting the cooldown.
+    public async Task<ProfileResult> SetHandleAsync(string userId, SetHandleRequest request)
+    {
+        var handle = NormalizeHandle(request.Handle);
+
+        if (!IsValidHandle(handle))
+        {
+            return Failure(ProfileStatus.InvalidHandle);
+        }
+
+        if (IsForbiddenHandle(handle))
+        {
+            return Failure(ProfileStatus.HandleTaken);
+        }
+
+        var profile = await _profiles.GetByIdAsync(userId);
+
+        if (profile is null)
+        {
+            return Failure(ProfileStatus.ProfileNotFound);
+        }
+
+        if (profile.Handle == handle)
+        {
+            return Success(profile);
+        }
+
+        if (IsCoolingDown(profile))
+        {
+            return Failure(ProfileStatus.HandleCooldown);
+        }
+
+        var claim = await _handles.ClaimAsync(userId, handle, _clock.UtcNow);
+
+        return claim switch
+        {
+            HandleClaimStatus.Success => await GetAsync(userId),
+            HandleClaimStatus.HandleTaken => Failure(ProfileStatus.HandleTaken),
+            _ => Failure(ProfileStatus.ProfileNotFound)
+        };
+    }
+
+    // Marks onboarding as finished. Doing it again changes nothing.
+    public async Task<ProfileResult> CompleteOnboardingAsync(string userId)
+    {
+        var profile = await _profiles.ModifyAsync(userId, current => current.OnboardingCompleted = true);
+
+        return profile is null ? Failure(ProfileStatus.ProfileNotFound) : Success(profile);
+    }
+
+    // Returns what a visitor sees of the member who holds the handle, or null if nobody does
+    public async Task<PublicProfileView?> GetPublicAsync(string handle)
+    {
+        var normalized = NormalizeHandle(handle);
+
+        if (!IsValidHandle(normalized))
+        {
+            return null;
+        }
+
+        var owner = await _handles.GetOwnerAsync(normalized);
+
+        if (owner is null)
+        {
+            return null;
+        }
+
+        var profile = await _profiles.GetByIdAsync(owner);
+
+        return profile is null
+            ? null
+            : new PublicProfileView(
+                profile.DisplayName,
+                normalized,
+                profile.Bio,
+                profile.ProfilePictureAssetId,
+                profile.BannerAssetId);
+    }
+
     #endregion
 
     #region Private Methods
 
-    // A name needs at least one visible character, must fit the limits, and has no control characters
+    // A name needs at least one visible character, must fit the limits, has no control
+    // characters and no blocked word
     private bool IsValidDisplayName([NotNullWhen(true)] string? displayName)
     {
         if (string.IsNullOrEmpty(displayName))
@@ -171,7 +322,8 @@ public class ProfileService : IProfileService
 
         return length >= _settings.DisplayNameMinLength
             && length <= _settings.DisplayNameMaxLength
-            && !displayName.Any(char.IsControl);
+            && !displayName.Any(char.IsControl)
+            && !BlockedWords.IsBlockedName(displayName);
     }
 
     // No bio is valid; a bio must fit the limit and may only use line breaks as control characters
@@ -186,6 +338,87 @@ public class ProfileService : IProfileService
             && !bio.Any(character => char.IsControl(character)
                 && character != LineFeed
                 && character != CarriageReturn);
+    }
+
+    // The handle as the member typed it, lowercased and without a leading @
+    private static string NormalizeHandle(string? handle)
+    {
+        return handle?.Trim().TrimStart('@').ToLowerInvariant() ?? string.Empty;
+    }
+
+    // A handle fits the length limits, uses only a-z, 0-9 and _, and does not start or end with _
+    private bool IsValidHandle(string handle)
+    {
+        return handle.Length >= _settings.HandleMinLength
+            && handle.Length <= _settings.HandleMaxLength
+            && handle.All(IsHandleCharacter)
+            && handle[0] != HandleSeparator
+            && handle[^1] != HandleSeparator;
+    }
+
+    private static bool IsHandleCharacter(char character)
+    {
+        return character is >= 'a' and <= 'z' or >= '0' and <= '9' or HandleSeparator;
+    }
+
+    // Reserved and blocked handles are refused the same way a taken one is
+    private static bool IsForbiddenHandle(string handle)
+    {
+        return ReservedHandles.IsReserved(handle) || BlockedWords.IsBlockedHandle(handle);
+    }
+
+    // True while the member has changed their handle more recently than the cooldown allows
+    private bool IsCoolingDown(Profile profile)
+    {
+        return _settings.HandleChangeCooldownDays > 0
+            && profile.HandleChangedAt is { } changedAt
+            && _clock.UtcNow < changedAt.AddDays(_settings.HandleChangeCooldownDays);
+    }
+
+    // The handles to try for a new member, best first: the display name itself, then numbered
+    // variants of it. A name that cannot be used as a handle, such as the neutral "Member",
+    // is replaced by the neutral handle.
+    private IEnumerable<string> CandidateHandles(string displayName)
+    {
+        var seed = SeedFrom(displayName);
+        var usable = seed.Length >= _settings.HandleMinLength && !IsForbiddenHandle(seed);
+        var stem = usable ? seed : NeutralHandle;
+
+        if (usable)
+        {
+            yield return seed;
+        }
+
+        var stemLength = Math.Min(stem.Length, _settings.HandleMaxLength - SuffixDigits);
+
+        for (var attempt = 0; attempt < SuffixAttempts; attempt++)
+        {
+            var number = Random.Shared.Next(SuffixMin, SuffixMax).ToString(CultureInfo.InvariantCulture);
+
+            yield return stem[..stemLength] + number;
+        }
+
+        var id = Guid.NewGuid().ToString("N")[..LastResortIdLength];
+
+        yield return NeutralHandle + id[..Math.Min(LastResortIdLength, _settings.HandleMaxLength - NeutralHandle.Length)];
+    }
+
+    // The display name reduced to lowercase letters and digits, cut to the handle length
+    private string SeedFrom(string displayName)
+    {
+        var builder = new StringBuilder();
+
+        foreach (var character in displayName.ToLowerInvariant().Normalize(NormalizationForm.FormD))
+        {
+            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
+            {
+                builder.Append(character);
+            }
+        }
+
+        var seed = builder.ToString();
+
+        return seed.Length > _settings.HandleMaxLength ? seed[.._settings.HandleMaxLength] : seed;
     }
 
     // Counts what a reader sees as characters, so an emoji or an accented letter counts once
@@ -243,9 +476,11 @@ public class ProfileService : IProfileService
 
     private static ProfileView ToView(Profile profile) => new(
         profile.DisplayName,
+        profile.Handle,
         profile.Bio,
         profile.ProfilePictureAssetId,
-        profile.BannerAssetId);
+        profile.BannerAssetId,
+        profile.OnboardingCompleted);
 
     #endregion
 }
