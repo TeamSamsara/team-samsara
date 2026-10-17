@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/components/Button/Button.module.css
-   Version : 1.0.0
-   Latest commit: task/web-auth-screens
+   Version : 1.0.1
+   Latest commit: task/web-error-pages
    Author : Gerrah
    Purpose : Look of the filled button, from the Figma log in frame: a 62 px tall green bar with 10 px corners and an uppercase 30 px label. */
 
@@ -17,6 +17,7 @@
   font-family: var(--font-ui);
   font-size: calc(30 * var(--px));
   line-height: 1;
+  text-decoration: none;
   text-transform: uppercase;
   cursor: pointer;
   transition:
