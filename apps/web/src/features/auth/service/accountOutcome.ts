@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/auth/service/accountOutcome.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-foundation
+// Version : 1.1.0
+// Latest commit: task/web-auth-onboarding-navbar
 // Author : Gerrah
 // Purpose : The boundary between the account API and the app. Every answer becomes one
 // ApiOutcome: a recognized body, or an explicit rate-limited, unauthorized, forbidden,
@@ -44,11 +44,11 @@ type Parser<T> = (body: unknown, ok: boolean) => T | null;
 
 type JsonObject = Record<string, unknown>;
 
-function isObject(value: unknown): value is JsonObject {
+export function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isOneOf<T extends string>(
+export function isOneOf<T extends string>(
   list: readonly T[],
   value: unknown,
 ): value is T {

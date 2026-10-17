@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/components/Fields/TextField/TextField.module.css
-   Version : 1.2.0
-   Latest commit: task/web-auth-screens
+   Version : 1.3.0
+   Latest commit: task/web-auth-onboarding-navbar
    Author : Gerrah
    Purpose : Look of the text field, from the Figma log in frame: a 62 px tall outlined box with 10 px corners. Space for one error line is always kept under it, so showing an error never moves the form. */
 
@@ -28,7 +28,7 @@
   min-height: calc(62 * var(--px));
   border: 0.5px solid var(--color-border-control);
   border-radius: calc(10 * var(--px));
-  background-color: transparent;
+  background-color: var(--color-field-fill);
   transition: border-color 150ms ease;
 }
 

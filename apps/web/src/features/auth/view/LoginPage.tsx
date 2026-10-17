@@ -1,14 +1,16 @@
 // File : /team-samsara/apps/web/src/features/auth/view/LoginPage.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-screens
+// Version : 1.1.0
+// Latest commit: task/web-auth-onboarding-navbar
 // Author : Gerrah
 // Purpose : The Log in screen: email and password, checked as each field is
-// left. A verified member lands on the home page; anyone who still needs a
-// code is sent to the right code screen.
+// left. A verified member lands on the welcome step if they have not finished
+// or skipped it yet, on the home page otherwise; anyone who still needs a code
+// is sent to the right code screen.
 
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
+import { pathAfterLogin } from "@/features/account/service/landingService";
 import { Button } from "@/shared/components/Button/Button";
 import { PasswordField } from "@/shared/components/Fields/PasswordField/PasswordField";
 import { TextField } from "@/shared/components/Fields/TextField/TextField";
@@ -82,7 +84,7 @@ export function LoginPage() {
 
     switch (attempt.kind) {
       case "member":
-        void navigate(routePaths.home, { replace: true });
+        void navigate(await pathAfterLogin(), { replace: true });
         return;
       case "needsCode": {
         const state: CodeScreenState = {

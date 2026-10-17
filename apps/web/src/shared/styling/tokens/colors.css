@@ -29,4 +29,7 @@
   --color-avatar-placeholder: var(--palette-grey-placeholder);
   --color-border-control: var(--palette-grey-border);
   --color-error: var(--palette-red);
+
+  /* Fill behind a text field: transparent*/
+  --color-field-fill: transparent;
 }
