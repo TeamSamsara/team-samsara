@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/app/router.tsx
-// Version : 1.2.0
-// Latest commit: task/web-auth-screens
+// Version : 1.3.0
+// Latest commit: task/web-error-pages
 // Author : Gerrah
 // Purpose : Composes the route trees into one router, provided to
 // RouterProvider in main.tsx. The public and account trees share SiteLayout
@@ -11,10 +11,20 @@ import { publicRoutes } from "@/routes/publicRoutes";
 import { accountRoutes } from "@/routes/accountRoutes";
 import { authRoutes } from "@/routes/authRoutes";
 import { cmsRoutes } from "@/routes/cmsRoutes";
+import { RouteError } from "@/app/RouteError";
 import { SiteLayout } from "@/shared/components/SiteLayout/SiteLayout";
+import { NotFoundPage } from "@/shared/components/StatusPage/NotFoundPage";
 
 const routes: RouteObject[] = [
-  { element: <SiteLayout />, children: [...publicRoutes, ...accountRoutes] },
+  {
+    element: <SiteLayout />,
+    errorElement: <RouteError />,
+    children: [
+      ...publicRoutes,
+      ...accountRoutes,
+      { path: "*", element: <NotFoundPage /> },
+    ],
+  },
   ...authRoutes,
   ...cmsRoutes,
 ];
