@@ -1,0 +1,11 @@
+/* File : /team-samsara/apps/web/src/shared/icons/Icon.module.css
+   Version : 1.0.0
+   Latest commit: task/web-icons
+   Author : Gerrah
+   Purpose : Size of an icon. It is 1em by default, and a caller changes it with --icon-size. */
+
+.icon {
+  flex-shrink: 0;
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
+}

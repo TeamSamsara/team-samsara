@@ -1,12 +1,12 @@
 // File : /team-samsara/apps/web/src/shared/components/Fields/PasswordField/PasswordField.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-screens
+// Version : 1.1.0
+// Latest commit: task/web-icons
 // Author : Gerrah
 // Purpose : A TextField for passwords with a button that shows or hides what was typed.
 // Each field keeps its own show/hide state.
 
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Icon } from "@/shared/icons/Icon";
 import { TextField, type TextFieldProps } from "../TextField/TextField";
 import styles from "./PasswordField.module.css";
 import { PasswordFieldText } from "./passwordFieldContent";
@@ -15,7 +15,6 @@ type PasswordFieldProps = Omit<TextFieldProps, "type" | "trailing">;
 
 export function PasswordField(props: PasswordFieldProps) {
   const [isRevealed, setIsRevealed] = useState(false);
-  const Icon = isRevealed ? EyeOff : Eye;
 
   return (
     <TextField
@@ -29,7 +28,10 @@ export function PasswordField(props: PasswordFieldProps) {
           aria-pressed={isRevealed}
           onClick={() => setIsRevealed((current) => !current)}
         >
-          <Icon className={styles.icon} aria-hidden="true" />
+          <Icon
+            name={isRevealed ? "hidePassword" : "showPassword"}
+            className={styles.icon}
+          />
         </button>
       }
     />
