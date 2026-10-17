@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/BlockedWords.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.0.1
+// Latest commit: task/api-naming-fix
 // Author : Gerrah
 // Purpose : Tells whether a display name or handle contains a blocked word,
 // using the word lists embedded in this assembly.
@@ -21,7 +21,7 @@ public static class BlockedWords
     // Shorter words are only blocked when they are the whole handle, so "class" stays allowed
     private const int HandleMinimumMatchLength = 4;
 
-    private static readonly Dictionary<char, char> LookAlikes = new()
+    private static readonly Dictionary<char, char> _lookAlikes = new()
     {
         ['0'] = 'o',
         ['1'] = 'i',
@@ -36,7 +36,7 @@ public static class BlockedWords
         ['+'] = 't'
     };
 
-    private static readonly Lazy<IReadOnlyList<Entry>> Entries = new(LoadEntries);
+    private static readonly Lazy<IReadOnlyList<Entry>> _entries = new(LoadEntries);
 
     #endregion
 
@@ -47,7 +47,7 @@ public static class BlockedWords
     {
         var padded = $" {Fold(name)} ";
 
-        return Entries.Value.Any(entry => padded.Contains(entry.Padded, StringComparison.Ordinal));
+        return _entries.Value.Any(entry => padded.Contains(entry.Padded, StringComparison.Ordinal));
     }
 
     // True if the handle contains a blocked word. Stricter than for names, since a handle
@@ -56,7 +56,7 @@ public static class BlockedWords
     {
         var squashed = Fold(handle).Replace(" ", string.Empty);
 
-        return Entries.Value.Any(entry => entry.Squashed.Length >= HandleMinimumMatchLength
+        return _entries.Value.Any(entry => entry.Squashed.Length >= HandleMinimumMatchLength
             ? squashed.Contains(entry.Squashed, StringComparison.Ordinal)
             : squashed == entry.Squashed);
     }
@@ -108,7 +108,7 @@ public static class BlockedWords
                 continue;
             }
 
-            var character = LookAlikes.GetValueOrDefault(original, original);
+            var character = _lookAlikes.GetValueOrDefault(original, original);
 
             if (char.IsLetter(character))
             {
