@@ -1,11 +1,8 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/NavbarAccount.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.1.0
+// Latest commit: task/web-icons
 // Author : Gerrah
-// Purpose : The account menu in the navbar: the member's avatar (their picture,
-// or the first letter of their name) that opens a list with who is signed in,
-// a link to edit the profile and a log out button. It assembles the shared
-// Dropdown parts; the profile comes from useMyProfile.
+// Purpose : The avatar menu in the navbar: who is signed in, edit profile and log out.
 
 import { Link } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
@@ -16,6 +13,7 @@ import { DropdownItem } from "@/shared/components/Dropdown/DropdownItem";
 import { DropdownPanel } from "@/shared/components/Dropdown/DropdownPanel";
 import { DropdownTrigger } from "@/shared/components/Dropdown/DropdownTrigger";
 import { routePaths } from "@/shared/constants/routePaths";
+import { Icon } from "@/shared/icons/Icon";
 import { NavbarText } from "./navbarContent";
 import styles from "./Navbar.module.css";
 
@@ -62,6 +60,7 @@ export function NavbarAccount() {
           role="menuitem"
           className={styles.accountItem}
         >
+          <Icon name="profileSettings" className={styles.accountIcon} />
           {NavbarText.editProfile}
         </DropdownItem>
         <DropdownItem
@@ -69,6 +68,7 @@ export function NavbarAccount() {
           className={styles.accountItem}
           onSelect={() => void signOut()}
         >
+          <Icon name="logOut" className={styles.accountIcon} />
           {NavbarText.logOut}
         </DropdownItem>
       </DropdownPanel>

@@ -1,18 +1,18 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/NavbarLanguage.tsx
-// Version : 1.0.0
-// Latest commit: feature/web-home-page
+// Version : 1.1.0
+// Latest commit: task/web-icons
 // Author : Gerrah
 // Purpose : The language switcher in the navbar: a button showing the current
 // language that opens a list of the available ones. It assembles the shared
 // Dropdown parts; the choice itself is kept by useLanguage.
 
-import { ChevronDown } from "lucide-react";
 import { Dropdown } from "@/shared/components/Dropdown/Dropdown";
 import { DropdownItem } from "@/shared/components/Dropdown/DropdownItem";
 import { DropdownPanel } from "@/shared/components/Dropdown/DropdownPanel";
 import { DropdownTrigger } from "@/shared/components/Dropdown/DropdownTrigger";
 import { supportedLanguages } from "@/shared/constants/languages";
 import { useLanguage } from "@/shared/hooks/useLanguage";
+import { Icon } from "@/shared/icons/Icon";
 import { NavbarText } from "./navbarContent";
 import styles from "./Navbar.module.css";
 
@@ -28,11 +28,7 @@ export function NavbarLanguage() {
         aria-label={NavbarText.changeLanguage}
       >
         {active?.label}
-        <ChevronDown
-          className={styles.chevron}
-          strokeWidth={2.6}
-          aria-hidden="true"
-        />
+        <Icon name="chevronDown" className={styles.chevron} strokeWidth={2.6} />
       </DropdownTrigger>
       <DropdownPanel
         role="listbox"
