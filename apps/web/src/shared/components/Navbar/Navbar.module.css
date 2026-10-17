@@ -1,8 +1,8 @@
 /* File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.module.css
-   Version : 1.2.0
-   Latest commit: feature/web-home-page
+   Version : 1.3.0
+   Latest commit: task/web-auth-onboarding-navbar
    Author : Gerrah
-   Purpose : Styles the fixed Navbar: transparent over a hero, solid after scrolling, with the guest and signed-in controls. */
+   Purpose : Styles the fixed Navbar: transparent over a hero, solid after scrolling, with the guest controls and the signed-in account menu. */
 
 .navbar {
   position: fixed;
@@ -101,8 +101,9 @@
   margin-inline-end: calc(-5 * var(--px));
 }
 
-/* The list that opens under the language button. */
-.languagePanel {
+/* The lists that open under the language button and the avatar. */
+.languagePanel,
+.accountPanel {
   display: flex;
   flex-direction: column;
   min-width: calc(86 * var(--px));
@@ -114,7 +115,13 @@
     color-mix(in srgb, black 40%, transparent);
 }
 
-.languageItem {
+.accountPanel {
+  min-width: calc(200 * var(--px));
+}
+
+.languageItem,
+.accountItem {
+  display: block;
   padding: calc(8 * var(--px)) calc(14 * var(--px));
   border: 0;
   border-radius: calc(3 * var(--px));
@@ -124,6 +131,7 @@
   font-size: var(--text-control);
   line-height: 1;
   text-align: start;
+  text-decoration: none;
   text-transform: inherit;
   cursor: pointer;
   transition:
@@ -132,7 +140,9 @@
 }
 
 .languageItem:hover,
-.languageItem[data-highlighted] {
+.languageItem[data-highlighted],
+.accountItem:hover,
+.accountItem[data-highlighted] {
   background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
   color: var(--color-accent);
 }
@@ -141,8 +151,27 @@
   color: var(--color-accent);
 }
 
-.languageItem:focus-visible {
+.languageItem:focus-visible,
+.accountItem:focus-visible {
   outline: none;
+}
+
+/* "Signed in as" line at the top of the account list. */
+.accountHeader {
+  margin: 0;
+  padding: calc(8 * var(--px)) calc(14 * var(--px)) calc(10 * var(--px));
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--color-text-on-dark) 15%, transparent);
+  margin-bottom: calc(6 * var(--px));
+  color: color-mix(in srgb, var(--color-text-on-dark) 65%, transparent);
+  font-size: var(--text-control);
+  line-height: 1.2;
+}
+
+.accountName {
+  display: block;
+  color: var(--color-text-on-dark);
+  overflow-wrap: anywhere;
 }
 
 .buttons {
@@ -268,41 +297,36 @@
   }
 }
 
-/* Notification box: the same technique, with a gentler slant. */
-.notification {
-  position: relative;
-  isolation: isolate;
-  width: calc(47 * var(--px));
-  height: calc(31 * var(--px));
+/* The avatar button that opens the account menu: the member's picture, or their initial on a grey disc. */
+.avatarButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(42 * var(--px));
+  height: calc(42 * var(--px));
   padding: 0;
   border: 0;
-  background: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--color-avatar-placeholder);
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: var(--text-link);
+  line-height: 1;
   cursor: pointer;
 }
 
-.notification::before {
-  content: "";
-  position: absolute;
-  inset: 0 calc(2 * var(--px));
-  z-index: -1;
-  border-radius: calc(5 * var(--px));
-  background-color: var(--color-accent);
-  transform: skewX(-7.5deg);
-}
-
-.avatar {
+.avatarImage {
   display: block;
-  width: calc(42 * var(--px));
-  height: calc(42 * var(--px));
-  border-radius: 50%;
-  background-color: var(--color-avatar-placeholder);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .link:focus-visible,
 .language:focus-visible,
 .cta:focus-visible,
-.notification:focus-visible,
-.avatar:focus-visible {
+.avatarButton:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 4px;
 }

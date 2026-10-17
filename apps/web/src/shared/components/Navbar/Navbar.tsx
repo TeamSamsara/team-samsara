@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.tsx
-// Version : 1.1.0
-// Latest commit: feature/web-home-page
+// Version : 1.2.0
+// Latest commit: task/web-auth-onboarding-navbar
 // Author : Gerrah
 // Purpose : The fixed top navigation bar shown on every page: transparent over
 // a hero until the page scrolls, then solid. Shows Sign in / Log in for guests
-// and the notification box and avatar for signed-in users.
+// and the account menu for signed-in members.
 
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
@@ -15,6 +15,7 @@ import {
   navbarLinks,
   navbarSolidAfterScrollY,
 } from "./navbarContent";
+import { NavbarAccount } from "./NavbarAccount";
 import { NavbarLanguage } from "./NavbarLanguage";
 import styles from "./Navbar.module.css";
 
@@ -23,7 +24,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ transparentAtTop = false }: NavbarProps) {
-  const { user } = useAuth();
+  const { status } = useAuth();
   const hasScrolled = useScrollPast(navbarSolidAfterScrollY);
   const isSolid = !transparentAtTop || hasScrolled;
 
@@ -47,19 +48,8 @@ export function Navbar({ transparentAtTop = false }: NavbarProps) {
       <div className={styles.actions}>
         <NavbarLanguage />
 
-        {user ? (
-          <>
-            <button
-              type="button"
-              className={styles.notification}
-              aria-label={NavbarText.notifications}
-            />
-            <Link
-              to={routePaths.account}
-              className={styles.avatar}
-              aria-label={NavbarText.account}
-            />
-          </>
+        {status === "member" ? (
+          <NavbarAccount />
         ) : (
           <div className={styles.buttons}>
             <Link

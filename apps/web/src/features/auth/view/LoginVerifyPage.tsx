@@ -1,13 +1,15 @@
 // File : /team-samsara/apps/web/src/features/auth/view/LoginVerifyPage.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-codes-reset
+// Version : 1.1.0
+// Latest commit: task/web-auth-onboarding-navbar
 // Author : Gerrah
 // Purpose : The screen that asks for the code sent when someone logs in from
-// a device we don't recognize. A right code lands on the home page; leaving
-// signs the half-finished login out.
+// a device we don't recognize. A right code lands on the welcome step if the
+// member has not finished or skipped it yet, on the home page otherwise;
+// leaving signs the half-finished login out.
 
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
+import { pathAfterLogin } from "@/features/account/service/landingService";
 import { routePaths } from "@/shared/constants/routePaths";
 import {
   confirmLoginCode,
@@ -40,7 +42,7 @@ export function LoginVerifyPage() {
 
     switch (result.kind) {
       case "verified":
-        void navigate(routePaths.home, { replace: true });
+        void navigate(await pathAfterLogin(), { replace: true });
         return { kind: "accepted" };
       case "registrationIncomplete":
         await refreshAccount();
