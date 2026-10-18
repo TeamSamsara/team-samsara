@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/validation/profileValidation.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.1.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
 // Purpose : The rules a profile form checks before calling the API. Each
 // returns the message to show, or null when the value is fine. The API
@@ -19,7 +19,7 @@ export const handleMaxLength = 20;
 const handlePattern = /^[a-z0-9_]+$/;
 
 // Counts what a reader sees as characters, so an emoji counts once.
-function visibleLength(value: string): number {
+export function visibleLength(value: string): number {
   return [...new Intl.Segmenter().segment(value)].length;
 }
 

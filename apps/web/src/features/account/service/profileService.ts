@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/service/profileService.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.1.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
 // Purpose : Every call to the profile API, one function per step. The
 // member's own calls return an ApiOutcome and never throw; the public lookup
@@ -45,6 +45,7 @@ function readProfileView(body: unknown): ProfileView | null {
     !isTextOrNull(body.bio ?? null) ||
     !isTextOrNull(body.profilePictureAssetId ?? null) ||
     !isTextOrNull(body.bannerAssetId ?? null) ||
+    !isTextOrNull(body.handleChangeableAt ?? null) ||
     typeof body.onboardingCompleted !== "boolean"
   ) {
     return null;
@@ -57,6 +58,7 @@ function readProfileView(body: unknown): ProfileView | null {
     profilePictureAssetId: (body.profilePictureAssetId ?? null) as
       string | null,
     bannerAssetId: (body.bannerAssetId ?? null) as string | null,
+    handleChangeableAt: (body.handleChangeableAt ?? null) as string | null,
     onboardingCompleted: body.onboardingCompleted,
   };
 }

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/types/profileTypes.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.1.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
 // Purpose : The profile API's response and request shapes. The status list
 // mirrors the backend ProfileStatus enum, so an unknown value is detectable.
@@ -18,7 +18,8 @@ export const profileStatuses = [
 ] as const;
 export type ProfileStatus = (typeof profileStatuses)[number];
 
-// What a member sees of their own profile
+// What a member sees of their own profile. handleChangeableAt is the moment
+// the handle can be changed again (an ISO date), or null when it can be changed now.
 export interface ProfileView {
   readonly displayName: string;
   readonly handle: string | null;
@@ -26,6 +27,7 @@ export interface ProfileView {
   readonly profilePictureAssetId: string | null;
   readonly bannerAssetId: string | null;
   readonly onboardingCompleted: boolean;
+  readonly handleChangeableAt: string | null;
 }
 
 // What anyone sees of a member (GET /profiles/{handle}); never holds an id

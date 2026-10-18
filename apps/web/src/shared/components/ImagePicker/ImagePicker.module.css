@@ -1,13 +1,8 @@
 /* File : /team-samsara/apps/web/src/shared/components/ImagePicker/ImagePicker.module.css
-   Version : 1.0.0
+   Version : 1.1.0
    Latest commit: task/web-account-settings
    Author : Gerrah
-   Purpose : Look of the image picker: a round or banner picture, with either buttons beside it or a camera button on it that opens an Upload / Remove menu. A screen can resize it with --picker-size (round) and --picker-height (banner). */
-
-.picker {
-  --picker-size: calc(120 * var(--px));
-  --picker-height: calc(300 * var(--px));
-}
+   Purpose : Look of the image picker: a round or banner picture, with either buttons beside it or a camera button on it that opens an Upload / Remove menu. A screen can resize it by setting --picker-size (round), --picker-height and --picker-radius (banner) on a wrapper. */
 
 /* ---- The picture ---- */
 
@@ -21,8 +16,8 @@
 
 .circle .frame {
   flex-shrink: 0;
-  width: var(--picker-size);
-  height: var(--picker-size);
+  width: var(--picker-size, calc(120 * var(--px)));
+  height: var(--picker-size, calc(120 * var(--px)));
   min-width: 64px;
   min-height: 64px;
   border-radius: 50%;
@@ -30,8 +25,10 @@
 
 .banner .frame {
   width: 100%;
-  height: var(--picker-height);
+  height: var(--picker-height, calc(300 * var(--px)));
   min-height: 96px;
+  border-radius: var(--picker-radius, 0);
+  background-color: var(--color-surface-dark);
 }
 
 .image {
@@ -102,7 +99,7 @@
 }
 
 .circle .stage {
-  width: var(--picker-size);
+  width: var(--picker-size, calc(120 * var(--px)));
   min-width: 64px;
 }
 
