@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsForm.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-settings
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : The edit-profile layout: the public profile in edit mode, with a
 // banner, an overlapping picture, the name, handle and bio as fields, and
@@ -9,6 +9,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { assetUrl } from "@/lib/assetUrl";
+import { Modal } from "@/shared/components/Modal/Modal";
 import { routePaths } from "@/shared/constants/routePaths";
 import { useLanguage } from "@/shared/hooks/useLanguage";
 import { Icon } from "@/shared/icons/Icon";
@@ -141,42 +142,22 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
         </div>
 
         <div className={styles.actions}>
-          {isConfirmingCancel ? (
-            <>
-              <p className={styles.confirm} role="alert">
-                {ProfileSettingsText.discardTitle}
-              </p>
-              <button
-                type="button"
-                className={styles.outline}
-                onClick={() => setIsConfirmingCancel(false)}
-              >
-                {ProfileSettingsText.keepEditing}
-              </button>
-              <button type="button" className={styles.save} onClick={leave}>
-                <span>{ProfileSettingsText.discard}</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.outline}
-                onClick={cancel}
-                disabled={form.isSaving}
-              >
-                {ProfileSettingsText.cancel}
-              </button>
-              <button
-                type="submit"
-                className={styles.save}
-                disabled={!form.isDirty || form.isSaving}
-                aria-busy={form.isSaving || undefined}
-              >
-                <span>{ProfileSettingsText.save}</span>
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            className={styles.outline}
+            onClick={cancel}
+            disabled={form.isSaving}
+          >
+            {ProfileSettingsText.cancel}
+          </button>
+          <button
+            type="submit"
+            className={styles.save}
+            disabled={!form.isDirty || form.isSaving}
+            aria-busy={form.isSaving || undefined}
+          >
+            <span>{ProfileSettingsText.save}</span>
+          </button>
         </div>
 
         <div className={styles.fields}>
@@ -302,6 +283,27 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
           ) : null}
         </div>
       </div>
+
+      {isConfirmingCancel ? (
+        <Modal
+          title={ProfileSettingsText.discardTitle}
+          onClose={() => setIsConfirmingCancel(false)}
+        >
+          <p className={styles.modalText}>{ProfileSettingsText.discardBody}</p>
+          <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={styles.outline}
+              onClick={() => setIsConfirmingCancel(false)}
+            >
+              {ProfileSettingsText.keepEditing}
+            </button>
+            <button type="button" className={styles.save} onClick={leave}>
+              <span>{ProfileSettingsText.discard}</span>
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </form>
   );
 }

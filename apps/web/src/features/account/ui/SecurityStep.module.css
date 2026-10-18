@@ -1,0 +1,211 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/SecurityStep.module.css
+   Version : 1.1.0
+   Latest commit: task/web-account-security
+   Author : Gerrah
+   Purpose : Look of the parts every account security step shares inside its card: heading, description, fields, the action buttons, the notes under them and the round "done" badge. */
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: calc(24 * var(--px));
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(24px, calc(44 * var(--px)));
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+}
+
+.danger .heading {
+  color: var(--color-error);
+}
+
+.description {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(24 * var(--px)));
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: calc(20 * var(--px));
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(24 * var(--px));
+}
+
+.primary,
+.outline {
+  min-height: max(44px, calc(64 * var(--px)));
+  padding-inline: calc(48 * var(--px));
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(32 * var(--px)));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--color-accent);
+  color: var(--color-text-on-accent);
+  border: 0;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+}
+
+.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.outline {
+  background: transparent;
+  color: var(--color-text-on-light);
+  border: 3px solid var(--color-text-on-light);
+  border-radius: calc(8 * var(--px));
+}
+
+.outline:hover:not(:disabled) {
+  background: var(--color-text-on-light);
+  color: var(--color-page);
+}
+
+.primary:disabled,
+.outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary:focus-visible,
+.outline:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.danger .primary,
+.primaryDanger {
+  background: var(--color-error);
+  color: #fff;
+}
+
+.primaryDanger {
+  min-height: max(44px, calc(64 * var(--px)));
+  padding-inline: calc(48 * var(--px));
+  border: 0;
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(32 * var(--px)));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primaryDanger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.primaryDanger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primaryDanger:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--px));
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(22 * var(--px)));
+  font-weight: 700;
+}
+
+.noteIcon {
+  flex: none;
+  width: max(16px, calc(26 * var(--px)));
+  height: max(16px, calc(26 * var(--px)));
+}
+
+.noteOk {
+  color: #1a801f;
+}
+
+.noteError {
+  color: var(--color-error);
+}
+
+.noteMuted {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(20 * var(--px)));
+  font-weight: 400;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+.resend {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(22 * var(--px)));
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-on-light);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  text-decoration: none;
+  cursor: default;
+  opacity: 0.7;
+}
+
+.badge {
+  display: grid;
+  place-items: center;
+  width: calc(88 * var(--px));
+  height: calc(88 * var(--px));
+  min-width: 56px;
+  min-height: 56px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: 50%;
+}
+
+.badgeIcon {
+  width: 50%;
+  height: 50%;
+}
+
+@media (max-width: 900px) {
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .primary,
+  .primaryDanger,
+  .outline {
+    width: 100%;
+  }
+}

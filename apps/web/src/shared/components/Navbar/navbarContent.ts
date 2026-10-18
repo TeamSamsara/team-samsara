@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/navbarContent.ts
-// Version : 1.2.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.3.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : The Navbar's link list, visible text and scroll threshold, kept
 // out of the component so the labels can be translated later.
@@ -23,6 +23,7 @@ export const NavbarText = {
   accountMenu: "Your account",
   signedInAs: "Signed in as",
   editProfile: "Edit profile",
+  accountSecurity: "Account security",
   logOut: "Log out",
 } as const;
 

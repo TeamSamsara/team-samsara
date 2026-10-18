@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/NavbarAccount.tsx
-// Version : 1.1.0
-// Latest commit: task/web-icons
+// Version : 1.2.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
-// Purpose : The avatar menu in the navbar: who is signed in, edit profile and log out.
+// Purpose : The avatar menu in the navbar: who is signed in, edit profile, account security and log out.
 
 import { Link } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
@@ -62,6 +62,15 @@ export function NavbarAccount() {
         >
           <Icon name="profileSettings" className={styles.accountIcon} />
           {NavbarText.editProfile}
+        </DropdownItem>
+        <DropdownItem
+          as={Link}
+          to={routePaths.accountSecurity}
+          role="menuitem"
+          className={styles.accountItem}
+        >
+          <Icon name="security" className={styles.accountIcon} />
+          {NavbarText.accountSecurity}
         </DropdownItem>
         <DropdownItem
           role="menuitem"
