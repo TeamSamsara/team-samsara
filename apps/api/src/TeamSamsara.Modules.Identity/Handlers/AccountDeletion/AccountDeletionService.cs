@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AccountDeletion/AccountDeletionService.cs
-// Version : 1.1.0
-// Latest commit: chore/api-contract-baseline
+// Version : 1.2.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Default IAccountDeletionService. Deleting commits the deletion marker and the wipe of
 // verified sign-ins in one write, so the account stops counting as Member at once; session
@@ -70,7 +70,16 @@ public class AccountDeletionService : IAccountDeletionService
         }
 
         var issue = await _verification.IssueAsync(
-            userId, VerificationPurpose.StepUp, email, cancellationToken);
+            userId,
+            VerificationPurpose.StepUp,
+            email,
+            cancellationToken,
+            wording: AlertType.AccountDeletionCode,
+            extraData: new Dictionary<string, string>
+            {
+                [AlertTemplateKeys.RecoveryDays] =
+                    _settings.RecoveryWindowDays.ToString(CultureInfo.InvariantCulture)
+            });
 
         var status = issue.Status == VerificationIssueStatus.Sent
             ? AccountDeletionStatus.Success

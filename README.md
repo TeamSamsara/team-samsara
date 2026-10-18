@@ -305,14 +305,15 @@ over the account.
 | Method | Path                     | Does                                                                                    | Answers                                     |
 | ------ | ------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------- |
 | `POST` | `/account/email/request` | Takes `{"newEmail"}`, emails one code to the current address and one to the new address | `status`, `codeLength`, `retryAfterSeconds` |
-| `POST` | `/account/email/confirm` | Checks `{"oldCode", "newCode"}` and, if both are right, switches the address            | `status`                                    |
+| `POST` | `/account/email/confirm` | Checks `{"oldCode"?, "newCode"?}` and, once both are accepted, switches the address       | `status`                                    |
 
 1. `request` saves the pending change and queues two 8-digit codes: one to the **current** address
    and one to the **new** address. Codes expire after 10 minutes. Asking again within 60 seconds
    answers `cooldownActive`.
-2. `confirm` needs both codes. A code that was accepted is remembered, so after a typo the client
-   only has to resend the other one.
-3. On success the address changes, every session ends, and the **old** address gets an
+2. `confirm` takes either code or both; leave a code out to send it later. A right code is
+   remembered, and while the other is missing the answer is `codeAccepted` (`200`). After a typo
+   the client only has to resend the other one. Sending no code at all answers `invalidCode`.
+3. Once both codes are accepted (`success`) the address changes, every session ends, and the **old** address gets an
    email-changed notice naming the new address in masked form (`j***@example.com`). The client must
    sign the member in again with the new address.
 
@@ -509,6 +510,22 @@ It should answer `{"status":"sent"}` and deliver to the Media recipients.
 | `GET`  | `/health/ready` | Public    | Dependencies are reachable (`Healthy`)                     |
 | `GET`  | `/ping`         | Public    | Answers `pong`; used to check the frontend reaches the API |
 | `GET`  | `/ping/secure`  | Signed in | `401` without a token                                      |
+
+## Emails
+
+Code and alert emails are sent through `IAlertSender` with an `AlertType`. Every template shares one
+layout (`AlertEmailLayout`) styled like the contact-form emails: dark header, green code card, grey footer.
+
+| Kind   | Alert types                                                                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codes  | `RegistrationCode`, `LoginCode`, `PasswordChangeCode`, `PasswordResetCode`, `EmailChangeCurrentCode`, `EmailChangeNewCode`, `AccountDeletionCode` (`StepUpCode` is the generic wording) |
+| Alerts | `NewLoginAttempt`, `PasswordResetRequested`, `PasswordChanged`, `EmailChanged`, `AccountDeleted`                                                |
+
+Templates use `{{token}}` placeholders filled from `AlertTemplateKeys` (`code`, `expiresInMinutes`,
+`newEmail`, `recoveryDays`, `ipAddress`, `userAgent`). Values are HTML-encoded and a token that is not
+supplied stays visible, which the "no `{{` left" tests catch. `VerificationCodeService.IssueAsync` picks the
+wording from the purpose and accepts an override and extra data (password change and account deletion
+use it, because they share the step-up purpose).
 
 ## Notifications
 

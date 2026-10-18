@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordService.cs
-// Version : 1.2.0
-// Latest commit: chore/api-contract-baseline
+// Version : 1.3.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Default IPasswordService. The new password travels with the confirmation code, so
 // the server never stores it between steps. The code is checked only after the password rules,
@@ -74,7 +74,11 @@ public class PasswordService : IPasswordService
         }
 
         var issue = await _verification.IssueAsync(
-            userId, VerificationPurpose.StepUp, email, cancellationToken);
+            userId,
+            VerificationPurpose.StepUp,
+            email,
+            cancellationToken,
+            wording: AlertType.PasswordChangeCode);
 
         var status = issue.Status == VerificationIssueStatus.Sent
             ? PasswordStatus.Success

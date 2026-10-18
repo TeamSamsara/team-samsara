@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityStatusCodes.cs
-// Version : 1.6.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.7.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Translates each Identity step outcome into the HTTP status code the
 // endpoint answers with.
@@ -97,6 +97,7 @@ public static class IdentityStatusCodes
             EmailChangeStatus.TooManyAttempts => StatusCodes.Status429TooManyRequests,
             EmailChangeStatus.InvalidCode => StatusCodes.Status400BadRequest,
             EmailChangeStatus.NoPendingRequest => StatusCodes.Status400BadRequest,
+            EmailChangeStatus.CodeAccepted => StatusCodes.Status200OK,
             _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
         };
     }

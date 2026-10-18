@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeDeliveryTests.cs
-// Version : 1.0.0
+// Version : 1.1.0
 // Latest commit: feat/email-change-service
 // Author : Gerrah
 // Purpose : Proves email change delivery: real codes for a free address, a silent decoy for an unavailable one.
@@ -52,13 +52,23 @@ public class EmailChangeDeliveryTests
     #region Public Methods
 
     [Fact]
-    public async Task Deliver_EmailsAStepUpCodeToTheCurrentAddress()
+    public async Task Deliver_EmailsACurrentAddressCodeToTheCurrentAddress()
     {
         await _delivery.DeliverAsync(UserId, NewEmail);
 
         var alert = _alerts.Sent.Single(sent => sent.To == Email);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.EmailChangeCurrentCode);
         alert.TemplateData[AlertTemplateKeys.Code].Length.ShouldBe(_settings.EmailChangeCodeLength);
+    }
+
+    [Fact]
+    public async Task Deliver_TheCurrentAddressEmailShowsOnlyAMaskedNewAddress()
+    {
+        await _delivery.DeliverAsync(UserId, NewEmail);
+
+        var alert = _alerts.Sent.Single(sent => sent.To == Email);
+        alert.TemplateData[AlertTemplateKeys.NewEmail].ShouldBe(EmailMasking.Mask(NewEmail));
+        alert.TemplateData[AlertTemplateKeys.NewEmail].ShouldNotBe(NewEmail);
     }
 
     [Fact]
@@ -67,7 +77,7 @@ public class EmailChangeDeliveryTests
         await _delivery.DeliverAsync(UserId, NewEmail);
 
         var alert = _alerts.Sent.Single(sent => sent.To == NewEmail);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.EmailChangeNewCode);
 
         var result = await _verification.VerifyAsync(
             UserId, VerificationPurpose.EmailChangeNew, alert.TemplateData[AlertTemplateKeys.Code]);
