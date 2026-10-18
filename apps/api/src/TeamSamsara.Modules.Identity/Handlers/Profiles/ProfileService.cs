@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/ProfileService.cs
-// Version : 1.2.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.3.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
 // Purpose : Default IProfileService: validates profile text and handles, and keeps images,
 // handle and profile in step.
@@ -375,6 +375,14 @@ public class ProfileService : IProfileService
             && _clock.UtcNow < changedAt.AddDays(_settings.HandleChangeCooldownDays);
     }
 
+    // When the member can change their handle again, or null when they can do it now
+    private DateTimeOffset? GetHandleChangeableAt(Profile profile)
+    {
+        return IsCoolingDown(profile)
+            ? profile.HandleChangedAt?.AddDays(_settings.HandleChangeCooldownDays)
+            : null;
+    }
+
     // The handles to try for a new member, best first: the display name itself, then numbered
     // variants of it. A name that cannot be used as a handle, such as the neutral "Member",
     // is replaced by the neutral handle.
@@ -470,17 +478,18 @@ public class ProfileService : IProfileService
         }
     }
 
-    private static ProfileResult Success(Profile profile) => new(ProfileStatus.Success, ToView(profile));
+    private ProfileResult Success(Profile profile) => new(ProfileStatus.Success, ToView(profile));
 
     private static ProfileResult Failure(ProfileStatus status) => new(status, null);
 
-    private static ProfileView ToView(Profile profile) => new(
+    private ProfileView ToView(Profile profile) => new(
         profile.DisplayName,
         profile.Handle,
         profile.Bio,
         profile.ProfilePictureAssetId,
         profile.BannerAssetId,
-        profile.OnboardingCompleted);
+        profile.OnboardingCompleted,
+        GetHandleChangeableAt(profile));
 
     #endregion
 }

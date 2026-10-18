@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileStep.tsx
-// Version : 1.1.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.2.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
 // Purpose : The "Create your profile" step: picture, display name, handle and
 // bio. The handle is suggested from the name until the member edits it, and is
@@ -10,6 +10,10 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button/Button";
 import { TextArea } from "@/shared/components/Fields/TextArea/TextArea";
 import { TextField } from "@/shared/components/Fields/TextField/TextField";
+import {
+  keepImage,
+  type ImageChange,
+} from "@/shared/components/ImagePicker/imageChange";
 import { useHandleAvailability } from "../hooks/useHandleAvailability";
 import { saveOnboarding } from "../service/onboardingService";
 import type { ProfileView } from "../types/profileTypes";
@@ -55,7 +59,7 @@ export function ProfileStep({ profile, onFinished }: ProfileStepProps) {
   const [bio, setBio] = useState(profile.bio ?? "");
   const [handle, setHandle] = useState(profile.handle ?? "");
   const [handleEdited, setHandleEdited] = useState(false);
-  const [picture, setPicture] = useState<File | null>(null);
+  const [picture, setPicture] = useState<ImageChange>(keepImage);
   const [errors, setErrors] = useState<FieldErrors>(noErrors);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -128,7 +132,7 @@ export function ProfileStep({ profile, onFinished }: ProfileStepProps) {
       bio,
       handle: normalizeHandle(handle),
       currentHandle: profile.handle,
-      picture,
+      picture: picture.kind === "replace" ? picture.file : null,
     });
 
     if (attempt.kind === "saved") {
@@ -169,7 +173,9 @@ export function ProfileStep({ profile, onFinished }: ProfileStepProps) {
         noValidate
       >
         <AvatarPicker
+          controls="inline"
           initial={(displayName.trim() || neutralDisplayName).charAt(0)}
+          change={picture}
           error={errors.picture}
           onChange={setPicture}
         />
