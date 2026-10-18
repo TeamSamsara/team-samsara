@@ -1,104 +1,12 @@
 /* File : /team-samsara/apps/web/src/features/account/ui/AvatarPicker.module.css
-   Version : 1.0.0
-   Latest commit: task/web-auth-onboarding-navbar
+   Version : 2.0.0
+   Latest commit: task/web-account-settings
    Author : Gerrah
-   Purpose : Look of the profile picture chooser: a round preview with the buttons beside it. */
-
-.picker {
-  display: flex;
-  align-items: center;
-  gap: calc(28 * var(--px));
-  padding-bottom: calc(24 * var(--px));
-}
-
-.circle {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: calc(120 * var(--px));
-  height: calc(120 * var(--px));
-  min-width: 64px;
-  min-height: 64px;
-  overflow: hidden;
-  border-radius: 50%;
-  background-color: var(--color-avatar-placeholder);
-}
-
-.image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+   Purpose : Look of the first letter shown in the profile picture circle until a photo exists. The circle, buttons and menu are styled by the shared image picker. */
 
 .initial {
   color: var(--color-text-on-light);
   font-family: var(--font-display);
   font-size: calc(56 * var(--px));
   text-transform: uppercase;
-}
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: calc(8 * var(--px));
-  min-width: 0;
-}
-
-.buttons {
-  display: flex;
-  align-items: center;
-  gap: calc(20 * var(--px));
-}
-
-.choose {
-  min-height: calc(48 * var(--px));
-  padding: 0 calc(24 * var(--px));
-  border: 0.5px solid var(--color-text-on-light);
-  border-radius: calc(10 * var(--px));
-  background: transparent;
-  color: var(--color-text-on-light);
-  font-family: var(--font-ui);
-  font-size: calc(24 * var(--px));
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.choose:focus-visible,
-.remove:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-.remove {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-on-light);
-  font-family: var(--font-ui);
-  font-size: calc(22 * var(--px));
-  text-decoration: underline;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.hint,
-.error {
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: var(--text-control);
-}
-
-.hint {
-  color: var(--color-text-on-light);
-  opacity: 0.7;
-}
-
-.error {
-  color: var(--color-error);
-}
-
-/* The file input is opened by the button; it never shows. */
-.input {
-  display: none;
 }

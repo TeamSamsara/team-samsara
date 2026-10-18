@@ -236,7 +236,9 @@ a second request after an edit.
 | `DELETE` | `/account/profile/banner`  | Removes the banner                                         |
 
 The profile holds `displayName`, `bio`, `profilePictureAssetId` and `bannerAssetId`. Images are
-asset ids - the client builds the address from `GET /assets/{id}/file`.
+asset ids - the client builds the address from `GET /assets/{id}/file`. It also carries
+`handleChangeableAt`: the moment the handle can be changed again, or `null` when it can be
+changed now.
 
 Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
 

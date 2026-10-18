@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/ProfileServiceHandleTests.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.1.0
+// Latest commit: task/web-account-settings
 // Author : Gerrah
-// Purpose : Proves handles and onboarding: automatic assignment, validation, uniqueness, the rename cooldown, the availability check, onboarding completion and the public lookup.
+// Purpose : Proves handles and onboarding: automatic assignment, validation, uniqueness, the rename cooldown and the date it ends, the availability check, onboarding completion and the public lookup.
 
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -218,6 +218,31 @@ public class ProfileServiceHandleTests
 
         result.Status.ShouldBe(ProfileStatus.Success);
         result.Profile.ShouldNotBeNull().Handle.ShouldBe("another");
+    }
+
+    [Fact]
+    public async Task AfterARename_TheProfileShowsWhenTheHandleCanChangeAgain()
+    {
+        await SeedAsync(UserId, "Gerrah");
+        await _service.GetAsync(UserId);
+
+        var result = await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
+
+        result.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBe(_clock.UtcNow.AddDays(30));
+    }
+
+    [Fact]
+    public async Task WithoutARename_OrAfterTheCooldown_TheProfileShowsNoDate()
+    {
+        await SeedAsync(UserId, "Gerrah");
+        var fresh = await _service.GetAsync(UserId);
+        await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
+
+        _clock.Advance(TimeSpan.FromDays(31));
+        var later = await _service.GetAsync(UserId);
+
+        fresh.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBeNull();
+        later.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBeNull();
     }
 
     [Fact]
