@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/EmailChangeService.cs
-// Version : 1.1.0
-// Latest commit: chore/api-contract-baseline
+// Version : 1.2.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Email change for signed-in members, answering the same way whether the new address is free or taken.
 
@@ -99,11 +99,11 @@ public class EmailChangeService : IEmailChangeService
             EmailChangeStatus.Success, _settings.EmailChangeCodeLength, _settings.ResendCooldownSeconds);
     }
 
-    // Checks both codes, then switches the address, ends every session and alerts the old address.
+    // Checks the codes sent; once both are accepted, switches the address, ends every session and alerts the old address.
     public async Task<EmailChangeStatus> ConfirmAsync(
         string userId,
-        string oldCode,
-        string newCode,
+        string? oldCode,
+        string? newCode,
         CancellationToken cancellationToken = default)
     {
         var currentEmail = await FindMemberEmailAsync(userId);
@@ -217,13 +217,19 @@ public class EmailChangeService : IEmailChangeService
         return null;
     }
 
-    // Checks both codes every time, so the answer and timing do not show which one failed.
+    // Checks every code sent in this call. Success means both are now accepted; CodeAccepted means one is
+    // accepted and the other has not been sent yet.
     private async Task<EmailChangeStatus> CheckCodesAsync(
         EmailChangeRequest pending,
-        string oldCode,
-        string newCode,
+        string? oldCode,
+        string? newCode,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(oldCode) && string.IsNullOrWhiteSpace(newCode))
+        {
+            return EmailChangeStatus.InvalidCode;
+        }
+
         var old = await CheckCodeAsync(
             pending.Id, VerificationPurpose.EmailChangeOld, pending.OldCodeVerified, oldCode, cancellationToken);
 
@@ -237,17 +243,23 @@ public class EmailChangeService : IEmailChangeService
             return EmailChangeStatus.TooManyAttempts;
         }
 
+        if (old is not (null or VerificationResult.Valid) || added is not (null or VerificationResult.Valid))
+        {
+            return EmailChangeStatus.InvalidCode;
+        }
+
         return old == VerificationResult.Valid && added == VerificationResult.Valid
             ? EmailChangeStatus.Success
-            : EmailChangeStatus.InvalidCode;
+            : EmailChangeStatus.CodeAccepted;
     }
 
     // Verifies one code unless it was already accepted, and records the acceptance.
-    private async Task<VerificationResult> CheckCodeAsync(
+    // Null means no code was sent for it and none was accepted before.
+    private async Task<VerificationResult?> CheckCodeAsync(
         string userId,
         VerificationPurpose purpose,
         bool alreadyVerified,
-        string code,
+        string? code,
         CancellationToken cancellationToken)
     {
         if (alreadyVerified)
@@ -257,7 +269,7 @@ public class EmailChangeService : IEmailChangeService
 
         if (string.IsNullOrWhiteSpace(code))
         {
-            return VerificationResult.Invalid;
+            return null;
         }
 
         var result = await _verification.VerifyAsync(userId, purpose, code.Trim(), cancellationToken);

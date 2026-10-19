@@ -113,7 +113,7 @@ public class AuthenticationServiceTests
         (await _signIns.IsVerifiedAsync(UserId, AuthTime)).ShouldBeFalse();
 
         _alerts.Sent.Count.ShouldBe(2);
-        _alerts.Sent[0].Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent[0].Type.ShouldBe(AlertType.LoginCode);
 
         var notice = _alerts.Sent[1];
         notice.Type.ShouldBe(AlertType.NewLoginAttempt);
@@ -146,7 +146,7 @@ public class AuthenticationServiceTests
         var result = await _service.CheckSignInAsync(UserId, AuthTime);
 
         result.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.LoginCode);
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public class AuthenticationServiceTests
 
         early.Status.ShouldBe(AuthenticationStatus.CooldownActive);
         later.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
-        _alerts.Sent.Count(alert => alert.Type == AlertType.StepUpCode).ShouldBe(2);
+        _alerts.Sent.Count(alert => alert.Type == AlertType.LoginCode).ShouldBe(2);
         _alerts.Sent.Count(alert => alert.Type == AlertType.NewLoginAttempt).ShouldBe(1);
     }
 

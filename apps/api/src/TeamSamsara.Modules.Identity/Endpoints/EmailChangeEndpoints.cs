@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/EmailChangeEndpoints.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-endpoints
+// Version : 1.0.1
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : HTTP endpoints for a member changing their own email: request the two codes, then confirm both.
 
@@ -58,7 +58,7 @@ public static class EmailChangeEndpoints
         return Results.Json(result, statusCode: IdentityStatusCodes.For(result.Status));
     }
 
-    // Checks both codes and, if valid, switches the address and signs the member out everywhere.
+    // Checks the codes sent (one or both) and, once both are accepted, switches the address and signs the member out everywhere.
     private static async Task<IResult> ConfirmAsync(
         HttpRequest request,
         ICurrentUserContext context,

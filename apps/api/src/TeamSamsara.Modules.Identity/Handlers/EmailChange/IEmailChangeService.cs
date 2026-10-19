@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/IEmailChangeService.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Email change for signed-in members: request two codes, then confirm both to switch address.
 
@@ -20,12 +20,13 @@ public interface IEmailChangeService
         CancellationToken cancellationToken = default
     );
 
-    // Checks both codes and, when both are right, switches the address and ends every session.
-    // A failure never says which code was wrong. A code already accepted need not be sent again.
+    // Checks the codes sent, one or both; a blank code means "not sent yet". Once both are accepted the
+    // address switches and every session ends. A right code is remembered and answers CodeAccepted
+    // while the other is missing. A wrong code is never told apart from a taken address.
     public Task<EmailChangeStatus> ConfirmAsync(
         string userId,
-        string oldCode,
-        string newCode,
+        string? oldCode,
+        string? newCode,
         CancellationToken cancellationToken = default
     );
 

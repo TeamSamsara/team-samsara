@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeEndpointsTests.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-endpoints
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Proves the email change endpoints refuse non-members, reject bad bodies, and answer each step with the right HTTP status.
 
@@ -199,6 +199,58 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
+    public async Task Confirm_WithOnlyTheOldCode_GetsOk_ReportsCodeAccepted_AndChangesNothing()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+
+        var response = await ConfirmAsync(app, codes.Old, null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.CodeAccepted);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
+        _accounts.RevokedSessions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Confirm_WithTheNewCodeAfterTheOldOne_ChangesTheEmail_AndSignsOutEverywhere()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+
+        await ConfirmAsync(app, codes.Old, null);
+        var response = await ConfirmAsync(app, null, codes.New);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.Success);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(NewEmail);
+        _accounts.RevokedSessions.ShouldHaveSingleItem().ShouldBe(UserId);
+    }
+
+    [Fact]
+    public async Task Confirm_WithABodyThatLeavesOutAProperty_IsAccepted()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+        var json = new StringContent($"{{\"oldCode\":\"{codes.Old}\"}}", Encoding.UTF8, "application/json");
+
+        var response = await app.Client.PostAsync(ConfirmPath, json);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Confirm_WithNoCodeAtAll_GetsBadRequest()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        await RequestAndGetCodesAsync(app);
+
+        var response = await ConfirmAsync(app, null, null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Confirm_WithAWrongCode_GetsBadRequest_AndChangesNothing()
     {
         await using var app = await StartAsync(AuthState.Member);
@@ -263,11 +315,22 @@ public class EmailChangeEndpointsTests
         return app.Client.PostAsync(RequestPath, JsonContent.Create(new ChangeEmailRequest(newEmail)));
     }
 
-    // Posts the two codes to confirm the change.
-    private static Task<HttpResponseMessage> ConfirmAsync(TestApp app, string oldCode, string newCode)
+    // Posts one or both codes to confirm the change; null leaves a code out.
+    private static Task<HttpResponseMessage> ConfirmAsync(TestApp app, string? oldCode, string? newCode)
     {
         return app.Client.PostAsync(
             ConfirmPath, JsonContent.Create(new ConfirmEmailChangeRequest(oldCode, newCode)));
+    }
+
+    // Reads the status from a confirm response, whether it was written as a name or as a number.
+    private static async Task<EmailChangeStatus> ReadStatusAsync(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var status = body.RootElement.GetProperty("status");
+
+        return status.ValueKind == JsonValueKind.Number
+            ? (EmailChangeStatus)status.GetInt32()
+            : Enum.Parse<EmailChangeStatus>(status.GetString()!, ignoreCase: true);
     }
 
     // The code most recently emailed to an address.

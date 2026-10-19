@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/auth/service/accountService.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-foundation
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Every call to the account API, one function per step. Each returns an
 // ApiOutcome and never throws, so screens decide what to show from the outcome alone.
@@ -15,6 +15,7 @@ import {
   type AccountDeletionCodeResult,
   type AccountDeletionStatus,
   type AccountSummary,
+  type ConfirmEmailChangeRequest,
   type EmailChangeCodeResult,
   type EmailChangeStatus,
   type LoginResult,
@@ -195,14 +196,14 @@ export function requestEmailChange(
   );
 }
 
+// Sends one code, or both. A code that is left out is "not sent yet", not a wrong code.
 export function confirmEmailChange(
-  oldCode: string,
-  newCode: string,
+  codes: ConfirmEmailChangeRequest,
 ): Promise<ApiOutcome<Done<EmailChangeStatus>>> {
   return sendAccountRequest(
     AuthApiRoutes.emailConfirm,
     parseEmailStatus,
-    postJson({ oldCode, newCode }),
+    postJson(codes),
   );
 }
 

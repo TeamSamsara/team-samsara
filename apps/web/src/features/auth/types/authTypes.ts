@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/auth/types/authTypes.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-foundation
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : The account API's request and response shapes, written once for the whole app.
 // Each status list mirrors the backend enum, so a value the client does not know is detectable.
@@ -66,6 +66,7 @@ export type PasswordStatus = (typeof passwordStatuses)[number];
 
 export const emailChangeStatuses = [
   "success",
+  "codeAccepted",
   "accountNotFound",
   "invalidEmail",
   "cooldownActive",
@@ -140,8 +141,8 @@ export interface ChangeEmailRequest {
 }
 
 export interface ConfirmEmailChangeRequest {
-  readonly oldCode: string;
-  readonly newCode: string;
+  readonly oldCode?: string;
+  readonly newCode?: string;
 }
 
 export interface DeleteAccountRequest {

@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeServiceTests.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
-// Purpose : Proves email change: identical answers for free and taken addresses, both codes required, and a completed change ends every session.
+// Purpose : Proves email change: identical answers for free and taken addresses, each code accepted on its own, and a completed change ends every session.
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -334,6 +334,122 @@ public class EmailChangeServiceTests : IAsyncLifetime
         first.ShouldBe(EmailChangeStatus.InvalidCode);
         _requests.Find(UserId).ShouldBeNull();
         second.ShouldBe(EmailChangeStatus.Success);
+    }
+
+    [Fact]
+    public async Task Confirm_WithOnlyTheOldCode_IsAccepted_AndChangesNothing()
+    {
+        var codes = await RequestAndGetCodesAsync();
+
+        var result = await _service.ConfirmAsync(UserId, codes.Old, null);
+
+        result.ShouldBe(EmailChangeStatus.CodeAccepted);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
+        _accounts.RevokedSessions.ShouldBeEmpty();
+        _requests.Find(UserId)!.OldCodeVerified.ShouldBeTrue();
+        _requests.Find(UserId)!.NewCodeVerified.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Confirm_WithOnlyTheNewCode_IsAccepted_AndChangesNothing()
+    {
+        var codes = await RequestAndGetCodesAsync();
+
+        var result = await _service.ConfirmAsync(UserId, null, codes.New);
+
+        result.ShouldBe(EmailChangeStatus.CodeAccepted);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
+        _accounts.RevokedSessions.ShouldBeEmpty();
+        _requests.Find(UserId)!.OldCodeVerified.ShouldBeFalse();
+        _requests.Find(UserId)!.NewCodeVerified.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Confirm_WithOneCodeAtATime_ChangesTheEmailOnTheSecond(bool oldFirst)
+    {
+        var codes = await RequestAndGetCodesAsync();
+
+        var first = oldFirst
+            ? await _service.ConfirmAsync(UserId, codes.Old, null)
+            : await _service.ConfirmAsync(UserId, null, codes.New);
+        var second = oldFirst
+            ? await _service.ConfirmAsync(UserId, null, codes.New)
+            : await _service.ConfirmAsync(UserId, codes.Old, null);
+
+        first.ShouldBe(EmailChangeStatus.CodeAccepted);
+        second.ShouldBe(EmailChangeStatus.Success);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(NewEmail);
+        _accounts.RevokedSessions.ShouldHaveSingleItem().ShouldBe(UserId);
+    }
+
+    [Fact]
+    public async Task Confirm_AWrongSingleCode_IsInvalid_AndKeepsTheOtherAcceptedCode()
+    {
+        var codes = await RequestAndGetCodesAsync();
+
+        var accepted = await _service.ConfirmAsync(UserId, codes.Old, null);
+        var wrong = await _service.ConfirmAsync(UserId, null, WrongCode);
+        var final = await _service.ConfirmAsync(UserId, null, codes.New);
+
+        accepted.ShouldBe(EmailChangeStatus.CodeAccepted);
+        wrong.ShouldBe(EmailChangeStatus.InvalidCode);
+        final.ShouldBe(EmailChangeStatus.Success);
+    }
+
+    [Fact]
+    public async Task Confirm_SendingAnAcceptedCodeAgain_StillAnswersCodeAccepted()
+    {
+        var codes = await RequestAndGetCodesAsync();
+
+        await _service.ConfirmAsync(UserId, codes.Old, null);
+        var again = await _service.ConfirmAsync(UserId, codes.Old, null);
+
+        again.ShouldBe(EmailChangeStatus.CodeAccepted);
+    }
+
+    [Fact]
+    public async Task Confirm_SendingNothingMore_AfterOneCodeWasAccepted_IsInvalid()
+    {
+        var codes = await RequestAndGetCodesAsync();
+        await _service.ConfirmAsync(UserId, codes.Old, null);
+
+        var result = await _service.ConfirmAsync(UserId, " ", null);
+
+        result.ShouldBe(EmailChangeStatus.InvalidCode);
+        _requests.Find(UserId)!.OldCodeVerified.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Confirm_WrongGuessesSpreadOverSingleCodeCalls_StillCancelTheRequest()
+    {
+        await RequestAndGetCodesAsync();
+
+        for (var attempt = 1; attempt < _settings.MaxFailedAttempts; attempt++)
+        {
+            var result = await _service.ConfirmAsync(UserId, null, WrongCode);
+            result.ShouldBe(EmailChangeStatus.InvalidCode);
+        }
+
+        var final = await _service.ConfirmAsync(UserId, null, WrongCode);
+
+        final.ShouldBe(EmailChangeStatus.TooManyAttempts);
+        _requests.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Confirm_ForATakenAddress_TheOldCodeIsAccepted_ButTheNewCodeNeverCompletes()
+    {
+        _accounts.AddAccount(OtherUserId, NewEmail);
+        await RequestAndDeliverAsync();
+
+        var accepted = await _service.ConfirmAsync(UserId, CodeSentTo(Email), null);
+        var wrong = await _service.ConfirmAsync(UserId, null, WrongCode);
+
+        accepted.ShouldBe(EmailChangeStatus.CodeAccepted);
+        wrong.ShouldBe(EmailChangeStatus.InvalidCode);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
     }
 
     [Fact]

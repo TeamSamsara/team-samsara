@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/constants/routePaths.ts
-// Version : 1.2.0
-// Latest commit: task/web-auth-foundation
+// Version : 1.4.0
+// Latest commit: task/web-account=security
 // Author : Gerrah
 // Purpose : Central source of truth for every route path in the app. No
 // component should hardcode a path string directly — always import from here.
@@ -21,6 +21,8 @@ export const routePaths = {
   accountProfile: "/account/profile",
   accountSettings: "/account/settings",
   accountSecurity: "/account/security",
+  accountSecurityPassword: "/account/security/password",
+  accountSecurityEmail: "/account/security/email",
   members: "/members",
   cms: "/cms",
 } as const;

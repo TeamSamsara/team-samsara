@@ -1,12 +1,13 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/EmailChangeDelivery.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Issues the two email change codes in the background, using a decoy for an unavailable address.
 
 using Microsoft.Extensions.Logging;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
+using TeamSamsara.Shared.Alert;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
 
@@ -53,12 +54,17 @@ public class EmailChangeDelivery : IEmailChangeDelivery
         var available = await IsAvailableAsync(newEmail);
 
         await RunLoggedAsync(
-            () => IssueAsync(userId, VerificationPurpose.EmailChangeOld, currentEmail, cancellationToken),
+            () => IssueAsync(
+                userId,
+                VerificationPurpose.EmailChangeOld,
+                currentEmail,
+                new Dictionary<string, string> { [AlertTemplateKeys.NewEmail] = EmailMasking.Mask(newEmail) },
+                cancellationToken),
             "the current-address code");
 
         await RunLoggedAsync(
             () => available
-                ? IssueAsync(userId, VerificationPurpose.EmailChangeNew, newEmail, cancellationToken)
+                ? IssueAsync(userId, VerificationPurpose.EmailChangeNew, newEmail, null, cancellationToken)
                 : IssueDecoyAsync(userId, cancellationToken),
             "the new-address code");
     }
@@ -73,14 +79,15 @@ public class EmailChangeDelivery : IEmailChangeDelivery
         return await _accounts.GetUserIdByEmailAsync(email) is null;
     }
 
-    // Generates a code and emails it.
+    // Generates a code and emails it, with any extra values the email shows.
     private async Task IssueAsync(
         string userId,
         VerificationPurpose purpose,
         string email,
+        IReadOnlyDictionary<string, string>? extraData,
         CancellationToken cancellationToken)
     {
-        await _verification.IssueAsync(userId, purpose, email, cancellationToken);
+        await _verification.IssueAsync(userId, purpose, email, cancellationToken, extraData: extraData);
     }
 
     // Stores a new-address code that is never sent.

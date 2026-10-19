@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/EmailChange/EmailChangeStatus.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.1.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : The outcome of an email change step. Endpoints translate these into responses.
 
@@ -28,5 +28,8 @@ public enum EmailChangeStatus
     TooManyAttempts,
 
     // No change is pending, or it has expired
-    NoPendingRequest
+    NoPendingRequest,
+
+    // One code was accepted; the other has not been sent yet
+    CodeAccepted
 }

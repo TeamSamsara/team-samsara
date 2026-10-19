@@ -1,9 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/VerificationCodeService.cs
-// Version : 1.5.0
-// Latest commit: fix/verification-code-single-use
+// Version : 1.6.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Issues and checks one-time verification codes, delivered through IAlertSender and burned after too many wrong guesses.
 
+using System.Globalization;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
@@ -46,13 +47,15 @@ public class VerificationCodeService : IVerificationCodeService
         string userId,
         VerificationPurpose purpose,
         string email,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        AlertType? wording = null,
+        IReadOnlyDictionary<string, string>? extraData = null)
     {
         return IssueCoreAsync(
             userId,
             purpose,
             (profile, code) => SendCodeOrDiscardAsync(
-                userId, purpose, email, profile.AlertType, code, cancellationToken));
+                userId, purpose, email, wording ?? profile.AlertType, code, extraData, cancellationToken));
     }
 
     // Stores a code like IssueAsync but never sends it, so the caller does not reveal who exists
@@ -145,17 +148,19 @@ public class VerificationCodeService : IVerificationCodeService
             VerificationPurpose.StepUp =>
                 new PurposeProfile(_settings.StepUpCodeLength, AlertType.StepUpCode),
 
-            // Reuses the step-up wording; the login flow sends its own "new login attempt" notice.
+            // The login flow also sends its own "new login attempt" notice.
             VerificationPurpose.LoginChallenge =>
-                new PurposeProfile(_settings.LoginChallengeCodeLength, AlertType.StepUpCode),
+                new PurposeProfile(_settings.LoginChallengeCodeLength, AlertType.LoginCode),
 
-            // Reuses the step-up wording; the reset flow sends its own notice for unknown clients.
+            // The reset flow also sends its own notice for unknown clients.
             VerificationPurpose.PasswordReset =>
-                new PurposeProfile(_settings.PasswordResetCodeLength, AlertType.StepUpCode),
+                new PurposeProfile(_settings.PasswordResetCodeLength, AlertType.PasswordResetCode),
 
-            // Both email-change codes reuse the step-up wording.
-            VerificationPurpose.EmailChangeOld or VerificationPurpose.EmailChangeNew =>
-                new PurposeProfile(_settings.EmailChangeCodeLength, AlertType.StepUpCode),
+            VerificationPurpose.EmailChangeOld =>
+                new PurposeProfile(_settings.EmailChangeCodeLength, AlertType.EmailChangeCurrentCode),
+
+            VerificationPurpose.EmailChangeNew =>
+                new PurposeProfile(_settings.EmailChangeCodeLength, AlertType.EmailChangeNewCode),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(purpose), purpose, "Unknown verification purpose.")
@@ -203,12 +208,20 @@ public class VerificationCodeService : IVerificationCodeService
         string email,
         AlertType alertType,
         string code,
+        IReadOnlyDictionary<string, string>? extraData,
         CancellationToken cancellationToken)
     {
         var templateData = new Dictionary<string, string>
         {
-            [AlertTemplateKeys.Code] = code
+            [AlertTemplateKeys.Code] = code,
+            [AlertTemplateKeys.ExpiresInMinutes] =
+                _settings.ExpiryMinutes.ToString(CultureInfo.InvariantCulture)
         };
+
+        foreach (var (key, value) in extraData ?? new Dictionary<string, string>())
+        {
+            templateData[key] = value;
+        }
 
         try
         {
