@@ -1,18 +1,22 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AuthenticationService.cs
-// Version : 1.2.0
-// Latest commit: chore/api-contract-baseline
+// Version : 1.3.0
+// Latest commit: task/notifications-api
 // Author : Gerrah
 // Purpose : Default IAuthenticationService. A sign-in only becomes verified (and so honored as
 // Member by the authentication handler) once the client is recognized or the emailed
-// challenge code has been confirmed.
+// challenge code has been confirmed. An unrecognized client also leaves a notice in the member's inbox.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Shared.Alert;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Notification;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
 
@@ -20,12 +24,25 @@ public class AuthenticationService : IAuthenticationService
 {
     #region Fields
 
+    // The inbox notification for a sign-in attempt from an unrecognized client; the frontend turns the key into text
+    private const string NewLoginNotificationKey = "security.new-login";
+    private const string NewLoginDedupePrefix = "new-login";
+    private const string IpAddressDataName = "ipAddress";
+    private const string UserAgentDataName = "userAgent";
+
+    // The notification contract allows data values up to 500 characters
+    private const int MaxDataValueLength = 500;
+
+    // The fingerprint is base64, which a dedupe key may not contain, so the key carries a hex hash of it instead
+    private const int DeviceHashLength = 32;
+
     private readonly IUserStore _users;
     private readonly IAccountGateway _accounts;
     private readonly IVerificationCodeService _verification;
     private readonly IGuardDog _guardDog;
     private readonly ISignInTracker _signIns;
     private readonly IAlertSender _alerts;
+    private readonly INotificationSender _notifications;
     private readonly IClock _clock;
     private readonly AuthenticationSettings _settings;
     private readonly ILogger<AuthenticationService> _logger;
@@ -41,6 +58,7 @@ public class AuthenticationService : IAuthenticationService
         IGuardDog guardDog,
         ISignInTracker signIns,
         IAlertSender alerts,
+        INotificationSender notifications,
         IClock clock,
         IOptions<AuthenticationSettings> settings,
         ILogger<AuthenticationService> logger)
@@ -51,6 +69,7 @@ public class AuthenticationService : IAuthenticationService
         _guardDog = guardDog;
         _signIns = signIns;
         _alerts = alerts;
+        _notifications = notifications;
         _clock = clock;
         _settings = settings.Value;
         _logger = logger;
@@ -205,6 +224,7 @@ public class AuthenticationService : IAuthenticationService
         if (issue.Status == VerificationIssueStatus.Sent)
         {
             await AlertNewLoginAsync(email, client, cancellationToken);
+            await RecordNewLoginAsync(user.Id, client, cancellationToken);
         }
 
         return new LoginResult(
@@ -233,6 +253,53 @@ public class AuthenticationService : IAuthenticationService
         {
             _logger.LogWarning(exception, "Could not send the new-login alert.");
         }
+    }
+
+    // Leaves a notice in the member's inbox, so they see the attempt the next time they open the site.
+    // Like the email, a failure is logged and must not break the login.
+    private async Task RecordNewLoginAsync(
+        string userId,
+        ClientInfo client,
+        CancellationToken cancellationToken)
+    {
+        var data = new Dictionary<string, string>
+        {
+            [IpAddressDataName] = Truncate(client.IpAddress),
+            [UserAgentDataName] = Truncate(client.UserAgent)
+        };
+
+        var request = new NotificationRequest(userId, NewLoginNotificationKey, data, BuildDedupeKey(client));
+
+        try
+        {
+            var result = await _notifications.SendNotificationAsync(request, cancellationToken);
+
+            if (result.Status is NotificationStatus.Failed or NotificationStatus.Conflict)
+            {
+                _logger.LogWarning("The new-login notification was not stored ({Status}).", result.Status);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger.LogWarning(exception, "Could not record the new-login notification.");
+        }
+    }
+
+    // One notice per device per day: the same client on the same UTC day lands on the same notification
+    private string BuildDedupeKey(ClientInfo client)
+    {
+        var device = Convert
+            .ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(client.Fingerprint)))[..DeviceHashLength];
+
+        var day = _clock.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+
+        return $"{NewLoginDedupePrefix}:{device}:{day}";
+    }
+
+    // Keeps a value inside what the notification contract accepts
+    private static string Truncate(string value)
+    {
+        return value.Length <= MaxDataValueLength ? value : value[..MaxDataValueLength];
     }
 
     // Restores the account and records the sign-in in one write; false if the account can no longer be restored
