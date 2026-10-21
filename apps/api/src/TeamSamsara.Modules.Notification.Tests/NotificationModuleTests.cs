@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification.Tests/NotificationModuleTests.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-erasure
+// Version : 1.1.0
+// Latest commit: task/notifications-api
 // Author : Gerrah
 // Purpose : Proves the module's registrations resolve and that its eraser is offered to the account purge exactly once.
 
@@ -50,6 +50,17 @@ public class NotificationModuleTests
         var sender = scope.ServiceProvider.GetRequiredService<INotificationSender>();
 
         sender.ShouldBeOfType<NotificationSender>();
+    }
+
+    [Fact]
+    public void TheModule_ResolvesItsInboxService()
+    {
+        using var provider = BuildProvider(registrations: 1);
+        using var scope = provider.CreateScope();
+
+        var inbox = scope.ServiceProvider.GetRequiredService<IInboxService>();
+
+        inbox.ShouldBeOfType<InboxService>();
     }
 
     #endregion

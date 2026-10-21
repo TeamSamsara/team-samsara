@@ -402,6 +402,35 @@ Both answer `204 No Content` with no body, and repeating them is harmless.
   no verified sign-in to end and gets `403`. To abandon the device challenge the client calls
   Firebase `signOut()` and returns to the login screen; nothing was recorded on the server.
 
+### Notifications (`/notifications`) - verified member
+
+Every call reads or changes the caller's own notifications; nobody can see or touch another
+member's.
+
+| Method | Path                          | Does                                                                                    |
+| ------ | ----------------------------- | --------------------------------------------------------------------------------------- |
+| `GET`  | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor`             |
+| `GET`  | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                            |
+| `POST` | `/notifications/{id}/read`    | Marks one notification read                                                             |
+| `POST` | `/notifications/read-all`     | Marks every unread notification read, up to 10,000 in one call                          |
+
+- **Items.** The list answers `{"items": [...], "nextCursor": "..." | null}`. Each item is
+  `{id, key, data, createdAt, readAt}`; `readAt` is `null` while unread. The category is not sent;
+  the frontend derives it from `key`, and turns `key` and `data` into text.
+- **Order and paging.** Newest first by `createdAt`, then by id. `limit` defaults to 20 and is
+  clamped to 1-50. `nextCursor` is opaque and versioned: send it back unchanged as `?cursor=` for
+  the next page, and `null` means there is no next page. A malformed cursor answers `400` with an
+  empty body, and so does a `limit` that is not a number. A page can hold fewer items than `limit`
+  when some have expired but the TTL has not deleted them yet; keep following `nextCursor`.
+- **Unread count.** Counts the caller's notifications that have no `readAt`.
+- **Mark read.** Idempotent: a second call keeps the first `readAt` and answers `204` as well. The
+  id must look like a notification id (32 or 64 lowercase hex characters); an unknown id, a
+  malformed one and someone else's all answer `404` with an empty body, so ids cannot be probed.
+- **Mark all read.** Answers `204` with no body, including when nothing was unread. It works in
+  batches of 500 and stops after 20, so a member with more than 10,000 unread notifications calls
+  it again.
+- **Storage failures** are unexpected failures (`application/problem+json`), like everywhere else.
+
 ### Assets (`/assets`)
 
 | Method   | Path                | Access  | Does                                                                  |
@@ -530,8 +559,8 @@ use it, because they share the step-up purpose).
 ## Notifications
 
 The Notification module keeps a member's inbox. Other modules send into it through
-`INotificationSender` from `TeamSamsara.Shared`; nothing reads the inbox yet, because the inbox
-API is not built (see Planned work below).
+`INotificationSender` from `TeamSamsara.Shared`; a member reads it through the inbox endpoints
+(see Notifications under API Endpoints).
 
 ```csharp
 NotificationResult result = await sender.SendNotificationAsync(
@@ -586,6 +615,20 @@ deleted; if that fails, the account is retried on the next purge run. A notifica
 the member while their purge is running can be missed by that run and then stays until the TTL
 deletes it, at most `RetentionDays` later.
 
+### Notifications the API sends
+
+| Key                  | When                                                           | `Data`                                                     |
+| -------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `security.new-login` | A sign-in from an unrecognized client, when its code goes out | `ipAddress` and `userAgent` (each cut to 500 characters) |
+
+- **`security.new-login`** is sent by `AuthenticationService` next to the new-login email. The
+  `DedupeKey` is `new-login:<device>:<yyyyMMdd>`, where `<device>` is 32 hex characters hashed from
+  the client fingerprint and the day is the UTC day, so the same client on the same day leaves one
+  notice however many times it tries. It is not sent for a recognized client, during the resend
+  cooldown, or when a code is resent.
+- **Best effort.** If the notification cannot be stored, a warning is logged and the sign-in
+  carries on exactly as before: the code email has already gone out and the notice is a courtesy.
+
 ### Notifications deployment
 
 Nothing in CI deploys Firestore configuration; it is applied by hand with
@@ -597,39 +640,22 @@ notification:
 2. **Security rules.** `firestore.rules` denies all client access to `notifications`; the API
    reads and writes through the Admin SDK. Deploying rules overwrites the live ones, so compare
    them with the console first.
-3. **Indexes.** The inbox endpoints will need a composite index on `RecipientId` and `CreatedAt`;
-   it must be deployed and Ready before they are merged. The first deploy of
+3. **Indexes.** The inbox list needs a composite index on `RecipientId` ascending, `CreatedAt`
+   descending and `__name__` descending, declared in `firestore.indexes.json`; it must be deployed
+   and Ready before the inbox endpoints are merged, or the list answers an error. The first deploy of
    `firestore.indexes.json` may offer to delete live indexes that are not in the file; read that
    prompt before answering.
 
 ### Notifications planned work
 
-**Inbox API (designed, not built).** Nothing needs it yet, so it is built when the first feature
-has something to tell a member, such as the shop's order updates. It is member-only (verified
-member), and every call reads or changes the caller's own notifications.
+**Inbox API: check against real Firestore.** The in-memory fakes cannot reproduce cursors, the
+unread count, equality on an empty `ReadAt` or index requirements, so after the index is Ready on
+Staging, call the endpoints once with a real member's token: list with `?limit=1` and follow
+`nextCursor` to the end, read the unread count, mark one notification read and check the count
+drops, then mark all read. A pass against the Firestore emulator would also do.
 
-| Method | Path                          | Does                                                                        |
-| ------ | ----------------------------- | --------------------------------------------------------------------------- |
-| `GET`  | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor` |
-| `GET`  | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                |
-| `POST` | `/notifications/{id}/read`    | Marks one notification read                                                 |
-
-- **Items.** Each one is `{id, key, data, createdAt, readAt}`. The category is not sent; the
-  frontend derives it from `key`.
-- **Order and paging.** Newest first by `CreatedAt`, then by document id. The list fetches one
-  more than `limit` to know whether another page exists. `limit` defaults to 20 and is clamped to 50. The cursor is opaque, versioned and built from the last item's stored timestamp and id; a
-  malformed cursor answers `400`.
-- **Unread count.** A Firestore count of the caller's notifications whose `ReadAt` is empty.
-- **Mark read.** Idempotent: a second call keeps the first `readAt` and answers `204` as well. The
-  id must look like a notification id (32 or 64 lowercase hex characters); an unknown id or
-  someone else's answers `404` with an empty body. The change runs in a transaction.
-- **Needs.** A composite index on `RecipientId` ascending and `CreatedAt` descending, added to
-  `firestore.indexes.json` and deployed and Ready before the PR merges; `.Produces<>` metadata on
-  the endpoints so the OpenAPI contract stays accurate; and a pass against the Firestore emulator,
-  because the in-memory fakes cannot reproduce empty-value equality, counting, cursors or index
-  requirements.
-- **Not planned yet.** Mark all read, mark unread, delete, per-member preferences, other delivery
-  channels (email, push) and sending one notification to many members.
+**Not planned yet.** Mark unread, delete, per-member preferences, other delivery channels (email,
+push) and sending one notification to many members.
 
 **Before the first producer.** The first module that calls `INotificationSender` in code that
 reaches `dev` does these, in this order:
@@ -643,9 +669,9 @@ reaches `dev` does these, in this order:
    business operation that already committed) and what its `DedupeKey` is, if any.
 4. Repeat step 1 for the production project at cutover.
 
-A producer whose notification a member must see waits for the inbox API above. Until then
-notifications are stored and expire normally, but nothing shows them. A feature that only emails
-someone, such as the contact form, needs none of this.
+A producer's notifications reach the member through the inbox API; the frontend turns each key
+into text, so a new key needs a renderer there. A feature that only emails someone, such as the
+contact form, needs none of this.
 
 ## Git Workflow
 
@@ -995,8 +1021,8 @@ Nothing is planned at the moment.
 
 Run this audit once every backend module is built. Findings so far, from the code that exists:
 
-- `AuthenticationService` - the new-login alert is awaited inside the sign-in request and its
-  failure is swallowed. Candidate for the queue.
+- `AuthenticationService` - the new-login alert and the new-login inbox notice are awaited inside
+  the sign-in request and their failures are swallowed. Candidate for the queue.
 - `PasswordService` - the password-changed notice is awaited inside the request and its failure
   is swallowed. Candidate for the queue.
 - `VerificationCodeService` - the code email stays inline. `IssueAsync` discards the stored code

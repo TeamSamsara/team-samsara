@@ -1,9 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/AuthenticationServiceTests.cs
-// Version : 1.1.0
-// Latest commit: feat/account-purge
+// Version : 1.2.0
+// Latest commit: task/notifications-api
 // Author : Gerrah
 // Purpose : Proves login: a recognized client is verified straight away, an unrecognized one
-// must confirm a code (and the member is told), deleted accounts are restored only after a
+// must confirm a code (and the member is told, by email and in the inbox), deleted accounts are restored only after a
 // confirmed code, only up to the end of the recovery window, and never while a purge holds them.
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +14,7 @@ using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Tests.Fakes;
 using TeamSamsara.Shared.Alert;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Notification;
 
 namespace TeamSamsara.Modules.Identity.Tests;
 
@@ -27,11 +28,13 @@ public class AuthenticationServiceTests
 
     private static readonly ClientInfo _knownClient = new("203.0.113.7", "TestBrowser", "fingerprint-a");
     private static readonly ClientInfo _newClient = new("198.51.100.9", "OtherBrowser", "fingerprint-b");
+    private static readonly ClientInfo _thirdClient = new("192.0.2.1", "ThirdBrowser", "fingerprint-c");
 
     private readonly InMemoryUserStore _users = new();
     private readonly InMemoryVerificationCodeStore _codes = new();
     private readonly InMemoryCacheService _cache = new();
     private readonly RecordingAlertSender _alerts = new();
+    private readonly RecordingNotificationSender _notifications = new();
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeGuardDog _guardDog = new();
     private readonly FakeClock _clock = new();
@@ -58,6 +61,7 @@ public class AuthenticationServiceTests
             _guardDog,
             _signIns,
             _alerts,
+            _notifications,
             _clock,
             Options.Create(_settings),
             NullLogger<AuthenticationService>.Instance);
@@ -147,6 +151,157 @@ public class AuthenticationServiceTests
 
         result.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
         _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.LoginCode);
+    }
+
+    [Fact]
+    public async Task Check_FromAnUnrecognizedClient_PutsANoticeInTheInbox()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        var request = _notifications.Requests.ShouldHaveSingleItem();
+        request.RecipientId.ShouldBe(UserId);
+        request.Key.ShouldBe("security.new-login");
+        request.Data.ShouldNotBeNull();
+        request.Data["ipAddress"].ShouldBe(_newClient.IpAddress);
+        request.Data["userAgent"].ShouldBe(_newClient.UserAgent);
+        request.DedupeKey.ShouldNotBeNull();
+        request.DedupeKey.ShouldMatch(@"^new-login:[0-9a-f]{32}:20260101\z");
+    }
+
+    [Fact]
+    public async Task Check_FromARecognizedClient_PutsNothingInTheInbox()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _notifications.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Check_AgainDuringTheCooldown_PutsNoSecondNoticeInTheInbox()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _notifications.Requests.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Resend_PutsNoNoticeInTheInbox()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _clock.Advance(TimeSpan.FromSeconds(_verificationSettings.ResendCooldownSeconds + 1));
+        await _service.ResendChallengeAsync(UserId);
+
+        _notifications.Requests.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Check_FromTheSameClientLaterTheSameDay_UsesTheSameDedupeKey()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _clock.Advance(TimeSpan.FromSeconds(_verificationSettings.ResendCooldownSeconds + 1));
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _notifications.Requests.Count.ShouldBe(2);
+        _notifications.Requests[1].DedupeKey.ShouldBe(_notifications.Requests[0].DedupeKey);
+    }
+
+    [Fact]
+    public async Task Check_FromTheSameClientTheNextDay_UsesAnotherDedupeKey()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _clock.Advance(TimeSpan.FromDays(1));
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _notifications.Requests.Count.ShouldBe(2);
+        _notifications.Requests[1].DedupeKey.ShouldNotBe(_notifications.Requests[0].DedupeKey);
+    }
+
+    [Fact]
+    public async Task Check_FromAnotherUnrecognizedClient_UsesAnotherDedupeKey()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _clock.Advance(TimeSpan.FromSeconds(_verificationSettings.ResendCooldownSeconds + 1));
+        _guardDog.Current = _thirdClient;
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        _notifications.Requests.Count.ShouldBe(2);
+        _notifications.Requests[1].DedupeKey.ShouldNotBe(_notifications.Requests[0].DedupeKey);
+    }
+
+    [Fact]
+    public async Task Check_FromAClientWithAVeryLongUserAgent_KeepsTheNoticeWithinTheContract()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = new ClientInfo("198.51.100.9", new string('x', 600), "fingerprint-b");
+
+        await _service.CheckSignInAsync(UserId, AuthTime);
+
+        var request = _notifications.Requests.ShouldHaveSingleItem();
+        request.Data.ShouldNotBeNull();
+        request.Data["userAgent"].ShouldBe(new string('x', 500));
+    }
+
+    [Fact]
+    public async Task Check_WhenTheInboxFails_StillChallenges_AndEmailsTheMember()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        _notifications.FailureToThrow = new InvalidOperationException("Simulated inbox failure.");
+
+        var result = await _service.CheckSignInAsync(UserId, AuthTime);
+
+        result.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
+        _alerts.Sent.Select(alert => alert.Type).ShouldBe(new[] { AlertType.LoginCode, AlertType.NewLoginAttempt });
+    }
+
+    [Theory]
+    [InlineData(NotificationStatus.Failed)]
+    [InlineData(NotificationStatus.Conflict)]
+    [InlineData(NotificationStatus.Duplicate)]
+    public async Task Check_WhenTheInboxReportsAnythingButStored_StillChallenges(NotificationStatus status)
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        _notifications.StatusToReturn = status;
+
+        var result = await _service.CheckSignInAsync(UserId, AuthTime);
+
+        result.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
+        _notifications.Requests.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Check_WhenTheNewLoginEmailFails_StillPutsANoticeInTheInbox()
+    {
+        _users.Seed(NewMemberWhoKnows(_knownClient));
+        _guardDog.Current = _newClient;
+        _alerts.FailingTypes.Add(AlertType.NewLoginAttempt);
+
+        var result = await _service.CheckSignInAsync(UserId, AuthTime);
+
+        result.Status.ShouldBe(AuthenticationStatus.ChallengeRequired);
+        _notifications.Requests.ShouldHaveSingleItem();
     }
 
     [Fact]
