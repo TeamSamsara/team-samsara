@@ -1,12 +1,15 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/NavbarAccount.tsx
-// Version : 1.2.0
-// Latest commit: task/web-account-security
+// Version : 1.3.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : The avatar menu in the navbar: who is signed in, edit profile, account security and log out.
+// Until the profile loads it draws the avatar from the last visit's note, so a refresh does not flash an empty one.
 
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
 import { useMyProfile } from "@/features/account/hooks/useMyProfile";
+import { readAuthHint, saveAuthHint } from "@/lib/authHint";
 import { assetUrl } from "@/lib/assetUrl";
 import { Dropdown } from "@/shared/components/Dropdown/Dropdown";
 import { DropdownItem } from "@/shared/components/Dropdown/DropdownItem";
@@ -20,9 +23,27 @@ import styles from "./Navbar.module.css";
 export function NavbarAccount() {
   const { signOut } = useAuth();
   const { data: profile } = useMyProfile();
+  const [hint] = useState(readAuthHint);
 
+  const hasProfile = profile !== undefined;
   const displayName = profile?.displayName ?? "";
-  const initial = displayName.charAt(0).toUpperCase();
+  const profileInitial = displayName.charAt(0).toUpperCase();
+  const profilePictureAssetId = profile?.profilePictureAssetId ?? null;
+
+  const initial = hasProfile ? profileInitial : (hint?.initial ?? "");
+  const pictureAssetId = hasProfile
+    ? profilePictureAssetId
+    : (hint?.pictureAssetId ?? null);
+
+  // The next refresh starts from what this visit showed.
+  useEffect(() => {
+    if (hasProfile) {
+      saveAuthHint({
+        initial: profileInitial,
+        pictureAssetId: profilePictureAssetId,
+      });
+    }
+  }, [hasProfile, profileInitial, profilePictureAssetId]);
 
   return (
     <Dropdown>
@@ -31,10 +52,10 @@ export function NavbarAccount() {
         className={styles.avatarButton}
         aria-label={NavbarText.accountMenu}
       >
-        {profile?.profilePictureAssetId ? (
+        {pictureAssetId ? (
           <img
             className={styles.avatarImage}
-            src={assetUrl(profile.profilePictureAssetId)}
+            src={assetUrl(pictureAssetId)}
             alt=""
           />
         ) : (

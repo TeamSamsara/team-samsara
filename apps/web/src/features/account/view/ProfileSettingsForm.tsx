@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsForm.tsx
-// Version : 1.1.0
-// Latest commit: task/web-account-security
+// Version : 1.2.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : The edit-profile layout: the public profile in edit mode, with a
 // banner, an overlapping picture, the name, handle and bio as fields, and
 // Cancel and Save changes. The state and the saving live in useProfileForm.
+// Discarding changes puts the saved values back and keeps the member here.
 
 import { useId, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +15,7 @@ import { routePaths } from "@/shared/constants/routePaths";
 import { useLanguage } from "@/shared/hooks/useLanguage";
 import { Icon } from "@/shared/icons/Icon";
 import type { IconName } from "@/shared/icons/iconRegistry";
+import { useProfileForm } from "../hooks/useProfileForm";
 import type { ProfileView } from "../types/profileTypes";
 import { AvatarPicker } from "../ui/AvatarPicker";
 import { BannerPicker } from "../ui/BannerPicker";
@@ -25,7 +27,6 @@ import {
 } from "../validation/profileValidation";
 import styles from "./ProfileSettingsPage.module.css";
 import { ProfileSettingsText } from "./profileSettingsContent";
-import { useProfileForm } from "./useProfileForm";
 
 type NoteTone = "muted" | "ok" | "error";
 
@@ -66,6 +67,11 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
     }
 
     leave();
+  }
+
+  function discard() {
+    form.discard();
+    setIsConfirmingCancel(false);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -298,7 +304,7 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
             >
               {ProfileSettingsText.keepEditing}
             </button>
-            <button type="button" className={styles.save} onClick={leave}>
+            <button type="button" className={styles.save} onClick={discard}>
               <span>{ProfileSettingsText.discard}</span>
             </button>
           </div>

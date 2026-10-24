@@ -1,8 +1,8 @@
 /* File : /team-samsara/apps/web/src/shared/components/ImagePicker/ImagePicker.module.css
-   Version : 1.1.0
-   Latest commit: task/web-account-settings
+   Version : 1.2.1
+   Latest commit: task/web-notifications
    Author : Gerrah
-   Purpose : Look of the image picker: a round or banner picture, with either buttons beside it or a camera button on it that opens an Upload / Remove menu. A screen can resize it by setting --picker-size (round), --picker-height and --picker-radius (banner) on a wrapper. */
+   Purpose : Look of the image picker: a round or banner picture, with either buttons beside it or a camera button on it that opens an Upload / Remove menu. The camera button reacts to hover, press and an open menu, and a banner's message shows as a pill on the banner so nothing can cover it. A screen can resize it by setting --picker-size (round), --picker-height and --picker-radius (banner) on a wrapper. */
 
 /* ---- The picture ---- */
 
@@ -124,6 +124,11 @@
   gap: calc(10 * var(--px));
   border: 0;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease;
 }
 
 .circle .trigger {
@@ -143,6 +148,19 @@
   border-radius: calc(10 * var(--px));
   background-color: white;
   color: var(--color-text-on-light);
+  box-shadow: 0 calc(2 * var(--px)) calc(10 * var(--px))
+    color-mix(in srgb, black 25%, transparent);
+}
+
+/* Hover and an open menu turn the button brand green; pressing it moves it in a little. */
+.trigger:hover,
+.trigger[data-open="true"] {
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.trigger:active {
+  transform: scale(0.96);
 }
 
 .triggerIcon {
@@ -229,7 +247,40 @@
   color: var(--color-error);
 }
 
+/* A banner's message would land in the strip the avatar block overlaps, so it shows as a pill on the
+   banner itself, top-left, above everything. */
+.banner.overlay {
+  position: relative;
+}
+
+.banner.overlay > .hint,
+.banner.overlay > .error {
+  position: absolute;
+  top: calc(24 * var(--px));
+  left: calc(24 * var(--px));
+  z-index: 6;
+  max-width: calc(100% - calc(48 * var(--px)));
+  margin: 0;
+  padding: calc(10 * var(--px)) calc(18 * var(--px));
+  border-radius: calc(10 * var(--px));
+  background-color: white;
+  box-shadow: 0 calc(2 * var(--px)) calc(10 * var(--px))
+    color-mix(in srgb, black 25%, transparent);
+  opacity: 1;
+}
+
 /* The file input is opened by a button; it never shows. */
 .input {
   display: none;
+}
+
+/* Reduced motion: the camera button changes colour at once and does not move. */
+@media (prefers-reduced-motion: reduce) {
+  .trigger {
+    transition: none;
+  }
+
+  .trigger:active {
+    transform: none;
+  }
 }

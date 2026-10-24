@@ -1,8 +1,8 @@
 /* File : /team-samsara/apps/web/src/shared/components/SiteLayout/SiteLayout.module.css
-   Version : 1.2.0
-   Latest commit: feature/web-home-page
+   Version : 1.3.0
+   Latest commit: task/web-notifications
    Author : Gerrah
-   Purpose : Keeps page content below the fixed Navbar, except on pages that start under it (the home hero), and keeps the Footer at the bottom of the window on short pages. */
+   Purpose : Keeps page content below the fixed Navbar, except on pages that start under it (the home hero), and keeps the Footer at the bottom of the window on short pages. While the sign-in banner grows or collapses, the page slides with it instead of jumping. */
 
 .layout {
   display: flex;
@@ -15,6 +15,50 @@
   padding-top: var(--navbar-height);
 }
 
+/* The home page starts under the Navbar, so it has no padding of its own. */
 .flush {
   padding-top: 0;
+}
+
+/* While the banner is showing, it clears the Navbar itself, so the page needs no padding. */
+.underBanner {
+  padding-top: 0;
+}
+
+/* On pages with a padding, it eases away as the banner grows in and back as it collapses, with the
+   same length and easing as the banner, so the content slides instead of jumping. */
+.underBanner:not(.flush) {
+  animation: main-clear var(--motion-grow) var(--ease-out) both;
+}
+
+.afterBanner:not(.flush) {
+  animation: main-return 300ms ease both;
+}
+
+@keyframes main-clear {
+  from {
+    padding-top: var(--navbar-height);
+  }
+
+  to {
+    padding-top: 0;
+  }
+}
+
+@keyframes main-return {
+  from {
+    padding-top: 0;
+  }
+
+  to {
+    padding-top: var(--navbar-height);
+  }
+}
+
+/* Reduced motion: the banner only fades, so the page just takes its final padding. */
+@media (prefers-reduced-motion: reduce) {
+  .underBanner:not(.flush),
+  .afterBanner:not(.flush) {
+    animation: none;
+  }
 }

@@ -1,9 +1,10 @@
 // File : /team-samsara/apps/web/src/app/AuthProvider.tsx
-// Version : 2.0.0
-// Latest commit: task/web-auth-foundation
+// Version : 2.1.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : Owns the resolved auth state. Firebase says who signed in; GET /account/me says
 // what they may do. A generation counter keeps a slow answer from overwriting a newer one.
+// It also keeps the navbar's "last visit was a member" note in step with each answer.
 
 import {
   useCallback,
@@ -20,6 +21,7 @@ import {
 } from "firebase/auth";
 import { getAccount, logOut } from "@/features/auth/service/accountService";
 import type { AccessLevel } from "@/features/auth/types/authTypes";
+import { clearAuthHint, ensureAuthHint } from "@/lib/authHint";
 import { auth } from "@/lib/firebase";
 import {
   AuthContext,
@@ -75,6 +77,19 @@ async function resolveAccount(user: User | null): Promise<ResolvedAccount> {
   }
 }
 
+// Keeps the navbar's note in step with the API's answer. "unavailable" means the
+// call failed rather than answered, so it leaves the note as it was.
+function syncAuthHint(status: AuthStatus): void {
+  if (status === "member") {
+    ensureAuthHint();
+    return;
+  }
+
+  if (status !== "unavailable") {
+    clearAuthHint();
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<ResolvedAccount>(loadingAccount);
@@ -93,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       currentStatus.current = resolved.status;
+      syncAuthHint(resolved.status);
       setUser(resolved.tokenRejected ? null : nextUser);
       setAccount(resolved);
 
@@ -117,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    clearAuthHint();
     // Best effort: a failed server call must not keep the person signed in here.
     await logOut();
     await firebaseSignOut(auth);

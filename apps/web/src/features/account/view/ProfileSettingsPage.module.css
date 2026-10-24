@@ -1,8 +1,8 @@
 /* File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsPage.module.css
-   Version : 1.1.0
-   Latest commit: task/web-account-security
+   Version : 1.2.0
+   Latest commit: task/web-notifications
    Author : Gerrah
-   Purpose : Layout of the edit-profile page: banner, overlapping picture, fields column, Cancel and Save changes. Also the loading and error status shown by the page loader. */
+   Purpose : Layout of the edit-profile page: banner, overlapping picture, fields column, Cancel and Save changes. Also the loading and error status shown by the page loader. The block that overlaps the banner lets clicks through to the banner's camera button. */
 
 .status {
   display: grid;
@@ -43,12 +43,21 @@
   --picker-radius: calc(24 * var(--px));
 }
 
+/* This block is pulled up over the bottom of the banner, where the banner's camera button sits, so
+   it must not catch clicks itself; only what is inside it that needs the mouse switches it back on. */
 .identity {
   position: relative;
   min-height: calc(256 * var(--px));
   margin-top: calc(-140 * var(--px));
   padding-top: calc(168 * var(--px));
   padding-left: calc(368 * var(--px));
+  pointer-events: none;
+}
+
+.avatar,
+.actions,
+.fields {
+  pointer-events: auto;
 }
 
 .avatar {

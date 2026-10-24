@@ -1,13 +1,18 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.tsx
-// Version : 1.2.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.4.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : The fixed top navigation bar shown on every page: transparent over
 // a hero until the page scrolls, then solid. Shows Sign in / Log in for guests
-// and the account menu for signed-in members.
+// and the notification bell and account menu for signed-in members. While the
+// session is still being checked it draws the member layout if the last visit
+// was a member, so a refresh does not flash the guest buttons.
 
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/app/useAuth";
+import { NotificationBell } from "@/features/notification/ui/NotificationBell";
+import { readAuthHint } from "@/lib/authHint";
 import { routePaths } from "@/shared/constants/routePaths";
 import { useScrollPast } from "@/shared/hooks/useScrollPast";
 import {
@@ -27,6 +32,11 @@ export function Navbar({ transparentAtTop = false }: NavbarProps) {
   const { status } = useAuth();
   const hasScrolled = useScrollPast(navbarSolidAfterScrollY);
   const isSolid = !transparentAtTop || hasScrolled;
+
+  // Read once, on the first render: it only covers the moment before the real answer.
+  const [wasMember] = useState(() => readAuthHint() !== null);
+  const showsMember =
+    status === "member" || (status === "loading" && wasMember);
 
   return (
     <header className={`${styles.navbar} ${isSolid ? styles.solid : ""}`}>
@@ -48,8 +58,11 @@ export function Navbar({ transparentAtTop = false }: NavbarProps) {
       <div className={styles.actions}>
         <NavbarLanguage />
 
-        {status === "member" ? (
-          <NavbarAccount />
+        {showsMember ? (
+          <>
+            <NotificationBell />
+            <NavbarAccount />
+          </>
         ) : (
           <div className={styles.buttons}>
             <Link
