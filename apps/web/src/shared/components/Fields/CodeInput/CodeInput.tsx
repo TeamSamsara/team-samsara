@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/components/Fields/CodeInput/CodeInput.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-codes-reset
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The generic one-time code input, one box per digit. It handles
 // typing, deleting, arrow keys and pasting; what the code is for, and when it
@@ -14,6 +14,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
 } from "react";
+import { FieldError } from "../FieldError/FieldError";
 import { CodeInputText } from "./codeInputContent";
 import styles from "./CodeInput.module.css";
 
@@ -201,10 +202,8 @@ export function CodeInput({
         ))}
       </div>
 
-      {hasError ? (
-        <p id={errorId} className={styles.error} role="alert">
-          {error}
-        </p>
+      {error ? (
+        <FieldError id={errorId} message={error} className={styles.error} />
       ) : null}
     </div>
   );

@@ -30,6 +30,11 @@ interface FieldErrors {
   readonly password: string | null;
 }
 
+const wrongCredentialsMessage = LoginPageText.failureMessage(
+  "invalidCredentials",
+  null,
+);
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { refreshAccount } = useAuth();
@@ -46,9 +51,11 @@ export function LoginPage() {
   // An error that is showing goes away as soon as the value is fixed.
   function changeEmail(value: string) {
     setEmail(value);
-    if (errors.email) {
-      setErrors((current) => ({ ...current, email: validateEmail(value) }));
-    }
+    setErrors((current) => ({
+      email: current.email ? validateEmail(value) : null,
+      password:
+        current.password === wrongCredentialsMessage ? null : current.password,
+    }));
   }
 
   function changePassword(value: string) {
@@ -102,6 +109,13 @@ export function LoginPage() {
         return;
       case "failed":
         setIsSubmitting(false);
+        if (attempt.reason === "invalidCredentials") {
+          setErrors((current) => ({
+            ...current,
+            password: wrongCredentialsMessage,
+          }));
+          return;
+        }
         setFormError(
           LoginPageText.failureMessage(
             attempt.reason,
@@ -162,7 +176,10 @@ export function LoginPage() {
           onBlur={() =>
             setErrors((current) => ({
               ...current,
-              password: validateExistingPassword(password),
+              password:
+                current.password === wrongCredentialsMessage
+                  ? current.password
+                  : validateExistingPassword(password),
             }))
           }
         />

@@ -1,0 +1,107 @@
+/* File : /team-samsara/apps/web/src/shared/components/InlineMessage/InlineMessage.module.css
+   Version : 1.1.0
+   Latest commit: task/web-toast-messages
+   Author : Gerrah
+   Purpose : Look and motion of an error line inside a form or modal: it grows in under the fields, pushing what is below it down smoothly, and collapses before it leaves. Reduced motion keeps only a short fade. */
+
+/* A one-cell grid whose height grows from zero; .reveal clips while it does. */
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: inline-grow var(--motion-base) var(--ease-out) both;
+}
+
+.collapse[data-closing="true"] {
+  animation: inline-collapse var(--motion-base) ease both;
+}
+
+.reveal {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.text {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  color: var(--color-error);
+  font-family: var(--font-body);
+  font-size: max(13px, calc(16 * var(--px)));
+  font-weight: 500;
+  line-height: 1.25;
+  animation: inline-text-in var(--motion-base) var(--ease-out) both;
+}
+
+.collapse[data-closing="true"] .text {
+  animation: inline-text-out var(--motion-fast) ease both;
+}
+
+.icon {
+  --icon-size: 1.2em;
+}
+
+@keyframes inline-grow {
+  from {
+    grid-template-rows: 0fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+
+@keyframes inline-collapse {
+  from {
+    grid-template-rows: 1fr;
+  }
+  to {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes inline-text-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes inline-text-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes inline-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes inline-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse {
+    animation: inline-fade-in var(--motion-fast) ease both;
+  }
+
+  .collapse[data-closing="true"] {
+    animation: inline-fade-out var(--motion-fast) ease both;
+  }
+
+  .text,
+  .collapse[data-closing="true"] .text {
+    animation: none;
+  }
+}

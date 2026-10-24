@@ -1,12 +1,13 @@
 // File : /team-samsara/apps/web/src/features/account/view/LogOutEverywhereModal.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The "sign out everywhere" modal opened from the security overview. It asks
 // first; once every session is ended it turns into the signed-out message.
 
 import { useState } from "react";
 import { CodeVerifyMessages } from "@/features/auth/view/codeVerifyContent";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Modal } from "@/shared/components/Modal/Modal";
 import { endAllSessions } from "../service/sessionsService";
 import { SignedOutModal } from "../ui/SignedOutModal";
@@ -59,11 +60,7 @@ export function LogOutEverywhereModal({ onClose }: LogOutEverywhereModalProps) {
       onClose={onClose}
     >
       <p className={styles.description}>{LogOutEverywhereText.description}</p>
-      {error ? (
-        <p className={`${styles.note} ${styles.noteError}`} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <InlineMessage message={error} withIcon />
       <div className={styles.actions}>
         <button
           type="button"

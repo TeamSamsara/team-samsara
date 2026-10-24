@@ -1,12 +1,12 @@
 /* File : /team-samsara/apps/web/src/shared/components/Fields/TextField/TextField.module.css
-   Version : 1.3.0
-   Latest commit: task/web-auth-onboarding-navbar
+   Version : 1.6.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
-   Purpose : Look of the text field, from the Figma log in frame: a 62 px tall outlined box with 10 px corners. Space for one error line is always kept under it, so showing an error never moves the form. */
+   Purpose : Look of the text field, from the Figma log in frame: a 62 px tall outlined box with 10 px corners. The error shows inside the box at the right end, and the space under the box stays reserved, so showing an error never moves the form. */
 
 .field {
   position: relative;
-  /* One error line (24 px) is reserved under the box. */
+  /* Space under the box: the gap to the next field. */
   padding-bottom: calc(24 * var(--px));
 }
 
@@ -63,13 +63,20 @@
   outline: none;
 }
 
+/* Chrome paints an autofilled field pale blue, and only the input part of the box. Pushing that
+   change back (about 11 days) keeps the box one colour, so the error beside it stays readable. */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus,
+.input:-webkit-autofill:active {
+  transition: background-color 999999s ease-in-out 0s;
+}
+
+/* The message inside the box: at the right end, up to two lines, never more than 55% of the width. */
 .error {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  margin: 0;
-  color: var(--color-error);
-  font-family: var(--font-body);
-  font-size: var(--text-control);
-  line-height: calc(24 * var(--px));
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  max-width: 55%;
+  margin-right: calc(16 * var(--px));
+  text-align: right;
 }

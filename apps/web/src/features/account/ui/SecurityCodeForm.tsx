@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/web/src/features/account/ui/SecurityCodeForm.tsx
-// Version : 1.2.0
-// Latest commit: task/web-account-security
+// Version : 1.3.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The code step shared by the account security pages: the heading, the code
 // boxes, the confirm and cancel buttons, and a resend link with its countdown. The page
-// decides what the code is for; this form only collects it and shows how it went.
+// decides what the code is for; this form only collects it and shows how it went. A new
+// code being sent shows as a toast; a failed step shows under the boxes.
 
 import { useState, type FormEvent } from "react";
 import type {
@@ -13,6 +14,8 @@ import type {
 } from "@/features/auth/types/codeAttempt";
 import { CodeVerificationText } from "@/features/auth/ui/codeVerificationFormContent";
 import { CodeInput } from "@/shared/components/Fields/CodeInput/CodeInput";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
+import { useToast } from "@/shared/components/Toast/useToast";
 import { useCountdown } from "@/shared/hooks/useCountdown";
 import { Icon } from "@/shared/icons/Icon";
 import styles from "./SecurityStep.module.css";
@@ -56,10 +59,10 @@ export function SecurityCodeForm({
   onResend,
   onCancel,
 }: SecurityCodeFormProps) {
+  const { show } = useToast();
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [isResending, setIsResending] = useState(false);
   // A new round starts the boxes again, with the cursor in the first one.
@@ -79,7 +82,6 @@ export function SecurityCodeForm({
 
     setCodeError(null);
     setFormError(null);
-    setNotice(null);
     setIsConfirming(true);
 
     const attempt = await onConfirm(value);
@@ -108,7 +110,6 @@ export function SecurityCodeForm({
 
     setCodeError(null);
     setFormError(null);
-    setNotice(null);
     setIsResending(true);
 
     const attempt = await onResend();
@@ -116,7 +117,7 @@ export function SecurityCodeForm({
     if (attempt.kind === "waiting") {
       countdown.start(attempt.retryAfterSeconds);
       setCode("");
-      setNotice(CodeVerificationText.resent);
+      show({ tone: "success", title: CodeVerificationText.resent });
       setRound((current) => current + 1);
     } else {
       setFormError(attempt.message);
@@ -161,16 +162,7 @@ export function SecurityCodeForm({
       {codeError && wrongCodeNote ? (
         <p className={styles.noteMuted}>{wrongCodeNote}</p>
       ) : null}
-      {notice ? (
-        <p className={`${styles.note} ${styles.noteOk}`} role="status">
-          {notice}
-        </p>
-      ) : null}
-      {formError ? (
-        <p className={`${styles.note} ${styles.noteError}`} role="alert">
-          {formError}
-        </p>
-      ) : null}
+      <InlineMessage message={formError} withIcon />
 
       <div className={styles.actions}>
         <button

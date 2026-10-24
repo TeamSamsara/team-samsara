@@ -1,15 +1,16 @@
 /* File : /team-samsara/apps/web/src/shared/components/Fields/CodeInput/CodeInput.module.css
-   Version : 1.0.0
-   Latest commit: task/web-auth-codes-reset
+   Version : 1.2.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
    Purpose : Look of the code input: one outlined box per digit, drawn like
    the text field (62 px tall, 10 px corners). One error line is always
-   reserved under the boxes so showing an error never moves the form. */
+   reserved under the boxes, with a small gap above it, so showing an error never
+   moves the form. */
 
 .group {
   position: relative;
-  /* One error line (24 px) is reserved under the boxes. */
-  padding-bottom: calc(24 * var(--px));
+  /* One error line, and a small gap above it, is reserved under the boxes. */
+  padding-bottom: calc(32 * var(--px));
 }
 
 /* Read by screen readers only. */
@@ -64,9 +65,4 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  margin: 0;
-  color: var(--color-error);
-  font-family: var(--font-body);
-  font-size: var(--text-control);
-  line-height: calc(24 * var(--px));
 }

@@ -1,6 +1,6 @@
-// File : /team-samsara/apps/web/src/features/notifications/ui/SecureAccountModal.tsx
-// Version : 1.0.0
-// Latest commit: task/web-notifications
+// File : /team-samsara/apps/web/src/features/notification/ui/SecureAccountModal.tsx
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The "secure your account" modal opened from a sign-in notice. It
 // marks the notice as read, ends every session of the account, then shows the
@@ -12,6 +12,7 @@ import { endAllSessions } from "@/features/account/service/sessionsService";
 import styles from "@/features/account/ui/SecurityStep.module.css";
 import { SignedOutModal } from "@/features/account/ui/SignedOutModal";
 import { CodeVerifyMessages } from "@/features/auth/view/codeVerifyContent";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Modal } from "@/shared/components/Modal/Modal";
 import { markNotificationRead } from "../service/notificationService";
 import { NotificationText } from "../view/notificationContent";
@@ -74,11 +75,7 @@ export function SecureAccountModal({
         {NotificationText.secure.description}
       </p>
       <p className={styles.note}>{NotificationText.secure.note}</p>
-      {error ? (
-        <p className={`${styles.note} ${styles.noteError}`} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <InlineMessage message={error} withIcon />
       <div className={styles.actions}>
         <button
           type="button"

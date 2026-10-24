@@ -1,13 +1,17 @@
 // File : /team-samsara/apps/web/src/shared/components/ImagePicker/useImageChoice.ts
-// Version : 1.0.2
-// Latest commit: task/web-account-settings
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The logic behind an image picker: opens the file dialog, checks the
-// chosen file, keeps a preview of it, and works out which picture to show
-// (the new one, the saved one, or none). Nothing is uploaded here.
+// chosen file (a rejected file shows an error toast), keeps a preview of it, and
+// works out which picture to show (the new one, the saved one, or none). Nothing
+// is uploaded here.
 
 import { useEffect, useState, type ChangeEvent } from "react";
+import { useToast } from "@/shared/components/Toast/useToast";
 import { keepImage, type ImageChange } from "./imageChange";
+
+const rejectedTitle = "Image not accepted";
 
 interface UseImageChoiceOptions {
   savedUrl: string | null;
@@ -27,9 +31,9 @@ export function useImageChoice({
   validate,
   onChange,
 }: UseImageChoiceOptions) {
+  const { show } = useToast();
   const [input, setInput] = useState<HTMLInputElement | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
 
   // The preview address is released when it is replaced or the picker goes away.
   useEffect(() => {
@@ -53,9 +57,9 @@ export function useImageChoice({
     }
 
     const problem = validate(file);
-    setFileError(problem);
 
     if (problem) {
+      show({ tone: "error", title: rejectedTitle, detail: problem });
       return;
     }
 
@@ -65,7 +69,6 @@ export function useImageChoice({
 
   // A saved picture is removed on save; a freshly chosen one is just forgotten.
   function remove() {
-    setFileError(null);
     setPreview(null);
     onChange(savedUrl === null ? keepImage : { kind: "remove" });
   }
@@ -87,7 +90,6 @@ export function useImageChoice({
     setInput,
     shownUrl: url,
     hasImage: url !== null,
-    error: fileError,
     openFileDialog,
     choose,
     remove,

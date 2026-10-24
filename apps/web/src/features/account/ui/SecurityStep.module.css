@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/features/account/ui/SecurityStep.module.css
-   Version : 1.1.0
-   Latest commit: task/web-account-security
+   Version : 1.2.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
    Purpose : Look of the parts every account security step shares inside its card: heading, description, fields, the action buttons, the notes under them and the round "done" badge. */
 
@@ -143,10 +143,6 @@
 
 .noteOk {
   color: #1a801f;
-}
-
-.noteError {
-  color: var(--color-error);
 }
 
 .noteMuted {
