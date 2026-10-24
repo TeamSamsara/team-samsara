@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/ProfileHandleEndpointsTests.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Proves the handle, onboarding and public profile endpoints: who may call them, how outcomes map to status codes, and the public rate limit.
 
@@ -130,6 +130,7 @@ public class ProfileHandleEndpointsTests
     public async Task AMember_ChangingTheirHandleTwiceInARow_IsTold429()
     {
         await using var app = await StartAsync(AuthState.Member);
+        await _profiles.ModifyAsync(UserId, profile => profile.OnboardingCompleted = true);
         await app.Client.PutAsJsonAsync(HandlePath, new SetHandleRequest("firstname"));
 
         var response = await app.Client.PutAsJsonAsync(HandlePath, new SetHandleRequest("secondname"));

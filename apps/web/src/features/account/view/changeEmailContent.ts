@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/changeEmailContent.ts
-// Version : 1.1.0
-// Latest commit: task/web-account-security
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The text of the change-email page: the title, the new-address step, the two
 // code steps and the confirmation that every device was signed out.
@@ -16,6 +16,7 @@ export const ChangeEmailText = {
   newHint: "You will be signed out everywhere once the change is confirmed.",
   sameAsCurrent: "That is already your email address.",
   invalidEmail: "That email address can't be used.",
+  emailTaken: "Another account already uses that email address.",
   sendCodes: "SEND CODES",
 
   currentEyebrow: "STEP 2 OF 3",
@@ -34,6 +35,10 @@ export const ChangeEmailText = {
   addressSubmit: "CHANGE EMAIL",
 
   wrongCodeNote: "After 5 wrong tries the change is cancelled.",
+  // Under the code boxes, before the resend link: the usual reasons a code goes missing
+  missingCodeHelp:
+    "Nothing in your inbox? Check your spam folder, and make sure the address is spelled right.",
+  useDifferentAddress: "Use a different address",
 
   doneHeading: "EMAIL CHANGED",
   doneDescription: (maskedEmail: string): string =>

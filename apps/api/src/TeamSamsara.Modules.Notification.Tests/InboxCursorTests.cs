@@ -58,7 +58,7 @@ public class InboxCursorTests
 
         parsed.ShouldBeTrue();
         cursor.ShouldBe(original);
-        cursor.CreatedAt.UtcTicks.ShouldBe(original.CreatedAt.UtcTicks);
+        cursor!.CreatedAt.UtcTicks.ShouldBe(original.CreatedAt.UtcTicks);
     }
 
     [Fact]

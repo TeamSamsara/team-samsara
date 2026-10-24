@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Profiles/HandleClaimStatus.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The outcome of trying to give a handle to a member at the storage
 // level. The profile service turns these into profile statuses.
@@ -16,5 +16,8 @@ public enum HandleClaimStatus
     HandleTaken,
 
     // The member has no profile to record the handle on
-    ProfileNotFound
+    ProfileNotFound,
+
+    // The member changed their handle too recently to change it again
+    HandleCooldown
 }

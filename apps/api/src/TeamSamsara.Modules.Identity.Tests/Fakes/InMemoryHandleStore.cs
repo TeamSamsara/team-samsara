@@ -1,8 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/InMemoryHandleStore.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : An in-memory handle store that shares its profiles with the tests.
+// Purpose : An in-memory handle store that shares its profiles with the tests and decides
+// claims with the same rules as the real store.
 
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
@@ -35,39 +36,31 @@ public class InMemoryHandleStore : IHandleStore
         return Task.FromResult(_owners.TryGetValue(handle, out var owner) ? owner : null);
     }
 
-    public async Task<HandleClaimStatus> ClaimAsync(string userId, string handle, DateTimeOffset? changedAt)
+    public async Task<HandleClaimResult> ClaimAsync(string userId, string handle, HandleChange? change)
     {
         var profile = await _profiles.GetByIdAsync(userId);
+        var owner = _owners.GetValueOrDefault(handle);
 
-        if (profile is null)
+        var status = HandleClaimRules.Judge(profile, owner, userId, handle, change);
+
+        if (status != HandleClaimStatus.Success)
         {
-            return HandleClaimStatus.ProfileNotFound;
+            return new HandleClaimResult(status, null);
         }
 
-        if (_owners.TryGetValue(handle, out var owner) && owner != userId)
+        var member = profile!;
+
+        if (HandleClaimRules.AlreadyHolds(member, owner, userId, handle))
         {
-            return HandleClaimStatus.HandleTaken;
+            return new HandleClaimResult(HandleClaimStatus.Success, member);
         }
 
-        if (profile.Handle == handle && owner == userId)
-        {
-            return HandleClaimStatus.Success;
-        }
-
-        FreePrevious(profile, userId);
+        FreePrevious(member, userId);
         _owners[handle] = userId;
 
-        await _profiles.ModifyAsync(userId, current =>
-        {
-            current.Handle = handle;
+        var updated = await _profiles.ModifyAsync(userId, current => HandleClaimRules.Apply(current, handle, change));
 
-            if (changedAt is not null)
-            {
-                current.HandleChangedAt = changedAt;
-            }
-        });
-
-        return HandleClaimStatus.Success;
+        return new HandleClaimResult(HandleClaimStatus.Success, updated);
     }
 
     public async Task ReleaseAsync(string userId)

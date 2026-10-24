@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeEndpointsTests.cs
-// Version : 1.1.0
-// Latest commit: task/web-account-security
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves the email change endpoints refuse non-members, reject bad bodies, and answer each step with the right HTTP status.
+// Purpose : Proves the email change endpoints refuse non-members, reject bad bodies, answer each step with the right HTTP status, and limit how often a member can request a change.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -149,17 +149,71 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
-    public async Task Request_ForAFreeAddressAndATakenAddress_GivesTheSameResponse()
+    public async Task Request_ForATakenAddress_GetsConflict_AndQueuesNothing()
     {
         _accounts.AddAccount(OtherUserId, TakenEmail);
         await using var app = await StartAsync(AuthState.Member);
 
-        var free = await RequestAsync(app, NewEmail);
-        _clock.Advance(TimeSpan.FromSeconds(_settings.ResendCooldownSeconds + 1));
-        var taken = await RequestAsync(app, TakenEmail);
+        var response = await RequestAsync(app, TakenEmail);
 
-        taken.StatusCode.ShouldBe(free.StatusCode);
-        (await taken.Content.ReadAsStringAsync()).ShouldBe(await free.Content.ReadAsStringAsync());
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.EmailTaken);
+        _queue.Count.ShouldBe(0);
+        _requests.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Request_ForTheMembersOwnAddress_GetsBadRequest_WithTheReason()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await RequestAsync(app, Email);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.SameAsCurrentEmail);
+    }
+
+    [Fact]
+    public async Task Request_AfterATakenAddress_CanTryAnotherAtOnce()
+    {
+        _accounts.AddAccount(OtherUserId, TakenEmail);
+        await using var app = await StartAsync(AuthState.Member);
+        await RequestAsync(app, TakenEmail);
+
+        var response = await RequestAsync(app, NewEmail);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Request_BeyondTheMemberLimit_GetsTooManyRequests_WithRetryAfter()
+    {
+        _settings.EmailChangeRequestLimit = 3;
+        await using var app = await StartAsync(AuthState.Member);
+
+        for (var attempt = 0; attempt < _settings.EmailChangeRequestLimit; attempt++)
+        {
+            (await RequestAsync(app, Email)).StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        var response = await RequestAsync(app, NewEmail);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter.ShouldNotBeNull();
+        _queue.Count.ShouldBe(0);
+        _requests.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Request_ByAnAnonymousCaller_IsNeverCountedAgainstTheLimit()
+    {
+        _settings.EmailChangeRequestLimit = 1;
+        await using var app = await StartAsync(AuthState.Anonymous);
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            (await RequestAsync(app, NewEmail)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
     }
 
     [Fact]
@@ -264,11 +318,11 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
-    public async Task Confirm_ForATakenAddress_GivesTheSameResponseAsAWrongCode()
+    public async Task Confirm_ForAnAddressTakenAfterTheRequest_GivesTheSameResponseAsAWrongCode()
     {
-        _accounts.AddAccount(OtherUserId, TakenEmail);
         await using var app = await StartAsync(AuthState.Member);
         await RequestAsync(app, TakenEmail);
+        _accounts.AddAccount(OtherUserId, TakenEmail);
         await _queue.RunAllAsync(app.Services);
 
         var response = await ConfirmAsync(app, CodeSentTo(Email), WrongCode);
@@ -389,6 +443,7 @@ public class EmailChangeEndpointsTests
             UserId = authState == AuthState.Anonymous ? null : UserId,
             AuthState = authState
         });
+        builder.Services.AddSingleton(Options.Create(_settings));
         builder.Services.AddSingleton<IEmailChangeService>(service);
         builder.Services.AddSingleton<IEmailChangeDelivery>(delivery);
 

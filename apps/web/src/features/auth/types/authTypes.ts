@@ -73,6 +73,8 @@ export const emailChangeStatuses = [
   "invalidCode",
   "tooManyAttempts",
   "noPendingRequest",
+  "emailTaken",
+  "sameAsCurrentEmail",
 ] as const;
 export type EmailChangeStatus = (typeof emailChangeStatuses)[number];
 

@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Endpoints/NotificationEndpoints.cs
-// Version : 1.0.0
-// Latest commit: task/notifications-api
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : HTTP endpoints for a verified member's own inbox: list a page, count the unread, mark one or all as read.
+// Purpose : HTTP endpoints for a verified member's own inbox: list a page, count the unread, mark one or all as read, delete one or clear all the read ones.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -38,6 +38,16 @@ public static class NotificationEndpoints
             .AddEndpointFilter<MemberOnlyEndpointFilter>()
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound);
+
+        routes.MapDelete(NotificationRoutes.ClearRead, ClearReadAsync)
+            .AddEndpointFilter<MemberOnlyEndpointFilter>()
+            .Produces(StatusCodes.Status204NoContent);
+
+        routes.MapDelete(NotificationRoutes.Item, DeleteAsync)
+            .AddEndpointFilter<MemberOnlyEndpointFilter>()
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
     }
 
     #endregion
@@ -109,6 +119,49 @@ public static class NotificationEndpoints
         var found = await inbox.MarkReadAsync(context.UserId, id, cancellationToken);
 
         return found ? Results.NoContent() : Results.NotFound();
+    }
+
+    // Deletes every read notification of the caller; unread ones stay
+    private static async Task<IResult> ClearReadAsync(
+        ICurrentUserContext context,
+        IInboxService inbox,
+        CancellationToken cancellationToken)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        await inbox.ClearReadAsync(context.UserId, cancellationToken);
+
+        return Results.NoContent();
+    }
+
+    // Deletes one notification; an unknown id and someone else's both answer not found, and a sign-in notice the caller has not answered is a conflict
+    private static async Task<IResult> DeleteAsync(
+        string id,
+        ICurrentUserContext context,
+        IInboxService inbox,
+        CancellationToken cancellationToken)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var status = await inbox.DeleteAsync(context.UserId, id, cancellationToken);
+
+        return ToResult(status);
+    }
+
+    private static IResult ToResult(NotificationDeleteStatus status)
+    {
+        return status switch
+        {
+            NotificationDeleteStatus.Deleted => Results.NoContent(),
+            NotificationDeleteStatus.NotClearable => Results.Conflict(),
+            _ => Results.NotFound()
+        };
     }
 
     #endregion

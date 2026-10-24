@@ -1,13 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/ProfileService.cs
-// Version : 1.3.0
-// Latest commit: task/web-account-settings
+// Version : 1.4.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Default IProfileService: validates profile text and handles, and keeps images,
-// handle and profile in step.
+// Purpose : Default IProfileService: keeps images, handle and profile in step. The text,
+// handle and cooldown rules live in ProfileText, HandleFormat, HandleCandidates and the handle store.
 
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
@@ -20,16 +17,6 @@ namespace TeamSamsara.Modules.Identity.Handlers;
 public class ProfileService : IProfileService
 {
     #region Fields
-
-    private const char LineFeed = '\n';
-    private const char CarriageReturn = '\r';
-    private const char HandleSeparator = '_';
-    private const string NeutralHandle = "member";
-    private const int SuffixDigits = 4;
-    private const int SuffixAttempts = 8;
-    private const int SuffixMin = 1000;
-    private const int SuffixMax = 10000;
-    private const int LastResortIdLength = 8;
 
     private readonly IProfileStore _profiles;
     private readonly IHandleStore _handles;
@@ -87,14 +74,14 @@ public class ProfileService : IProfileService
     {
         var displayName = request.DisplayName?.Trim();
 
-        if (!IsValidDisplayName(displayName))
+        if (!ProfileText.IsValidDisplayName(displayName, _settings))
         {
             return Failure(ProfileStatus.InvalidDisplayName);
         }
 
         var bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
 
-        if (!IsValidBio(bio))
+        if (!ProfileText.IsValidBio(bio, _settings))
         {
             return Failure(ProfileStatus.InvalidBio);
         }
@@ -124,38 +111,7 @@ public class ProfileService : IProfileService
             return Failure(ToFailureStatus(stored.Status));
         }
 
-        var newAssetId = stored.AssetId!;
-        string? previousAssetId = null;
-        Profile? profile;
-
-        try
-        {
-            profile = await _profiles.ModifyAsync(userId, current =>
-            {
-                previousAssetId = GetImageId(current, kind);
-                SetImageId(current, kind, newAssetId);
-            });
-        }
-        catch
-        {
-            await TryDeleteImageAsync(newAssetId);
-            throw;
-        }
-
-        // The profile was removed while the image was being stored
-        if (profile is null)
-        {
-            await TryDeleteImageAsync(newAssetId);
-
-            return Failure(ProfileStatus.ProfileNotFound);
-        }
-
-        if (previousAssetId is not null)
-        {
-            await TryDeleteImageAsync(previousAssetId);
-        }
-
-        return Success(profile);
+        return await LinkImageAsync(userId, kind, stored.AssetId!);
     }
 
     // Unlinks the image from the profile, then removes it. Clearing an empty slot succeeds.
@@ -193,11 +149,11 @@ public class ProfileService : IProfileService
             return;
         }
 
-        foreach (var candidate in CandidateHandles(profile.DisplayName))
+        foreach (var candidate in HandleCandidates.For(profile.DisplayName, _settings))
         {
-            var status = await _handles.ClaimAsync(userId, candidate, null);
+            var claim = await _handles.ClaimAsync(userId, candidate, null);
 
-            if (status != HandleClaimStatus.HandleTaken)
+            if (claim.Status != HandleClaimStatus.HandleTaken)
             {
                 return;
             }
@@ -209,16 +165,9 @@ public class ProfileService : IProfileService
     // Tells whether the member could take this handle, without changing anything
     public async Task<ProfileStatus> CheckHandleAsync(string userId, string handle)
     {
-        var normalized = NormalizeHandle(handle);
-
-        if (!IsValidHandle(normalized))
+        if (!HandleFormat.TryNormalize(handle, _settings, out var normalized, out var refusal))
         {
-            return ProfileStatus.InvalidHandle;
-        }
-
-        if (IsForbiddenHandle(normalized))
-        {
-            return ProfileStatus.HandleTaken;
+            return refusal;
         }
 
         var owner = await _handles.GetOwnerAsync(normalized);
@@ -226,44 +175,24 @@ public class ProfileService : IProfileService
         return owner is null || owner == userId ? ProfileStatus.Success : ProfileStatus.HandleTaken;
     }
 
-    // Changes the handle. Keeping the current handle succeeds without starting the cooldown.
+    // Changes the handle. Keeping the current handle succeeds without starting the cooldown,
+    // and so does choosing one while the member is still setting up their account. The
+    // handle store enforces the cooldown where it reads the profile.
     public async Task<ProfileResult> SetHandleAsync(string userId, SetHandleRequest request)
     {
-        var handle = NormalizeHandle(request.Handle);
-
-        if (!IsValidHandle(handle))
+        if (!HandleFormat.TryNormalize(request.Handle, _settings, out var handle, out var refusal))
         {
-            return Failure(ProfileStatus.InvalidHandle);
+            return Failure(refusal);
         }
 
-        if (IsForbiddenHandle(handle))
+        var change = new HandleChange(_clock.UtcNow, _settings.HandleChangeCooldownDays);
+        var claim = await _handles.ClaimAsync(userId, handle, change);
+
+        return claim.Status switch
         {
-            return Failure(ProfileStatus.HandleTaken);
-        }
-
-        var profile = await _profiles.GetByIdAsync(userId);
-
-        if (profile is null)
-        {
-            return Failure(ProfileStatus.ProfileNotFound);
-        }
-
-        if (profile.Handle == handle)
-        {
-            return Success(profile);
-        }
-
-        if (IsCoolingDown(profile))
-        {
-            return Failure(ProfileStatus.HandleCooldown);
-        }
-
-        var claim = await _handles.ClaimAsync(userId, handle, _clock.UtcNow);
-
-        return claim switch
-        {
-            HandleClaimStatus.Success => await GetAsync(userId),
+            HandleClaimStatus.Success => Success(claim.Profile!),
             HandleClaimStatus.HandleTaken => Failure(ProfileStatus.HandleTaken),
+            HandleClaimStatus.HandleCooldown => Failure(ProfileStatus.HandleCooldown),
             _ => Failure(ProfileStatus.ProfileNotFound)
         };
     }
@@ -279,9 +208,9 @@ public class ProfileService : IProfileService
     // Returns what a visitor sees of the member who holds the handle, or null if nobody does
     public async Task<PublicProfileView?> GetPublicAsync(string handle)
     {
-        var normalized = NormalizeHandle(handle);
+        var normalized = HandleFormat.Normalize(handle);
 
-        if (!IsValidHandle(normalized))
+        if (!HandleFormat.IsValid(normalized, _settings))
         {
             return null;
         }
@@ -309,62 +238,54 @@ public class ProfileService : IProfileService
 
     #region Private Methods
 
-    // A name needs at least one visible character, must fit the limits, has no control
-    // characters and no blocked word
-    private bool IsValidDisplayName([NotNullWhen(true)] string? displayName)
+    // Points the profile at the stored image, then removes the image it replaced
+    private async Task<ProfileResult> LinkImageAsync(string userId, MemberImageKind kind, string newAssetId)
     {
-        if (string.IsNullOrEmpty(displayName))
+        var (profile, previousAssetId) = await ReplaceImageAsync(userId, kind, newAssetId);
+
+        if (profile is null)
         {
-            return false;
+            return Failure(ProfileStatus.ProfileNotFound);
         }
 
-        var length = LengthOf(displayName);
-
-        return length >= _settings.DisplayNameMinLength
-            && length <= _settings.DisplayNameMaxLength
-            && !displayName.Any(char.IsControl)
-            && !BlockedWords.IsBlockedName(displayName);
-    }
-
-    // No bio is valid; a bio must fit the limit and may only use line breaks as control characters
-    private bool IsValidBio(string? bio)
-    {
-        if (bio is null)
+        if (previousAssetId is not null)
         {
-            return true;
+            await TryDeleteImageAsync(previousAssetId);
         }
 
-        return LengthOf(bio) <= _settings.BioMaxLength
-            && !bio.Any(character => char.IsControl(character)
-                && character != LineFeed
-                && character != CarriageReturn);
+        return Success(profile);
     }
 
-    // The handle as the member typed it, lowercased and without a leading @
-    private static string NormalizeHandle(string? handle)
+    // Swaps the new image into the profile and returns the image it replaced. The new image
+    // is removed again if the swap fails or the profile was removed while it was being stored.
+    private async Task<(Profile? Profile, string? PreviousAssetId)> ReplaceImageAsync(
+        string userId,
+        MemberImageKind kind,
+        string newAssetId)
     {
-        return handle?.Trim().TrimStart('@').ToLowerInvariant() ?? string.Empty;
-    }
+        string? previousAssetId = null;
+        Profile? profile;
 
-    // A handle fits the length limits, uses only a-z, 0-9 and _, and does not start or end with _
-    private bool IsValidHandle(string handle)
-    {
-        return handle.Length >= _settings.HandleMinLength
-            && handle.Length <= _settings.HandleMaxLength
-            && handle.All(IsHandleCharacter)
-            && handle[0] != HandleSeparator
-            && handle[^1] != HandleSeparator;
-    }
+        try
+        {
+            profile = await _profiles.ModifyAsync(userId, current =>
+            {
+                previousAssetId = GetImageId(current, kind);
+                SetImageId(current, kind, newAssetId);
+            });
+        }
+        catch
+        {
+            await TryDeleteImageAsync(newAssetId);
+            throw;
+        }
 
-    private static bool IsHandleCharacter(char character)
-    {
-        return character is >= 'a' and <= 'z' or >= '0' and <= '9' or HandleSeparator;
-    }
+        if (profile is null)
+        {
+            await TryDeleteImageAsync(newAssetId);
+        }
 
-    // Reserved and blocked handles are refused the same way a taken one is
-    private static bool IsForbiddenHandle(string handle)
-    {
-        return ReservedHandles.IsReserved(handle) || BlockedWords.IsBlockedHandle(handle);
+        return (profile, previousAssetId);
     }
 
     // True while the member has changed their handle more recently than the cooldown allows
@@ -382,55 +303,6 @@ public class ProfileService : IProfileService
             ? profile.HandleChangedAt?.AddDays(_settings.HandleChangeCooldownDays)
             : null;
     }
-
-    // The handles to try for a new member, best first: the display name itself, then numbered
-    // variants of it. A name that cannot be used as a handle, such as the neutral "Member",
-    // is replaced by the neutral handle.
-    private IEnumerable<string> CandidateHandles(string displayName)
-    {
-        var seed = SeedFrom(displayName);
-        var usable = seed.Length >= _settings.HandleMinLength && !IsForbiddenHandle(seed);
-        var stem = usable ? seed : NeutralHandle;
-
-        if (usable)
-        {
-            yield return seed;
-        }
-
-        var stemLength = Math.Min(stem.Length, _settings.HandleMaxLength - SuffixDigits);
-
-        for (var attempt = 0; attempt < SuffixAttempts; attempt++)
-        {
-            var number = Random.Shared.Next(SuffixMin, SuffixMax).ToString(CultureInfo.InvariantCulture);
-
-            yield return stem[..stemLength] + number;
-        }
-
-        var id = Guid.NewGuid().ToString("N")[..LastResortIdLength];
-
-        yield return NeutralHandle + id[..Math.Min(LastResortIdLength, _settings.HandleMaxLength - NeutralHandle.Length)];
-    }
-
-    // The display name reduced to lowercase letters and digits, cut to the handle length
-    private string SeedFrom(string displayName)
-    {
-        var builder = new StringBuilder();
-
-        foreach (var character in displayName.ToLowerInvariant().Normalize(NormalizationForm.FormD))
-        {
-            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
-            {
-                builder.Append(character);
-            }
-        }
-
-        var seed = builder.ToString();
-
-        return seed.Length > _settings.HandleMaxLength ? seed[.._settings.HandleMaxLength] : seed;
-    }
-
-    // Counts what a reader sees as characters, so an emoji or an accented letter counts once
-    private static int LengthOf(string text) => new StringInfo(text).LengthInTextElements;
 
     // The asset id currently held for this kind of image, or null
     private static string? GetImageId(Profile profile, MemberImageKind kind) => kind switch

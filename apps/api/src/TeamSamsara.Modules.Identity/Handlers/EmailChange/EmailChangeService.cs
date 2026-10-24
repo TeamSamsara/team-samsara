@@ -1,8 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/EmailChangeService.cs
-// Version : 1.2.0
-// Latest commit: task/web-account-security
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Email change for signed-in members, answering the same way whether the new address is free or taken.
+// Purpose : Email change for signed-in members. A new address that is taken, or is already theirs,
+// is refused straight away; every step is logged with the address masked.
 
 using System.Net.Mail;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,34 +67,48 @@ public class EmailChangeService : IEmailChangeService
 
     #region Public Methods
 
-    // Saves the pending change and queues the codes; availability is only checked in the background.
+    // Refuses an unusable new address straight away; otherwise saves the pending change and
+    // queues the codes. A refusal saves nothing, sends nothing and starts no cooldown.
     public async Task<EmailChangeCodeResult> RequestChangeAsync(
         string userId,
         string newEmail,
         CancellationToken cancellationToken = default)
     {
-        if (await FindMemberEmailAsync(userId) is null)
+        var currentEmail = await FindMemberEmailAsync(userId);
+
+        if (currentEmail is null)
         {
             return Rejected(EmailChangeStatus.AccountNotFound);
         }
 
         var address = (newEmail ?? string.Empty).Trim();
+        var refusal = await CheckAddressAsync(currentEmail, address);
 
-        if (!IsValidEmail(address))
+        if (refusal != EmailChangeStatus.Success)
         {
-            return Rejected(EmailChangeStatus.InvalidEmail);
+            LogRequestRefused(userId, address, refusal);
+
+            return Rejected(refusal);
         }
 
         var wait = await RemainingCooldownSecondsAsync(userId);
 
         if (wait > 0)
         {
+            _logger.LogInformation(
+                "Email change for user {UserId} to {NewEmail} held back by the cooldown for {WaitSeconds}s.",
+                userId, EmailMasking.Mask(address), wait);
+
             return new EmailChangeCodeResult(
                 EmailChangeStatus.CooldownActive, _settings.EmailChangeCodeLength, wait);
         }
 
         await SaveRequestAsync(userId, address);
         QueueDelivery(userId, address);
+
+        _logger.LogInformation(
+            "Email change for user {UserId} to {NewEmail} accepted; the codes are queued.",
+            userId, EmailMasking.Mask(address));
 
         return new EmailChangeCodeResult(
             EmailChangeStatus.Success, _settings.EmailChangeCodeLength, _settings.ResendCooldownSeconds);
@@ -124,6 +139,8 @@ public class EmailChangeService : IEmailChangeService
 
         if (codes != EmailChangeStatus.Success)
         {
+            _logger.LogInformation("Email change codes for user {UserId} checked: {Status}.", userId, codes);
+
             return codes;
         }
 
@@ -145,6 +162,33 @@ public class EmailChangeService : IEmailChangeService
         }
 
         return await _accounts.GetEmailAsync(userId);
+    }
+
+    // Says whether the new address can be used: a plain address, not the member's own, and not
+    // held by another account. Success means it can.
+    private async Task<EmailChangeStatus> CheckAddressAsync(string currentEmail, string address)
+    {
+        if (!IsValidEmail(address))
+        {
+            return EmailChangeStatus.InvalidEmail;
+        }
+
+        if (string.Equals(address, currentEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return EmailChangeStatus.SameAsCurrentEmail;
+        }
+
+        return await _accounts.GetUserIdByEmailAsync(address) is null
+            ? EmailChangeStatus.Success
+            : EmailChangeStatus.EmailTaken;
+    }
+
+    // Logs why a request was refused, with the address masked; nothing the member typed is logged in full.
+    private void LogRequestRefused(string userId, string address, EmailChangeStatus refusal)
+    {
+        _logger.LogInformation(
+            "Email change for user {UserId} to {NewEmail} refused: {Status}.",
+            userId, EmailMasking.Mask(address), refusal);
     }
 
     // Accepts a plain address of reasonable length, without display names or comments.
@@ -295,9 +339,14 @@ public class EmailChangeService : IEmailChangeService
             return EmailChangeStatus.NoPendingRequest;
         }
 
-        // Answered like a wrong code, so a taken address is not revealed.
+        // The address was free when the request was made but is not any more, so another account
+        // took it in between. It is answered like a wrong code, which is what the member sees.
         if (await _accounts.GetUserIdByEmailAsync(request.NewEmail) is not null)
         {
+            _logger.LogWarning(
+                "Email change for user {UserId} to {NewEmail} could not complete: the address was taken meanwhile.",
+                userId, EmailMasking.Mask(request.NewEmail));
+
             return EmailChangeStatus.InvalidCode;
         }
 
@@ -305,6 +354,10 @@ public class EmailChangeService : IEmailChangeService
         await _accounts.RevokeSessionsAsync(userId);
         await _signIns.ClearVerifiedAsync(userId);
         await AlertEmailChangedAsync(currentEmail, request.NewEmail, cancellationToken);
+
+        _logger.LogInformation(
+            "Email change for user {UserId} completed: {OldEmail} to {NewEmail}; every session was ended.",
+            userId, EmailMasking.Mask(currentEmail), EmailMasking.Mask(request.NewEmail));
 
         return EmailChangeStatus.Success;
     }

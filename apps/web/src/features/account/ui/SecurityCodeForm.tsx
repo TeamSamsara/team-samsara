@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/ui/SecurityCodeForm.tsx
-// Version : 1.3.0
-// Latest commit: task/web-toast-messages
+// Version : 1.4.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The code step shared by the account security pages: the heading, the code
 // boxes, the confirm and cancel buttons, and a resend link with its countdown. The page
@@ -21,6 +21,12 @@ import { Icon } from "@/shared/icons/Icon";
 import styles from "./SecurityStep.module.css";
 import { SecurityCodeFormText } from "./securityCodeFormContent";
 
+/** A second way out of the code step, shown next to the resend link. */
+interface SecurityCodeFormExtraAction {
+  readonly label: string;
+  readonly onClick: () => void;
+}
+
 interface SecurityCodeFormProps {
   /** Left out when the form sits in a modal whose title already says it. */
   readonly heading?: string;
@@ -38,6 +44,10 @@ interface SecurityCodeFormProps {
   readonly submitLabel: string;
   /** Shown under a wrong code, such as how many tries are left. */
   readonly wrongCodeNote?: string;
+  /** A line under the boxes that helps when the code does not arrive. */
+  readonly missingCodeHelp?: string;
+  /** Shown next to the resend link, such as going back to change the address. */
+  readonly extraAction?: SecurityCodeFormExtraAction;
   /** Uses the error color for the heading and the button. */
   readonly danger?: boolean;
   readonly onConfirm: (code: string) => Promise<CodeAttempt>;
@@ -54,6 +64,8 @@ export function SecurityCodeForm({
   initialRetryAfterSeconds,
   submitLabel,
   wrongCodeNote,
+  missingCodeHelp,
+  extraAction,
   danger = false,
   onConfirm,
   onResend,
@@ -183,6 +195,10 @@ export function SecurityCodeForm({
         </button>
       </div>
 
+      {missingCodeHelp ? (
+        <p className={styles.noteMuted}>{missingCodeHelp}</p>
+      ) : null}
+
       <p className={styles.resend}>
         {SecurityCodeFormText.didNotGetIt}{" "}
         <button
@@ -195,6 +211,19 @@ export function SecurityCodeForm({
             ? CodeVerificationText.resendIn(countdown.secondsLeft)
             : CodeVerificationText.resend}
         </button>
+        {extraAction ? (
+          <>
+            {" "}
+            <button
+              type="button"
+              className={styles.linkButton}
+              disabled={isBusy}
+              onClick={extraAction.onClick}
+            >
+              {extraAction.label}
+            </button>
+          </>
+        ) : null}
       </p>
     </form>
   );

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.14.0
-// Latest commit: feat/api-profile-onboarding
+// Version : 1.15.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -117,6 +117,8 @@ public class IdentityModule : IModule
         services.AddScoped<IVerificationCodeService, VerificationCodeService>();
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddScoped<INewLoginNotifier, NewLoginNotifier>();
+        services.AddScoped<AccountRecovery>();
         services.AddScoped<ISessionService, SessionService>();
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IPasswordService, PasswordService>();

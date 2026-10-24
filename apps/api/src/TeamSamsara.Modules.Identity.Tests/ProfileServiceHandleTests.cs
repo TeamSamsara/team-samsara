@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/ProfileServiceHandleTests.cs
-// Version : 1.1.0
-// Latest commit: task/web-account-settings
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Proves handles and onboarding: automatic assignment, validation, uniqueness, the rename cooldown and the date it ends, the availability check, onboarding completion and the public lookup.
 
@@ -196,6 +196,7 @@ public class ProfileServiceHandleTests
     {
         await SeedAsync(UserId, "Gerrah");
         await _service.GetAsync(UserId);
+        await _service.CompleteOnboardingAsync(UserId);
 
         var first = await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
         _clock.Advance(TimeSpan.FromDays(29));
@@ -207,10 +208,41 @@ public class ProfileServiceHandleTests
     }
 
     [Fact]
+    public async Task ChoosingAHandleDuringOnboarding_DoesNotStartTheCooldown()
+    {
+        await SeedAsync(UserId, "Gerrah");
+        await _service.GetAsync(UserId);
+
+        var first = await _service.SetHandleAsync(UserId, new SetHandleRequest("firstpick"));
+        var second = await _service.SetHandleAsync(UserId, new SetHandleRequest("secondpick"));
+
+        first.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBeNull();
+        second.Status.ShouldBe(ProfileStatus.Success);
+        second.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task TheFirstRenameAfterOnboarding_IsFree_EvenIfAHandleWasChosenDuringIt()
+    {
+        await SeedAsync(UserId, "Gerrah");
+        await _service.GetAsync(UserId);
+        await _service.SetHandleAsync(UserId, new SetHandleRequest("duringsetup"));
+        await _service.CompleteOnboardingAsync(UserId);
+
+        var first = await _service.SetHandleAsync(UserId, new SetHandleRequest("aftersetup"));
+        var tooSoon = await _service.SetHandleAsync(UserId, new SetHandleRequest("toosoon"));
+
+        first.Status.ShouldBe(ProfileStatus.Success);
+        first.Profile.ShouldNotBeNull().HandleChangeableAt.ShouldBe(_clock.UtcNow.AddDays(30));
+        tooSoon.Status.ShouldBe(ProfileStatus.HandleCooldown);
+    }
+
+    [Fact]
     public async Task AfterTheCooldown_TheHandleCanChangeAgain()
     {
         await SeedAsync(UserId, "Gerrah");
         await _service.GetAsync(UserId);
+        await _service.CompleteOnboardingAsync(UserId);
         await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
 
         _clock.Advance(TimeSpan.FromDays(31));
@@ -225,6 +257,7 @@ public class ProfileServiceHandleTests
     {
         await SeedAsync(UserId, "Gerrah");
         await _service.GetAsync(UserId);
+        await _service.CompleteOnboardingAsync(UserId);
 
         var result = await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
 
@@ -236,6 +269,7 @@ public class ProfileServiceHandleTests
     {
         await SeedAsync(UserId, "Gerrah");
         var fresh = await _service.GetAsync(UserId);
+        await _service.CompleteOnboardingAsync(UserId);
         await _service.SetHandleAsync(UserId, new SetHandleRequest("newname"));
 
         _clock.Advance(TimeSpan.FromDays(31));

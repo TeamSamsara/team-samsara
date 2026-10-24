@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ChangeEmailPage.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The change-email page at /account/security/email. It runs four steps in one
 // place: the new address, the code from the current address, the code from the new
@@ -52,6 +52,11 @@ export function ChangeEmailPage() {
     void navigate(routePaths.accountSecurity);
   }
 
+  // Back to the first step with the address kept, so a typo is one edit away.
+  function backToNewAddress(email: string) {
+    setStep({ kind: "new", email });
+  }
+
   async function confirmCurrent(
     sent: EmailCodesSent,
     code: string,
@@ -89,6 +94,15 @@ export function ChangeEmailPage() {
 
     if (result.kind === "invalidEmail") {
       return { kind: "failed", message: ChangeEmailText.invalidEmail };
+    }
+
+    // The address was free a moment ago, so another account took it in between.
+    if (result.kind === "emailTaken") {
+      return { kind: "failed", message: ChangeEmailText.emailTaken };
+    }
+
+    if (result.kind === "sameAsCurrent") {
+      return { kind: "failed", message: ChangeEmailText.sameAsCurrent };
     }
 
     if (result.kind === "sent" && returnToCurrent) {
@@ -132,6 +146,11 @@ export function ChangeEmailPage() {
             initialRetryAfterSeconds={step.sent.retryAfterSeconds}
             submitLabel={ChangeEmailText.currentSubmit}
             wrongCodeNote={ChangeEmailText.wrongCodeNote}
+            missingCodeHelp={ChangeEmailText.missingCodeHelp}
+            extraAction={{
+              label: ChangeEmailText.useDifferentAddress,
+              onClick: () => backToNewAddress(step.sent.newEmail),
+            }}
             onConfirm={(code) => confirmCurrent(step.sent, code)}
             onResend={() => resendCodes(step.sent, false)}
             onCancel={leave}
@@ -149,6 +168,11 @@ export function ChangeEmailPage() {
             initialRetryAfterSeconds={step.sent.retryAfterSeconds}
             submitLabel={ChangeEmailText.addressSubmit}
             wrongCodeNote={ChangeEmailText.wrongCodeNote}
+            missingCodeHelp={ChangeEmailText.missingCodeHelp}
+            extraAction={{
+              label: ChangeEmailText.useDifferentAddress,
+              onClick: () => backToNewAddress(step.sent.newEmail),
+            }}
             onConfirm={(code) => confirmAddress(step.sent, code)}
             onResend={() => resendCodes(step.sent, true)}
             onCancel={leave}

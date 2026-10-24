@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Handlers/IInboxService.cs
-// Version : 1.0.0
-// Latest commit: task/notifications-api
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : What a member can do with their own inbox: read a page of it, count what is unread, mark one notification or all of them as read.
+// Purpose : What a member can do with their own inbox: read a page of it, count what is unread, mark one notification or all of them as read, and delete one or all the read ones.
 
 using TeamSamsara.Modules.Notification.Models;
 
@@ -23,6 +23,12 @@ public interface IInboxService
 
     // Marks every unread notification of the member as read and returns how many it marked, and throws NotificationStoreException when storage fails
     public Task<int> MarkAllReadAsync(string recipientId, CancellationToken cancellationToken = default);
+
+    // Deletes one of the member's notifications unless it is a sign-in notice they have not answered; NotFound when the id is malformed, unknown or someone else's, NotClearable for an unanswered sign-in notice, and throws NotificationStoreException when storage fails
+    public Task<NotificationDeleteStatus> DeleteAsync(string recipientId, string id, CancellationToken cancellationToken = default);
+
+    // Deletes every read notification of the member and returns how many it deleted; unread ones, including unanswered sign-in notices, stay, and it throws NotificationStoreException when storage fails
+    public Task<int> ClearReadAsync(string recipientId, CancellationToken cancellationToken = default);
 
     #endregion
 }

@@ -1,14 +1,15 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification.Tests/InboxServiceTests.cs
-// Version : 1.0.0
-// Latest commit: task/notifications-api
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves the inbox service pages a member's notifications newest first without repeats or gaps, hides the expired ones, counts what is unread, marks one or all as read for the owner only, and refuses malformed cursors and ids before storage sees them.
+// Purpose : Proves the inbox service pages a member's notifications newest first without repeats or gaps, hides the expired ones, counts what is unread, marks one or all as read for the owner only, deletes one or all the read ones for the owner only (never an unanswered sign-in notice), and refuses malformed cursors and ids before storage sees them.
 
 using Shouldly;
 using TeamSamsara.Modules.Notification.Handlers;
 using TeamSamsara.Modules.Notification.Models;
 using TeamSamsara.Modules.Notification.Repositories;
 using TeamSamsara.Modules.Notification.Tests.Fakes;
+using TeamSamsara.Shared.Notification;
 
 namespace TeamSamsara.Modules.Notification.Tests;
 
@@ -416,6 +417,210 @@ public class InboxServiceTests
         await Should.ThrowAsync<NotificationStoreException>(async () => await _service.MarkAllReadAsync(Member));
     }
 
+    [Fact]
+    public async Task Delete_OfTheMembersNotification_DeletesIt()
+    {
+        var stored = await SeedAsync(Member, minutesAgo: 1);
+        var untouched = await SeedAsync(Member, minutesAgo: 2);
+
+        var status = await _service.DeleteAsync(Member, stored.Id);
+
+        status.ShouldBe(NotificationDeleteStatus.Deleted);
+        _store.Documents.Select(document => document.Id).ShouldBe(new[] { untouched.Id });
+    }
+
+    [Fact]
+    public async Task Delete_OfAnotherMembersNotification_IsNotFound_AndChangesNothing()
+    {
+        var foreign = await SeedAsync(OtherMember, minutesAgo: 1);
+
+        var status = await _service.DeleteAsync(Member, foreign.Id);
+
+        status.ShouldBe(NotificationDeleteStatus.NotFound);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Delete_OfAnUnknownId_IsNotFound()
+    {
+        var status = await _service.DeleteAsync(Member, 99.ToString("x32"));
+
+        status.ShouldBe(NotificationDeleteStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Delete_WithAMalformedId_IsNotFound_WithoutTouchingStorage()
+    {
+        var status = await _service.DeleteAsync(Member, "not-an-id");
+
+        status.ShouldBe(NotificationDeleteStatus.NotFound);
+        _store.DeleteCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Delete_OfAnUnansweredSignIn_IsNotClearable_AndItStays()
+    {
+        var signIn = await SeedAsync(Member, minutesAgo: 1, key: NotificationKeys.NewLogin);
+
+        var status = await _service.DeleteAsync(Member, signIn.Id);
+
+        status.ShouldBe(NotificationDeleteStatus.NotClearable);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Delete_OfAnAnsweredSignIn_DeletesIt()
+    {
+        var signIn = await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow, key: NotificationKeys.NewLogin);
+
+        var status = await _service.DeleteAsync(Member, signIn.Id);
+
+        status.ShouldBe(NotificationDeleteStatus.Deleted);
+        _store.Documents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Delete_WhenStorageFails_Throws()
+    {
+        var stored = await SeedAsync(Member, minutesAgo: 1);
+        _store.FailureToThrow = new NotificationStoreException("boom", new InvalidOperationException());
+
+        await Should.ThrowAsync<NotificationStoreException>(async () => await _service.DeleteAsync(Member, stored.Id));
+    }
+
+    [Fact]
+    public async Task ClearRead_DeletesOnlyTheReadOnes_AndReturnsHowManyWentAway()
+    {
+        var read = await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        var alsoRead = await SeedAsync(Member, minutesAgo: 2, readAt: _clock.UtcNow);
+        var unread = await SeedAsync(Member, minutesAgo: 3);
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(2);
+        _store.Documents.Select(document => document.Id).ShouldBe(new[] { unread.Id });
+        _store.Documents.ShouldNotContain(document => document.Id == read.Id || document.Id == alsoRead.Id);
+    }
+
+    [Fact]
+    public async Task ClearRead_KeepsEveryUnreadOne_IncludingAnUnansweredSignIn()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        await SeedAsync(Member, minutesAgo: 2);
+        await SeedAsync(Member, minutesAgo: 3, key: NotificationKeys.NewLogin);
+
+        await _service.ClearReadAsync(Member);
+
+        _store.Documents.Count.ShouldBe(2);
+        _store.Documents.ShouldContain(document => document.Key == NotificationKeys.NewLogin && document.ReadAt == null);
+    }
+
+    [Fact]
+    public async Task ClearRead_ClearsAnAnsweredSignIn()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow, key: NotificationKeys.NewLogin);
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(1);
+        _store.Documents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearRead_LeavesAnotherMembersNotificationsAlone()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        var foreign = await SeedAsync(OtherMember, minutesAgo: 1, readAt: _clock.UtcNow);
+
+        await _service.ClearReadAsync(Member);
+
+        _store.Documents.Select(document => document.Id).ShouldBe(new[] { foreign.Id });
+    }
+
+    [Fact]
+    public async Task ClearRead_WhenNothingIsRead_ReturnsZero()
+    {
+        await SeedAsync(Member, minutesAgo: 1);
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(0);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task ClearRead_WorksThroughSeveralBatches()
+    {
+        _store.DeleteBatchSize = 2;
+
+        for (var minutes = 1; minutes <= 5; minutes++)
+        {
+            await SeedAsync(Member, minutesAgo: minutes, readAt: _clock.UtcNow);
+        }
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(5);
+        _store.Documents.ShouldBeEmpty();
+        _store.DeleteReadBatchCalls.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task ClearRead_KeepsGoingWhenUnreadOnesFillTheNewestWindow()
+    {
+        _store.ReadWindowSize = 3;
+        await SeedAsync(Member, minutesAgo: 1);
+        await SeedAsync(Member, minutesAgo: 2);
+
+        for (var minutes = 3; minutes <= 6; minutes++)
+        {
+            await SeedAsync(Member, minutesAgo: minutes, readAt: _clock.UtcNow);
+        }
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(4);
+        _store.Documents.ShouldAllBe(document => document.ReadAt == null);
+    }
+
+    [Fact]
+    public async Task ClearRead_StopsAtTheSafetyLimit()
+    {
+        _store.DeleteBatchSize = 1;
+
+        for (var minutes = 1; minutes <= MarkAllBatchLimit + 5; minutes++)
+        {
+            await SeedAsync(Member, minutesAgo: minutes, readAt: _clock.UtcNow);
+        }
+
+        var cleared = await _service.ClearReadAsync(Member);
+
+        cleared.ShouldBe(MarkAllBatchLimit);
+        _store.DeleteReadBatchCalls.ShouldBe(MarkAllBatchLimit);
+    }
+
+    [Fact]
+    public async Task ClearRead_WhenAlreadyCancelled_ThrowsBeforeDeletingAnything()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await _service.ClearReadAsync(Member, cancellation.Token));
+
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task ClearRead_WhenStorageFails_Throws()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        _store.FailureToThrow = new NotificationStoreException("boom", new InvalidOperationException());
+
+        await Should.ThrowAsync<NotificationStoreException>(async () => await _service.ClearReadAsync(Member));
+    }
+
     #endregion
 
     #region Private Methods
@@ -430,13 +635,14 @@ public class InboxServiceTests
         string recipientId,
         int minutesAgo,
         DateTimeOffset? readAt = null,
-        DateTimeOffset? expiresAt = null)
+        DateTimeOffset? expiresAt = null,
+        string key = Key)
     {
         var notification = new InboxNotification
         {
             Id = NextId(),
             RecipientId = recipientId,
-            Key = Key,
+            Key = key,
             Data = new Dictionary<string, string> { [OrderNumberName] = OrderNumber },
             CreatedAt = _clock.UtcNow.AddMinutes(-minutesAgo),
             ExpiresAt = expiresAt ?? _clock.UtcNow.AddDays(RetentionDays),

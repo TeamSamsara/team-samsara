@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeServiceTests.cs
-// Version : 1.1.0
-// Latest commit: task/web-account-security
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves email change: identical answers for free and taken addresses, each code accepted on its own, and a completed change ends every session.
+// Purpose : Proves email change: a taken or unchanged address is refused at once without a cooldown, each code is accepted on its own, a completed change ends every session, and the log never holds a full address or a code.
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Shouldly;
@@ -37,6 +38,7 @@ public class EmailChangeServiceTests : IAsyncLifetime
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeClock _clock = new();
     private readonly VerificationSettings _settings = new();
+    private readonly RecordingLogger<EmailChangeService> _logger = new();
     private readonly SignInTracker _signIns;
     private readonly ServiceProvider _provider;
     private readonly EmailChangeService _service;
@@ -69,7 +71,7 @@ public class EmailChangeServiceTests : IAsyncLifetime
             _alerts,
             _clock,
             Options.Create(_settings),
-            NullLogger<EmailChangeService>.Instance);
+            _logger);
 
         _accounts.AddAccount(UserId, Email);
     }
@@ -105,18 +107,88 @@ public class EmailChangeServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Request_GivesTheSameAnswer_ForAFreeAddress_ATakenAddress_AndTheMembersOwn()
+    public async Task Request_ForATakenAddress_IsRefused_WithNothingSavedOrQueued()
     {
         _accounts.AddAccount(OtherUserId, AnotherEmail);
 
-        var free = await _service.RequestChangeAsync(UserId, NewEmail);
-        PassTheCooldown();
-        var taken = await _service.RequestChangeAsync(UserId, AnotherEmail);
-        PassTheCooldown();
-        var own = await _service.RequestChangeAsync(UserId, Email);
+        var result = await _service.RequestChangeAsync(UserId, AnotherEmail);
 
-        taken.ShouldBe(free);
-        own.ShouldBe(free);
+        result.Status.ShouldBe(EmailChangeStatus.EmailTaken);
+        _requests.Count.ShouldBe(0);
+        _queue.Count.ShouldBe(0);
+        _alerts.Sent.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(Email)]
+    [InlineData("JANE.DOE@example.com")]
+    [InlineData("  jane.doe@example.com ")]
+    public async Task Request_ForTheMembersOwnAddress_IsRefused_IgnoringCaseAndSpaces(string address)
+    {
+        var result = await _service.RequestChangeAsync(UserId, address);
+
+        result.Status.ShouldBe(EmailChangeStatus.SameAsCurrentEmail);
+        _requests.Count.ShouldBe(0);
+        _queue.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Request_AfterARefusal_StartsNoCooldown()
+    {
+        _accounts.AddAccount(OtherUserId, AnotherEmail);
+
+        await _service.RequestChangeAsync(UserId, AnotherEmail);
+        await _service.RequestChangeAsync(UserId, Email);
+        var result = await _service.RequestChangeAsync(UserId, NewEmail);
+
+        result.ShouldBe(ExpectedAnswer());
+    }
+
+    [Fact]
+    public async Task Request_Accepted_IsLogged_WithTheAddressMasked()
+    {
+        await _service.RequestChangeAsync(UserId, NewEmail);
+
+        var entry = _logger.Entries.ShouldHaveSingleItem();
+        entry.Message.ShouldContain("accepted");
+        entry.Message.ShouldContain("j***@example.com");
+        entry.Message.ShouldNotContain(NewEmail);
+    }
+
+    [Fact]
+    public async Task Request_Refused_IsLogged_WithTheReason_AndTheAddressMasked()
+    {
+        _accounts.AddAccount(OtherUserId, AnotherEmail);
+
+        await _service.RequestChangeAsync(UserId, AnotherEmail);
+
+        var entry = _logger.Entries.ShouldHaveSingleItem();
+        entry.Message.ShouldContain(nameof(EmailChangeStatus.EmailTaken));
+        entry.Message.ShouldNotContain(AnotherEmail);
+    }
+
+    [Fact]
+    public async Task Request_WithinTheCooldown_IsLogged()
+    {
+        await _service.RequestChangeAsync(UserId, NewEmail);
+
+        await _service.RequestChangeAsync(UserId, AnotherEmail);
+
+        _logger.Entries.ShouldContain(entry => entry.Message.Contains("cooldown"));
+    }
+
+    [Fact]
+    public async Task AWholeEmailChange_NeverLogsAFullAddressOrACode()
+    {
+        var codes = await RequestAndGetCodesAsync();
+        await _service.ConfirmAsync(UserId, codes.Old, codes.New);
+
+        _logger.Entries.ShouldNotBeEmpty();
+        _logger.Entries.ShouldAllBe(entry =>
+            !entry.Message.Contains(Email)
+            && !entry.Message.Contains(NewEmail)
+            && !entry.Message.Contains(codes.Old)
+            && !entry.Message.Contains(codes.New));
     }
 
     [Fact]
@@ -159,11 +231,9 @@ public class EmailChangeServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Request_ForATakenAddress_EmailsOnlyTheCurrentAddress()
+    public async Task Request_ForAnAddressTakenBeforeTheQueuedWorkRuns_EmailsOnlyTheCurrentAddress()
     {
-        _accounts.AddAccount(OtherUserId, NewEmail);
-
-        await RequestAndDeliverAsync();
+        await RequestThenLoseTheAddressAndDeliverAsync();
 
         _alerts.Sent.ShouldHaveSingleItem().To.ShouldBe(Email);
     }
@@ -439,10 +509,9 @@ public class EmailChangeServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Confirm_ForATakenAddress_TheOldCodeIsAccepted_ButTheNewCodeNeverCompletes()
+    public async Task Confirm_ForAnAddressTakenAfterTheRequest_TheOldCodeIsAccepted_ButTheNewCodeNeverCompletes()
     {
-        _accounts.AddAccount(OtherUserId, NewEmail);
-        await RequestAndDeliverAsync();
+        await RequestThenLoseTheAddressAndDeliverAsync();
 
         var accepted = await _service.ConfirmAsync(UserId, CodeSentTo(Email), null);
         var wrong = await _service.ConfirmAsync(UserId, null, WrongCode);
@@ -453,10 +522,9 @@ public class EmailChangeServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Confirm_ForATakenAddress_NeverSucceeds_AndLooksLikeAWrongCode()
+    public async Task Confirm_ForAnAddressTakenAfterTheRequest_NeverSucceeds_AndLooksLikeAWrongCode()
     {
-        _accounts.AddAccount(OtherUserId, NewEmail);
-        await RequestAndDeliverAsync();
+        await RequestThenLoseTheAddressAndDeliverAsync();
         var oldCode = CodeSentTo(Email);
 
         var result = await _service.ConfirmAsync(UserId, oldCode, WrongCode);
@@ -476,6 +544,8 @@ public class EmailChangeServiceTests : IAsyncLifetime
         result.ShouldBe(EmailChangeStatus.InvalidCode);
         (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
         _accounts.RevokedSessions.ShouldBeEmpty();
+        _logger.Entries.ShouldContain(entry =>
+            entry.Level == LogLevel.Warning && entry.Message.Contains("taken meanwhile"));
     }
 
     [Fact]
@@ -490,10 +560,9 @@ public class EmailChangeServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Confirm_TooManyWrongGuesses_OnATakenAddress_CancelsTheRequestToo()
+    public async Task Confirm_TooManyWrongGuesses_OnAnAddressTakenAfterTheRequest_CancelsTheRequestToo()
     {
-        _accounts.AddAccount(OtherUserId, NewEmail);
-        await RequestAndDeliverAsync();
+        await RequestThenLoseTheAddressAndDeliverAsync();
 
         await GuessWrongUntilBurnedAsync(CodeSentTo(Email));
 
@@ -559,6 +628,15 @@ public class EmailChangeServiceTests : IAsyncLifetime
     private async Task RequestAndDeliverAsync()
     {
         await _service.RequestChangeAsync(UserId, NewEmail);
+        await _queue.RunAllAsync(_provider);
+    }
+
+    // Requests a change, lets another account take the new address before the queued work runs,
+    // then runs it. This is the only way left to reach the decoy, since a taken address is refused up front.
+    private async Task RequestThenLoseTheAddressAndDeliverAsync()
+    {
+        await _service.RequestChangeAsync(UserId, NewEmail);
+        _accounts.AddAccount(OtherUserId, NewEmail);
         await _queue.RunAllAsync(_provider);
     }
 

@@ -1,8 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/EmailChange/EmailChangeDelivery.cs
-// Version : 1.1.0
-// Latest commit: task/web-account-security
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Issues the two email change codes in the background, using a decoy for an unavailable address.
+// Purpose : Issues the two email change codes in the background. The address was free when the request
+// was made, so a decoy is only a backstop for one taken since. Every step is logged, masked.
 
 using Microsoft.Extensions.Logging;
 using TeamSamsara.Modules.Identity.Models;
@@ -48,6 +49,8 @@ public class EmailChangeDelivery : IEmailChangeDelivery
 
         if (currentEmail is null)
         {
+            _logger.LogWarning("Email change codes for user {UserId} not issued: the account has no email.", userId);
+
             return;
         }
 
@@ -60,12 +63,14 @@ public class EmailChangeDelivery : IEmailChangeDelivery
                 currentEmail,
                 new Dictionary<string, string> { [AlertTemplateKeys.NewEmail] = EmailMasking.Mask(newEmail) },
                 cancellationToken),
+            userId,
             "the current-address code");
 
         await RunLoggedAsync(
             () => available
                 ? IssueAsync(userId, VerificationPurpose.EmailChangeNew, newEmail, null, cancellationToken)
-                : IssueDecoyAsync(userId, cancellationToken),
+                : IssueDecoyAsync(userId, newEmail, cancellationToken),
+            userId,
             "the new-address code");
     }
 
@@ -87,17 +92,26 @@ public class EmailChangeDelivery : IEmailChangeDelivery
         IReadOnlyDictionary<string, string>? extraData,
         CancellationToken cancellationToken)
     {
-        await _verification.IssueAsync(userId, purpose, email, cancellationToken, extraData: extraData);
+        var result = await _verification.IssueAsync(userId, purpose, email, cancellationToken, extraData: extraData);
+
+        _logger.LogInformation(
+            "The {Purpose} code for user {UserId} to {Email}: {Status}.",
+            purpose, userId, EmailMasking.Mask(email), result.Status);
     }
 
-    // Stores a new-address code that is never sent.
-    private async Task IssueDecoyAsync(string userId, CancellationToken cancellationToken)
+    // Stores a new-address code that is never sent, because another account took the address
+    // after the request was accepted.
+    private async Task IssueDecoyAsync(string userId, string newEmail, CancellationToken cancellationToken)
     {
+        _logger.LogWarning(
+            "Email change for user {UserId}: {NewEmail} was taken after the request; a decoy code is stored and nothing is sent.",
+            userId, EmailMasking.Mask(newEmail));
+
         await _verification.IssueDecoyAsync(userId, VerificationPurpose.EmailChangeNew, cancellationToken);
     }
 
     // A failed send must not stop the other code; the member can request again.
-    private async Task RunLoggedAsync(Func<Task> work, string description)
+    private async Task RunLoggedAsync(Func<Task> work, string userId, string description)
     {
         try
         {
@@ -105,7 +119,12 @@ public class EmailChangeDelivery : IEmailChangeDelivery
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not issue {Description} for an email change.", description);
+            _logger.LogWarning(
+                exception,
+                "Could not issue {Description} for an email change by user {UserId}: {Reason}.",
+                description,
+                userId,
+                exception.GetType().Name);
         }
     }
 

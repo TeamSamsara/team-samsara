@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/service/emailChangeService.ts
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The calls of "change email" for a signed-in member: ask for the two codes
 // with the new address, then send the code from the current address and the code from
@@ -27,6 +27,10 @@ export type EmailCodesRequest =
     }
   /** The new address is not a usable address; nothing was sent. */
   | { readonly kind: "invalidEmail" }
+  /** Another account already uses the new address; nothing was sent. */
+  | { readonly kind: "emailTaken" }
+  /** The new address is the one the account already has; nothing was sent. */
+  | { readonly kind: "sameAsCurrent" }
   | CodeFailed;
 
 export type CurrentCodeResult =
@@ -43,7 +47,8 @@ export type NewCodeResult =
 
 /**
  * Emails one code to the current address and one to the new address. The API
- * answers the same whether the new address is free or taken.
+ * checks the new address first, so a taken or unchanged address is refused
+ * before anything is sent.
  */
 export async function sendEmailChangeCodes(
   newEmail: string,
@@ -62,6 +67,10 @@ export async function sendEmailChangeCodes(
       return { kind: "sent", codeLength, retryAfterSeconds };
     case "invalidEmail":
       return { kind: "invalidEmail" };
+    case "emailTaken":
+      return { kind: "emailTaken" };
+    case "sameAsCurrentEmail":
+      return { kind: "sameAsCurrent" };
     case "tooManyAttempts":
       return failed("rateLimited", retryAfterSeconds);
     case "accountNotFound":
@@ -97,6 +106,8 @@ export async function confirmCurrentAddressCode(
       return failed("notFound");
     case "success":
     case "invalidEmail":
+    case "emailTaken":
+    case "sameAsCurrentEmail":
     case "cooldownActive":
       return failed("unknown");
   }
@@ -126,6 +137,8 @@ export async function confirmNewAddressCode(
       return failed("notFound");
     case "codeAccepted":
     case "invalidEmail":
+    case "emailTaken":
+    case "sameAsCurrentEmail":
     case "cooldownActive":
       return failed("unknown");
   }

@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/web/src/features/account/view/ChangeEmailNewStep.tsx
-// Version : 1.1.0
-// Latest commit: task/web-toast-messages
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The first step of "change email": the new address. Sending it emails one code
-// to the current address and one to the new address; the answer is the same whether the
-// new address is free or taken, so this step never says which.
+// to the current address and one to the new address. An address that another account
+// already uses, or that the account already has, is refused before anything is sent.
 
 import { useState, type FormEvent } from "react";
 import { validateEmail } from "@/features/auth/validation/authValidation";
@@ -91,6 +91,12 @@ export function ChangeEmailNewStep({
         return;
       case "invalidEmail":
         setEmailError(ChangeEmailText.invalidEmail);
+        break;
+      case "emailTaken":
+        setEmailError(ChangeEmailText.emailTaken);
+        break;
+      case "sameAsCurrent":
+        setEmailError(ChangeEmailText.sameAsCurrent);
         break;
       case "failed":
         setFormError(

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/notification/view/notificationContent.ts
-// Version : 1.1.0
-// Latest commit: task/web-notifications
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : All the text of the notification bell, panel, sign-in banner and
 // "secure your account" modal, including the wording built from live values.
@@ -17,8 +17,12 @@ export const NotificationText = {
   panel: {
     title: "NOTIFICATIONS",
     period: "Last 90 days",
-    markAllRead: "MARK ALL AS READ",
-    markRead: "MARK AS READ",
+    markAllRead: "Mark all as read",
+    markRead: "Mark as read",
+    clearRead: "Clear all read",
+    remove: "Remove",
+    removeFailed: "Could not remove the notification. Try again.",
+    clearReadFailed: "Could not clear the read notifications. Try again.",
     loadMore: "LOAD MORE",
     loadingMore: "LOADING…",
     emptyTitle: "YOU ARE ALL CAUGHT UP",

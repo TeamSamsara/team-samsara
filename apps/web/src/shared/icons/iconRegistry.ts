@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/icons/iconRegistry.ts
-// Version : 1.2.0
-// Latest commit: task/web-toast-messages
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The only file that knows where each icon comes from; screens use the names.
 
@@ -10,6 +10,7 @@ import {
   Calendar,
   Camera,
   Check,
+  CheckCheck,
   ChevronDown,
   CircleAlert,
   Eye,
@@ -52,6 +53,7 @@ type IconComponent = ComponentType<IconProps>;
 export const iconRegistry = {
   // Actions
   check: Check,
+  checkAll: CheckCheck,
   close: X,
   edit: Pencil,
   upload: Upload,

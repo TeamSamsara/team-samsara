@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/AuthenticationServiceTests.cs
-// Version : 1.2.0
-// Latest commit: task/notifications-api
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Proves login: a recognized client is verified straight away, an unrecognized one
 // must confirm a code (and the member is told, by email and in the inbox), deleted accounts are restored only after a
@@ -60,11 +60,8 @@ public class AuthenticationServiceTests
             verification,
             _guardDog,
             _signIns,
-            _alerts,
-            _notifications,
-            _clock,
-            Options.Create(_settings),
-            NullLogger<AuthenticationService>.Instance);
+            new NewLoginNotifier(_alerts, _notifications, _clock, NullLogger<NewLoginNotifier>.Instance),
+            new AccountRecovery(_clock, Options.Create(_settings)));
 
         _accounts.AddAccount(UserId, Email);
         _guardDog.Current = _knownClient;

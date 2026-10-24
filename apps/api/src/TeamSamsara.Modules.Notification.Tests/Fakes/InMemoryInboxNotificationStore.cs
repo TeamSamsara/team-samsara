@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification.Tests/Fakes/InMemoryInboxNotificationStore.cs
-// Version : 1.2.0
-// Latest commit: task/notifications-api
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : An in-memory inbox store that, like Firestore, refuses to overwrite an existing id, orders and pages like the real queries, and can be made to fail or hang so the error paths can be tested.
+// Purpose : An in-memory inbox store that, like Firestore, refuses to overwrite an existing id, orders and pages like the real queries, deletes like the real clearing calls, and can be made to fail or hang so the error paths can be tested.
 
 using TeamSamsara.Modules.Notification.Models;
 using TeamSamsara.Modules.Notification.Repositories;
@@ -24,7 +24,13 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
 
     public Exception? FailureToThrow { get; set; }
 
+    // Thrown only by ListByRecipientAsync, so a test can let the trim fail while everything else works
+    public Exception? ListFailureToThrow { get; set; }
+
     public bool HangUntilCancelled { get; set; }
+
+    // How many of the recipient's newest notifications DeleteReadBatchAsync looks at, like the real store
+    public int ReadWindowSize { get; set; } = DefaultBatchSize;
 
     public int DeleteBatchSize { get; set; } = DefaultBatchSize;
 
@@ -35,6 +41,12 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
     public int DeleteBatchCalls { get; private set; }
 
     public int ListCalls { get; private set; }
+
+    public int DeleteCalls { get; private set; }
+
+    public int DeleteReadBatchCalls { get; private set; }
+
+    public int DeleteManyCalls { get; private set; }
 
     public int MarkReadCalls { get; private set; }
 
@@ -104,6 +116,11 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
         }
 
         ThrowIfFailing();
+
+        if (ListFailureToThrow is not null)
+        {
+            throw ListFailureToThrow;
+        }
 
         lock (_lock)
         {
@@ -183,6 +200,90 @@ public class InMemoryInboxNotificationStore : IInboxNotificationStore
 
             return Task.FromResult(unread.Count);
         }
+    }
+
+    public Task<NotificationDeleteStatus> DeleteAsync(
+        string recipientId,
+        string id,
+        Func<InboxNotification, bool> canDelete,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            DeleteCalls++;
+        }
+
+        ThrowIfFailing();
+
+        lock (_lock)
+        {
+            if (!_documents.TryGetValue(id, out var document) || document.RecipientId != recipientId)
+            {
+                return Task.FromResult(NotificationDeleteStatus.NotFound);
+            }
+
+            if (!canDelete(Copy(document)))
+            {
+                return Task.FromResult(NotificationDeleteStatus.NotClearable);
+            }
+
+            _documents.Remove(id);
+
+            return Task.FromResult(NotificationDeleteStatus.Deleted);
+        }
+    }
+
+    // Looks at the newest ReadWindowSize notifications and deletes the read ones among them, up to one batch
+    public Task<int> DeleteReadBatchAsync(string recipientId, CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            DeleteReadBatchCalls++;
+        }
+
+        ThrowIfFailing();
+
+        lock (_lock)
+        {
+            var ids = _documents.Values
+                .Where(document => document.RecipientId == recipientId)
+                .OrderByDescending(document => document.CreatedAt)
+                .ThenByDescending(document => document.Id, StringComparer.Ordinal)
+                .Take(ReadWindowSize)
+                .Where(document => document.ReadAt is not null)
+                .Take(DeleteBatchSize)
+                .Select(document => document.Id)
+                .ToList();
+
+            foreach (var id in ids)
+            {
+                _documents.Remove(id);
+            }
+
+            return Task.FromResult(ids.Count);
+        }
+    }
+
+    public Task DeleteManyAsync(
+        IReadOnlyList<InboxNotification> notifications,
+        CancellationToken cancellationToken = default)
+    {
+        lock (_lock)
+        {
+            DeleteManyCalls++;
+        }
+
+        ThrowIfFailing();
+
+        lock (_lock)
+        {
+            foreach (var notification in notifications)
+            {
+                _documents.Remove(notification.Id);
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task<int> DeleteBatchByRecipientAsync(string recipientId, CancellationToken cancellationToken = default)

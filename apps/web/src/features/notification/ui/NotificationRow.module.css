@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/features/notification/ui/NotificationRow.module.css
-   Version : 1.1.0
-   Latest commit: task/web-notifications
+   Version : 1.3.0
+   Latest commit: task/api-handle-cooldown
    Author : Gerrah
    Purpose : Look and motion of one notification in the panel: the round icon, the title and detail, the optional action buttons, the time line with its "mark as read" link, and the unread square. Unread rows are marked with data-unread, rows that just arrived with data-arriving. Rows stagger in when the panel opens, new rows grow in with an amber flash, and the unread square shrinks away when a row is read. */
 
@@ -137,7 +137,7 @@
 
 .meta {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: calc(12 * var(--px));
   margin: calc(6 * var(--px)) 0 0;
@@ -146,31 +146,12 @@
   color: color-mix(in srgb, var(--color-text-on-dark) 55%, transparent);
 }
 
-.markRead {
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: var(--font-heading);
-  font-size: max(14px, calc(22 * var(--px)));
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  text-decoration: underline;
-  color: var(--color-accent);
-  cursor: pointer;
-}
-
-.markRead:hover:not(:disabled) {
-  filter: brightness(1.15);
-}
-
-.markRead:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 3px;
-}
-
-.markRead:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Icon buttons sit at the end of the line; the negative margin keeps the icons flush with the edge. */
+.metaActions {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--px));
+  margin: calc(-8 * var(--px)) calc(-8 * var(--px)) calc(-8 * var(--px)) 0;
 }
 
 /* Always in the row: it shows while unread and shrinks away when the row is read. */

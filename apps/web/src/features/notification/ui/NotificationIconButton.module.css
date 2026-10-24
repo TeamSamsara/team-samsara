@@ -1,0 +1,48 @@
+/* File : /team-samsara/apps/web/src/features/notification/ui/NotificationIconButton.module.css
+   Version : 1.0.0
+   Latest commit: task/api-handle-cooldown
+   Author : Gerrah
+   Purpose : Look of the icon-only buttons in the notification panel: a square hit area with a soft tint on hover, an accent or quiet icon, and a clear focus ring. */
+
+.button {
+  display: grid;
+  place-items: center;
+  width: max(32px, calc(44 * var(--px)));
+  height: max(32px, calc(44 * var(--px)));
+  padding: 0;
+  border: 0;
+  border-radius: calc(8 * var(--px));
+  background: none;
+  color: var(--color-accent);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease;
+}
+
+.button[data-tone="quiet"] {
+  color: color-mix(in srgb, var(--color-text-on-dark) 65%, transparent);
+}
+
+.button:hover:not(:disabled) {
+  background-color: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.button[data-tone="quiet"]:hover:not(:disabled) {
+  color: var(--color-text-on-dark);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.icon {
+  width: 56%;
+  height: 56%;
+}

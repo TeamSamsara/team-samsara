@@ -1,9 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/FirestoreHandleStore.cs
-// Version : 1.0.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Firestore implementation of the handle store. Each handle is one
-// document keyed by the handle, so Firestore itself keeps it unique.
+// document keyed by the handle, so Firestore itself keeps it unique. The claim rules
+// come from HandleClaimRules and run in the same transaction as the write.
 
 using Google.Cloud.Firestore;
 using TeamSamsara.Modules.Identity.Models;
@@ -40,55 +41,33 @@ public class FirestoreHandleStore : IHandleStore
         return snapshot.Exists ? snapshot.GetValue<string>(OwnerField) : null;
     }
 
-    // Reads the handle and the profile, then writes both in one transaction.
-    // Firestore reruns it if either changed meanwhile.
-    public async Task<HandleClaimStatus> ClaimAsync(string userId, string handle, DateTimeOffset? changedAt)
+    // Reads the profile and the handle, lets the rules decide, then writes both in one
+    // transaction. Firestore reruns it if either changed meanwhile.
+    public async Task<HandleClaimResult> ClaimAsync(string userId, string handle, HandleChange? change)
     {
-        var handleReference = HandleReference(handle);
         var profileReference = ProfileReference(userId);
+        var handleReference = HandleReference(handle);
 
         return await _firestoreDb.RunTransactionAsync(async transaction =>
         {
-            var profileSnapshot = await transaction.GetSnapshotAsync(profileReference);
+            var profile = await ReadProfileAsync(transaction, profileReference);
+            var owner = await ReadOwnerAsync(transaction, handleReference);
 
-            if (!profileSnapshot.Exists)
+            var status = HandleClaimRules.Judge(profile, owner, userId, handle, change);
+
+            if (status != HandleClaimStatus.Success)
             {
-                return HandleClaimStatus.ProfileNotFound;
+                return new HandleClaimResult(status, null);
             }
 
-            var handleSnapshot = await transaction.GetSnapshotAsync(handleReference);
+            var member = profile!;
 
-            if (handleSnapshot.Exists && handleSnapshot.GetValue<string>(OwnerField) != userId)
+            if (!HandleClaimRules.AlreadyHolds(member, owner, userId, handle))
             {
-                return HandleClaimStatus.HandleTaken;
+                await WriteClaimAsync(transaction, member, userId, handle, change);
             }
 
-            var profile = profileSnapshot.ConvertTo<Profile>();
-
-            if (profile.Handle == handle && handleSnapshot.Exists)
-            {
-                return HandleClaimStatus.Success;
-            }
-
-            // All reads must come before the first write
-            var previousReference = await FindPreviousAsync(transaction, profile, userId, handle);
-
-            if (previousReference is not null)
-            {
-                transaction.Delete(previousReference);
-            }
-
-            profile.Handle = handle;
-
-            if (changedAt is not null)
-            {
-                profile.HandleChangedAt = changedAt;
-            }
-
-            transaction.Set(handleReference, new Dictionary<string, object> { [OwnerField] = userId });
-            transaction.Set(profileReference, profile);
-
-            return HandleClaimStatus.Success;
+            return new HandleClaimResult(HandleClaimStatus.Success, member);
         });
     }
 
@@ -135,6 +114,44 @@ public class FirestoreHandleStore : IHandleStore
     private DocumentReference ProfileReference(string userId)
     {
         return _firestoreDb.Collection(IdentityFirestoreCollections.Profiles).Document(userId);
+    }
+
+    // The member's profile, or null if they have none
+    private static async Task<Profile?> ReadProfileAsync(Transaction transaction, DocumentReference reference)
+    {
+        var snapshot = await transaction.GetSnapshotAsync(reference);
+
+        return snapshot.Exists ? snapshot.ConvertTo<Profile>() : null;
+    }
+
+    // The uid of whoever holds the handle, or null if nobody does
+    private static async Task<string?> ReadOwnerAsync(Transaction transaction, DocumentReference reference)
+    {
+        var snapshot = await transaction.GetSnapshotAsync(reference);
+
+        return snapshot.Exists ? snapshot.GetValue<string>(OwnerField) : null;
+    }
+
+    // Frees the member's old handle, gives them the new one and saves the profile.
+    // Every read happens before the first write.
+    private async Task WriteClaimAsync(
+        Transaction transaction,
+        Profile profile,
+        string userId,
+        string handle,
+        HandleChange? change)
+    {
+        var previousReference = await FindPreviousAsync(transaction, profile, userId, handle);
+
+        if (previousReference is not null)
+        {
+            transaction.Delete(previousReference);
+        }
+
+        HandleClaimRules.Apply(profile, handle, change);
+
+        transaction.Set(HandleReference(handle), new Dictionary<string, object> { [OwnerField] = userId });
+        transaction.Set(ProfileReference(userId), profile);
     }
 
     // The member's current handle document when they are moving to a different handle and

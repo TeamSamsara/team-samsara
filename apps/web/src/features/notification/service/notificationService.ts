@@ -1,8 +1,9 @@
 // File : /team-samsara/apps/web/src/features/notifications/service/notificationService.ts
-// Version : 1.0.0
-// Latest commit: task/web-notifications
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Every call to the notification inbox API, one function per step.
+// Purpose : Every call to the notification inbox API, one function per step,
+// including removing one notification and clearing all the read ones.
 // Each returns an ApiOutcome and never throws. An item the app cannot read is
 // skipped, so one odd notification never blanks the whole inbox.
 
@@ -105,6 +106,8 @@ function parseUnreadCount(body: unknown): number | null {
   return body.unreadCount;
 }
 
+const deleteEmpty: RequestInit = { method: "DELETE" };
+
 // ---- Requests ----
 
 function listPath(cursor: string | null): string {
@@ -147,5 +150,22 @@ export function markAllNotificationsRead(): Promise<ApiOutcome<true>> {
     NotificationApiRoutes.readAll,
     parseNoContent,
     postEmpty,
+  );
+}
+
+// Answers "unknown" for a notice that cannot be removed (an unanswered sign-in) or is already gone.
+export function removeNotification(id: string): Promise<ApiOutcome<true>> {
+  return sendAccountRequest(
+    NotificationApiRoutes.remove(id),
+    parseNoContent,
+    deleteEmpty,
+  );
+}
+
+export function clearReadNotifications(): Promise<ApiOutcome<true>> {
+  return sendAccountRequest(
+    NotificationApiRoutes.clearRead,
+    parseNoContent,
+    deleteEmpty,
   );
 }

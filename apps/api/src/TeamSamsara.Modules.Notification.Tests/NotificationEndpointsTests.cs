@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification.Tests/NotificationEndpointsTests.cs
-// Version : 1.0.0
-// Latest commit: task/notifications-api
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves the inbox endpoints are for verified members only, show a member only their own notifications, page with a cursor, and answer 400 for a malformed cursor and 404 for an unknown or foreign id.
+// Purpose : Proves the inbox endpoints are for verified members only, show a member only their own notifications, page with a cursor, answer 400 for a malformed cursor and 404 for an unknown or foreign id, and let a member delete one notification (409 for an unanswered sign-in notice) or clear all the read ones.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -18,6 +18,7 @@ using TeamSamsara.Modules.Notification.Handlers;
 using TeamSamsara.Modules.Notification.Models;
 using TeamSamsara.Modules.Notification.Tests.Fakes;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Notification;
 
 namespace TeamSamsara.Modules.Notification.Tests;
 
@@ -37,7 +38,9 @@ public class NotificationEndpointsTests
         ("GET", NotificationRoutes.Root),
         ("GET", NotificationRoutes.UnreadCount),
         ("POST", NotificationRoutes.ReadAll),
-        ("POST", NotificationRoutes.Read.Replace("{id}", KnownId))
+        ("POST", NotificationRoutes.Read.Replace("{id}", KnownId)),
+        ("DELETE", NotificationRoutes.Item.Replace("{id}", KnownId)),
+        ("DELETE", NotificationRoutes.ClearRead)
     };
 
     private readonly InMemoryInboxNotificationStore _store = new();
@@ -251,9 +254,112 @@ public class NotificationEndpointsTests
         ReadAtOf(foreign.Id).ShouldBeNull();
     }
 
+    [Fact]
+    public async Task Delete_ForAMember_GetsNoContent_AndRemovesOnlyThatNotification()
+    {
+        var stored = await SeedAsync(Member, minutesAgo: 1);
+        var untouched = await SeedAsync(Member, minutesAgo: 2);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath(stored.Id));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        _store.Documents.Select(document => document.Id).ShouldBe(new[] { untouched.Id });
+    }
+
+    [Fact]
+    public async Task Delete_OfAnUnknownId_GetsNotFound()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath(UnknownId));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Delete_OfAnotherMembersNotification_GetsNotFound_AndChangesNothing()
+    {
+        var foreign = await SeedAsync(OtherMember, minutesAgo: 1);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath(foreign.Id));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Delete_WithAMalformedId_GetsNotFound_WithoutTouchingStorage()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath("not-an-id"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        _store.DeleteCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Delete_OfAnUnansweredSignIn_GetsConflict_AndItStays()
+    {
+        var signIn = await SeedAsync(Member, minutesAgo: 1, key: NotificationKeys.NewLogin);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath(signIn.Id));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task Delete_OfAnAnsweredSignIn_GetsNoContent()
+    {
+        var signIn = await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow, key: NotificationKeys.NewLogin);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", ItemPath(signIn.Id));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        _store.Documents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task ClearRead_ForAMember_GetsNoContent_AndLeavesTheUnreadOnes()
+    {
+        await SeedAsync(Member, minutesAgo: 1, readAt: _clock.UtcNow);
+        var unread = await SeedAsync(Member, minutesAgo: 2);
+        var unansweredSignIn = await SeedAsync(Member, minutesAgo: 3, key: NotificationKeys.NewLogin);
+        var foreign = await SeedAsync(OtherMember, minutesAgo: 1, readAt: _clock.UtcNow);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", NotificationRoutes.ClearRead);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        _store.Documents.Select(document => document.Id)
+            .ShouldBe(new[] { unread.Id, unansweredSignIn.Id, foreign.Id }, ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task ClearRead_WhenNothingIsRead_StillGetsNoContent()
+    {
+        await SeedAsync(Member, minutesAgo: 1);
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await SendAsync(app, "DELETE", NotificationRoutes.ClearRead);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        _store.Documents.ShouldHaveSingleItem();
+    }
+
     #endregion
 
     #region Private Methods
+
+    private static string ItemPath(string id)
+    {
+        return NotificationRoutes.Item.Replace("{id}", id);
+    }
 
     private static string ReadPath(string id)
     {
@@ -272,13 +378,14 @@ public class NotificationEndpointsTests
         string recipientId,
         int minutesAgo,
         DateTimeOffset? readAt = null,
-        string? id = null)
+        string? id = null,
+        string key = Key)
     {
         var notification = new InboxNotification
         {
             Id = id ?? (++_lastId + 1000).ToString("x32"),
             RecipientId = recipientId,
-            Key = Key,
+            Key = key,
             Data = new Dictionary<string, string> { ["orderNumber"] = "1001" },
             CreatedAt = _clock.UtcNow.AddMinutes(-minutesAgo),
             ExpiresAt = _clock.UtcNow.AddDays(RetentionDays),

@@ -1,8 +1,8 @@
 /* File : /team-samsara/apps/web/src/features/notification/ui/NotificationPanel.module.css
-   Version : 1.1.0
-   Latest commit: task/web-notifications
+   Version : 1.2.0
+   Latest commit: task/api-handle-cooldown
    Author : Gerrah
-   Purpose : Look and motion of the notification panel that opens under the bell: the box that fades and drops in from the bell, the header with its "mark all as read" link, the list, the empty and could-not-load messages, and the load-more link. */
+   Purpose : Look and motion of the notification panel that opens under the bell: the box that fades and drops in from the bell, the header with its "mark all as read" and "clear all read" icons, the list, the empty and could-not-load messages, and the load-more link. */
 
 /* The box stays in the page while closed (its wrapper is inert), so it can fade out as well as in. */
 .panel {
@@ -60,15 +60,24 @@
   color: var(--color-accent);
 }
 
-.headerAside {
+/* The title with "last 90 days" underneath it takes the room the icons leave. */
+.headerText {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  align-items: flex-end;
-  gap: calc(4 * var(--px));
-  padding-top: calc(2 * var(--px));
+  gap: calc(2 * var(--px));
+  min-width: 0;
 }
 
-.markAll,
+/* The icons stay at the top right, level with the title, flush with the panel's edge. */
+.headerActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: calc(4 * var(--px));
+  margin: calc(2 * var(--px)) calc(-8 * var(--px)) 0 0;
+}
+
 .more {
   padding: 0;
   border: 0;
@@ -82,18 +91,15 @@
   cursor: pointer;
 }
 
-.markAll:hover:not(:disabled),
 .more:hover:not(:disabled) {
   filter: brightness(1.15);
 }
 
-.markAll:focus-visible,
 .more:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 3px;
 }
 
-.markAll:disabled,
 .more:disabled {
   opacity: 0.5;
   cursor: not-allowed;

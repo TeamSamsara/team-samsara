@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Handlers/InboxService.cs
-// Version : 1.0.0
-// Latest commit: task/notifications-api
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Default IInboxService. Pages the inbox with a cursor, hides expired notifications the TTL has not deleted yet, and refuses malformed cursors and ids before they reach storage.
+// Purpose : Default IInboxService. Pages the inbox with a cursor, hides expired notifications the TTL has not deleted yet, refuses malformed cursors and ids before they reach storage, and deletes notifications except unanswered sign-in notices.
 
 using System.Diagnostics.CodeAnalysis;
 using TeamSamsara.Modules.Notification.Models;
@@ -18,8 +18,8 @@ public class InboxService : IInboxService
     public const int DefaultPageSize = 20;
     public const int MaxPageSize = 50;
 
-    // Stops "mark all as read" from looping forever; 20 batches cover 10,000 notifications
-    private const int MaxMarkAllBatches = 20;
+    // Stops "mark all as read" and "clear read" from looping forever; 20 batches cover 10,000 notifications
+    private const int MaxBatches = 20;
 
     private readonly IInboxNotificationStore _store;
     private readonly IClock _clock;
@@ -87,33 +87,65 @@ public class InboxService : IInboxService
         return await _store.MarkReadAsync(recipientId, id, _clock.UtcNow, cancellationToken);
     }
 
-    // Marks one batch after another until none are left, or until the safety limit is reached
     public async Task<int> MarkAllReadAsync(string recipientId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(recipientId);
 
-        var total = 0;
+        return await RunBatchesAsync(
+            () => _store.MarkBatchReadAsync(recipientId, _clock.UtcNow, cancellationToken),
+            cancellationToken);
+    }
 
-        for (var batch = 0; batch < MaxMarkAllBatches; batch++)
+    // The store decides on the stored notification, so an unanswered sign-in notice cannot slip through between a check and the deletion
+    public async Task<NotificationDeleteStatus> DeleteAsync(
+        string recipientId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(recipientId);
+
+        if (!NotificationIds.IsValid(id))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var marked = await _store.MarkBatchReadAsync(recipientId, _clock.UtcNow, cancellationToken);
-
-            if (marked == 0)
-            {
-                break;
-            }
-
-            total += marked;
+            return NotificationDeleteStatus.NotFound;
         }
 
-        return total;
+        return await _store.DeleteAsync(recipientId, id, InboxRetention.IsClearable, cancellationToken);
+    }
+
+    public async Task<int> ClearReadAsync(string recipientId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(recipientId);
+
+        return await RunBatchesAsync(
+            () => _store.DeleteReadBatchAsync(recipientId, cancellationToken),
+            cancellationToken);
     }
 
     #endregion
 
     #region Private Methods
+
+    // Runs one batch after another until none are left, or until the safety limit is reached, and returns how many were handled in all
+    private static async Task<int> RunBatchesAsync(Func<Task<int>> runBatch, CancellationToken cancellationToken)
+    {
+        var total = 0;
+
+        for (var batch = 0; batch < MaxBatches; batch++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var handled = await runBatch();
+
+            if (handled == 0)
+            {
+                break;
+            }
+
+            total += handled;
+        }
+
+        return total;
+    }
 
     // No cursor (or an empty one) means the first page; anything else must be a cursor we produced
     private static bool TryReadCursor(string? cursor, out InboxCursor? after)
