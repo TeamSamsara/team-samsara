@@ -1,0 +1,161 @@
+/* File : /team-samsara/apps/web/src/features/account/view/SecurityOverviewPage.module.css
+   Version : 1.0.0
+   Latest commit: task/web-account-security
+   Author : Gerrah
+   Purpose : Layout of the account security overview: back link, title and the four cards, with the delete card outlined in red. */
+
+.page {
+  width: min(calc(900 * var(--px)), 100%);
+  margin-inline: auto;
+  padding-top: calc(70 * var(--px));
+  padding-bottom: calc(160 * var(--px));
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: calc(16 * var(--px));
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(28 * var(--px)));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--color-text-on-light);
+}
+
+.back:focus-visible,
+.action:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.title {
+  margin: 0 0 calc(56 * var(--px));
+  font-family: var(--font-display);
+  font-size: max(40px, calc(84 * var(--px)));
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-text-on-light);
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: calc(32 * var(--px));
+}
+
+.card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(24 * var(--px)) calc(32 * var(--px));
+  padding: calc(30 * var(--px)) calc(38 * var(--px));
+  background: #fcfcfc;
+  border: 2px solid var(--color-border-control);
+  border-radius: calc(16 * var(--px));
+}
+
+.cardText {
+  display: flex;
+  flex: 1 1 calc(480 * var(--px));
+  flex-direction: column;
+  gap: calc(16 * var(--px));
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(22px, calc(44 * var(--px)));
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+}
+
+.email {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(16px, calc(30 * var(--px)));
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  color: var(--color-text-on-light);
+}
+
+.cardBody {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(24 * var(--px)));
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: max(44px, calc(73 * var(--px)));
+  padding-inline: calc(44 * var(--px));
+  background: transparent;
+  color: var(--color-text-on-light);
+  border: 3px solid var(--color-text-on-light);
+  border-radius: calc(8 * var(--px));
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(36 * var(--px)));
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--color-text-on-light);
+  color: var(--color-page);
+}
+
+.danger {
+  border: 3px solid var(--color-error);
+}
+
+.danger .cardTitle {
+  color: var(--color-error);
+}
+
+.danger .action {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.danger .action:hover {
+  background: var(--color-error);
+  color: #fff;
+}
+
+.danger .action:focus-visible {
+  outline-color: var(--color-error);
+}
+
+.danger .cardText {
+  flex-basis: 100%;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding-inline: 16px;
+    padding-top: 40px;
+  }
+
+  .card {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .action {
+    width: 100%;
+  }
+}

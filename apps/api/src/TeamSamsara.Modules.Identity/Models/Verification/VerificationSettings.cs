@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationSettings.cs
-// Version : 1.2.0
-// Latest commit: feat/email-change-foundation
+// Version : 1.3.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Configuration for verification codes: lengths, expiry and attempt limits.
 
@@ -45,6 +45,15 @@ public class VerificationSettings
     // Minimum wait before another code can be sent for the same member and purpose
     [Range(0, 600)]
     public int ResendCooldownSeconds { get; set; } = 60;
+
+    // Email change requests one member may make per window, however they end. Since a
+    // refused address tells the member it is taken, this limits how fast they can probe.
+    [Range(1, 100)]
+    public int EmailChangeRequestLimit { get; set; } = 10;
+
+    // Length of that window, in minutes
+    [Range(1, 1440)]
+    public int EmailChangeRequestWindowMinutes { get; set; } = 60;
 
     #endregion
 }

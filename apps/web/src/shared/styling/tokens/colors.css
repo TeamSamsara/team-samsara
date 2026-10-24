@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/styling/tokens/colors.css
-   Version : 1.1.0
-   Latest commit: feature/web-home-page
+   Version : 1.4.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
    Purpose : Defines the brand palette and the semantic color roles every component uses. */
 
@@ -14,6 +14,11 @@
   --palette-grey-light: #ededed;
   --palette-grey-placeholder: #d9d9d9;
   --palette-grey-page: #f3f3f3;
+  --palette-grey-border: #c2bcbc;
+  --palette-red: #c0392b;
+  --palette-amber: #ffd36a;
+  --palette-blue: #2f6fb5;
+  --palette-white: #ffffff;
 
   /* Roles: what components use. */
   --color-page: var(--palette-grey-page);
@@ -25,4 +30,16 @@
   --color-accent-soft: var(--palette-green-soft);
   --color-accent-muted: var(--palette-green-muted);
   --color-avatar-placeholder: var(--palette-grey-placeholder);
+  --color-border-control: var(--palette-grey-border);
+  --color-error: var(--palette-red);
+  --color-text-on-error: var(--palette-white);
+  --color-info: var(--palette-blue);
+  --color-text-on-info: var(--palette-white);
+
+  /* Attention: the sign-in banner, the unread marks on the bell and the notification rows, and warning messages. */
+  --color-alert: var(--palette-amber);
+  --color-text-on-alert: var(--palette-slate);
+
+  /* Fill behind a text field: transparent*/
+  --color-field-fill: transparent;
 }

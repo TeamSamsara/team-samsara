@@ -1,0 +1,197 @@
+// File : /team-samsara/apps/web/src/features/account/hooks/useProfileForm.ts
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
+// Author : Gerrah
+// Purpose : Holds the edit-profile form: what the member has typed or picked,
+// what is wrong with it, whether it differs from the saved profile, the save
+// itself (a success toast tells them it worked) and discarding the changes.
+// The page only lays these out.
+
+import { useState } from "react";
+import {
+  keepImage,
+  type ImageChange,
+} from "@/shared/components/ImagePicker/imageChange";
+import { useToast } from "@/shared/components/Toast/useToast";
+import type { ProfileView } from "../types/profileTypes";
+import {
+  normalizeHandle,
+  validateBio,
+  validateDisplayName,
+  validateHandle,
+} from "../validation/profileValidation";
+import {
+  ProfileSettingsText,
+  profileSaveFailureMessage,
+  type SettingsFieldName,
+} from "../view/profileSettingsContent";
+import { useHandleAvailability } from "./useHandleAvailability";
+import { useSaveProfile } from "./useSaveProfile";
+
+type FieldErrors = Record<SettingsFieldName, string | null>;
+
+const noErrors: FieldErrors = {
+  displayName: null,
+  bio: null,
+  handle: null,
+  picture: null,
+  banner: null,
+  form: null,
+};
+
+export function useProfileForm(profile: ProfileView) {
+  const { show } = useToast();
+  const [displayName, setDisplayName] = useState(profile.displayName);
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [handle, setHandle] = useState(profile.handle ?? "");
+  const [picture, setPicture] = useState<ImageChange>(keepImage);
+  const [banner, setBanner] = useState<ImageChange>(keepImage);
+  const [errors, setErrors] = useState<FieldErrors>(noErrors);
+
+  const { save, isSaving } = useSaveProfile();
+  const availability = useHandleAvailability(handle, profile.handle);
+  const handleLocked = profile.handleChangeableAt !== null;
+
+  const trimmedBio = bio.trim();
+  const isDirty =
+    displayName.trim() !== profile.displayName ||
+    (trimmedBio === "" ? null : trimmedBio) !== profile.bio ||
+    normalizeHandle(handle) !== (profile.handle ?? "") ||
+    picture.kind !== "keep" ||
+    banner.kind !== "keep";
+
+  function showError(field: SettingsFieldName, message: string | null) {
+    setErrors((current) => ({ ...current, [field]: message }));
+  }
+
+  function changeDisplayName(value: string) {
+    setDisplayName(value);
+
+    if (errors.displayName) {
+      showError("displayName", validateDisplayName(value));
+    }
+  }
+
+  function changeBio(value: string) {
+    setBio(value);
+
+    if (errors.bio) {
+      showError("bio", validateBio(value));
+    }
+  }
+
+  function changeHandle(value: string) {
+    setHandle(normalizeHandle(value));
+
+    if (errors.handle) {
+      showError("handle", validateHandle(value));
+    }
+  }
+
+  function changePicture(change: ImageChange) {
+    setPicture(change);
+    showError("picture", null);
+  }
+
+  function changeBanner(change: ImageChange) {
+    setBanner(change);
+    showError("banner", null);
+  }
+
+  function checkDisplayName() {
+    showError("displayName", validateDisplayName(displayName));
+  }
+
+  function checkBio() {
+    showError("bio", validateBio(bio));
+  }
+
+  function checkHandle() {
+    if (!handleLocked) {
+      showError("handle", validateHandle(handle));
+    }
+  }
+
+  // Puts every field back to the saved profile and clears the messages.
+  function discard() {
+    setDisplayName(profile.displayName);
+    setBio(profile.bio ?? "");
+    setHandle(profile.handle ?? "");
+    setPicture(keepImage);
+    setBanner(keepImage);
+    setErrors(noErrors);
+  }
+
+  async function submit() {
+    if (isSaving || !isDirty) {
+      return;
+    }
+
+    const found: FieldErrors = {
+      ...noErrors,
+      displayName: validateDisplayName(displayName),
+      bio: validateBio(bio),
+      handle: handleLocked
+        ? null
+        : (validateHandle(handle) ??
+          (availability === "taken" ? ProfileSettingsText.handleTaken : null)),
+    };
+    setErrors(found);
+
+    if (found.displayName || found.bio || found.handle) {
+      return;
+    }
+
+    const attempt = await save({
+      current: profile,
+      displayName,
+      bio,
+      handle: handleLocked ? (profile.handle ?? "") : normalizeHandle(handle),
+      picture,
+      banner,
+    });
+
+    if (attempt.kind === "saved") {
+      setDisplayName(displayName.trim());
+      setBio(trimmedBio);
+      setPicture(keepImage);
+      setBanner(keepImage);
+      show({ tone: "success", title: ProfileSettingsText.saved });
+      return;
+    }
+
+    if (attempt.kind === "rejected") {
+      showError(
+        attempt.field,
+        ProfileSettingsText.rejectionMessage(attempt.status),
+      );
+      return;
+    }
+
+    showError("form", profileSaveFailureMessage(attempt));
+  }
+
+  return {
+    displayName,
+    bio,
+    handle,
+    picture,
+    banner,
+    errors,
+    availability,
+    handleLocked,
+    handleChangeableAt: profile.handleChangeableAt,
+    isDirty,
+    isSaving,
+    changeDisplayName,
+    changeBio,
+    changeHandle,
+    changePicture,
+    changeBanner,
+    checkDisplayName,
+    checkBio,
+    checkHandle,
+    discard,
+    submit,
+  };
+}

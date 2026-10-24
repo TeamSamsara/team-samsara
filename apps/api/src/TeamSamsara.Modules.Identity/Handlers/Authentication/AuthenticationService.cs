@@ -1,17 +1,13 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AuthenticationService.cs
-// Version : 1.2.0
-// Latest commit: chore/api-contract-baseline
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Authentication/AuthenticationService.cs
+// Version : 1.4.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : Default IAuthenticationService. A sign-in only becomes verified (and so honored as
 // Member by the authentication handler) once the client is recognized or the emailed
-// challenge code has been confirmed.
+// challenge code has been confirmed. An unrecognized client also leaves the member a notice (INewLoginNotifier).
 
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
-using TeamSamsara.Shared.Alert;
 using TeamSamsara.Shared.Context;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
@@ -25,10 +21,8 @@ public class AuthenticationService : IAuthenticationService
     private readonly IVerificationCodeService _verification;
     private readonly IGuardDog _guardDog;
     private readonly ISignInTracker _signIns;
-    private readonly IAlertSender _alerts;
-    private readonly IClock _clock;
-    private readonly AuthenticationSettings _settings;
-    private readonly ILogger<AuthenticationService> _logger;
+    private readonly INewLoginNotifier _newLogins;
+    private readonly AccountRecovery _recovery;
 
     #endregion
 
@@ -40,20 +34,16 @@ public class AuthenticationService : IAuthenticationService
         IVerificationCodeService verification,
         IGuardDog guardDog,
         ISignInTracker signIns,
-        IAlertSender alerts,
-        IClock clock,
-        IOptions<AuthenticationSettings> settings,
-        ILogger<AuthenticationService> logger)
+        INewLoginNotifier newLogins,
+        AccountRecovery recovery)
     {
         _users = users;
         _accounts = accounts;
         _verification = verification;
         _guardDog = guardDog;
         _signIns = signIns;
-        _alerts = alerts;
-        _clock = clock;
-        _settings = settings.Value;
-        _logger = logger;
+        _newLogins = newLogins;
+        _recovery = recovery;
     }
 
     #endregion
@@ -75,17 +65,12 @@ public class AuthenticationService : IAuthenticationService
 
         var client = _guardDog.Inspect();
 
-        if (IsRecognized(account.User, client))
+        if (!IsRecognized(account.User, client))
         {
-            if (!await VerifySignInAsync(userId, authTime, client))
-            {
-                return Rejected(AuthenticationStatus.AccountNotFound);
-            }
-
-            return new LoginResult(AuthenticationStatus.Authenticated, 0, 0);
+            return await StartChallengeAsync(account.User, account.Email, client, cancellationToken);
         }
 
-        return await StartChallengeAsync(account.User, account.Email, client, cancellationToken);
+        return await VerifyRecognizedAsync(userId, authTime, client);
     }
 
     // Checks the challenge code and, if valid, verifies the sign-in (restoring the account if
@@ -119,7 +104,7 @@ public class AuthenticationService : IAuthenticationService
         return AuthenticationStatus.Authenticated;
     }
 
-    // Sends a fresh challenge code (no new-login alert: the member was already told once)
+    // Sends a fresh challenge code (no new-login notice: the member was already told once)
     public async Task<LoginResult> ResendChallengeAsync(
         string userId,
         CancellationToken cancellationToken = default)
@@ -161,7 +146,7 @@ public class AuthenticationService : IAuthenticationService
             return AccountLookup.Reject(AuthenticationStatus.RegistrationIncomplete);
         }
 
-        if (IsPastRecoveryWindow(user))
+        if (_recovery.IsPastWindow(user))
         {
             return AccountLookup.Reject(AuthenticationStatus.AccountNotFound);
         }
@@ -169,27 +154,20 @@ public class AuthenticationService : IAuthenticationService
         return AccountLookup.Accept(user, email);
     }
 
-    // A deleted account can only be restored for a limited time; after that it awaits purging
-    private bool IsPastRecoveryWindow(User user)
-    {
-        if (user.DeletedAt is not { } deletedAt)
-        {
-            return false;
-        }
-
-        return deletedAt.AddDays(_settings.RecoveryWindowDays) < _clock.UtcNow;
-    }
-
-    // Whether a purge currently holds the account, which makes it impossible to restore
-    private bool IsBeingPurged(User user)
-    {
-        return user.PurgeLeaseUntil is { } heldUntil && heldUntil > _clock.UtcNow;
-    }
-
     // Deleted accounts are never recognized: they must confirm a code to be restored
     private bool IsRecognized(User user, ClientInfo client)
     {
         return user.DeletedAt is null && _guardDog.IsKnown(user, client);
+    }
+
+    private async Task<LoginResult> VerifyRecognizedAsync(string userId, long authTime, ClientInfo client)
+    {
+        if (!await VerifySignInAsync(userId, authTime, client))
+        {
+            return Rejected(AuthenticationStatus.AccountNotFound);
+        }
+
+        return new LoginResult(AuthenticationStatus.Authenticated, 0, 0);
     }
 
     // Sends the challenge code, and tells the member about the attempt when a code went out
@@ -204,35 +182,11 @@ public class AuthenticationService : IAuthenticationService
 
         if (issue.Status == VerificationIssueStatus.Sent)
         {
-            await AlertNewLoginAsync(email, client, cancellationToken);
+            await _newLogins.NotifyAsync(user.Id, email, client, cancellationToken);
         }
 
         return new LoginResult(
             AuthenticationStatus.ChallengeRequired, issue.CodeLength, issue.RetryAfterSeconds);
-    }
-
-    // Courtesy email about the attempt. The code email already went out, so a failure here is
-    // logged and must not break the login.
-    private async Task AlertNewLoginAsync(
-        string email,
-        ClientInfo client,
-        CancellationToken cancellationToken)
-    {
-        var templateData = new Dictionary<string, string>
-        {
-            [AlertTemplateKeys.IpAddress] = client.IpAddress,
-            [AlertTemplateKeys.UserAgent] = client.UserAgent
-        };
-
-        try
-        {
-            await _alerts.SendAlertAsync(
-                email, AlertType.NewLoginAttempt, templateData, cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            _logger.LogWarning(exception, "Could not send the new-login alert.");
-        }
     }
 
     // Restores the account and records the sign-in in one write; false if the account can no longer be restored
@@ -241,16 +195,14 @@ public class AuthenticationService : IAuthenticationService
         return await _signIns.RecordVerifiedAsync(userId, authTime, user => TryRestore(user, client));
     }
 
-    // Clears the deletion marker and remembers the client, unless the window has ended or a purge holds the account
+    // Brings the account back if allowed, and remembers the client
     private bool TryRestore(User user, ClientInfo client)
     {
-        if (IsPastRecoveryWindow(user) || IsBeingPurged(user))
+        if (!_recovery.TryRestore(user))
         {
             return false;
         }
 
-        user.DeletedAt = null;
-        user.PurgeLeaseUntil = null;
         _guardDog.Remember(user, client);
 
         return true;
@@ -274,31 +226,6 @@ public class AuthenticationService : IAuthenticationService
     private static LoginResult Rejected(AuthenticationStatus status)
     {
         return new LoginResult(status, 0, 0);
-    }
-
-    #endregion
-
-    #region Nested Types
-
-    // Either an account allowed to sign in (User and Email set) or the reason it is not
-    private sealed class AccountLookup
-    {
-        public User? User { get; private init; }
-        public string? Email { get; private init; }
-        public AuthenticationStatus Rejection { get; private init; }
-
-        [MemberNotNullWhen(false, nameof(User), nameof(Email))]
-        public bool IsRejected { get; private init; }
-
-        public static AccountLookup Accept(User user, string email)
-        {
-            return new AccountLookup { User = user, Email = email };
-        }
-
-        public static AccountLookup Reject(AuthenticationStatus rejection)
-        {
-            return new AccountLookup { Rejection = rejection, IsRejected = true };
-        }
     }
 
     #endregion

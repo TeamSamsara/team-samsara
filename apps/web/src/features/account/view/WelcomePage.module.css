@@ -1,0 +1,102 @@
+/* File : /team-samsara/apps/web/src/features/account/view/WelcomePage.module.css
+   Version : 1.2.0
+   Latest commit: task/web-toast-messages
+   Author : Gerrah
+   Purpose : Look of the two onboarding steps, from the Figma onboarding frames (1920 x 1080): a 441 px column with the step indicator on top, text left-aligned and the skip link centered. */
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(48 * var(--px));
+  width: min(100%, calc(441 * var(--px)));
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: calc(28 * var(--px));
+  width: 100%;
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: calc(24 * var(--px));
+  width: min(100%, calc(441 * var(--px)));
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--px));
+  width: 100%;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: calc(64 * var(--px));
+  font-weight: 400;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.body {
+  margin: 0;
+  color: var(--color-text-on-light);
+  font-family: var(--font-body);
+  font-size: max(14px, calc(22 * var(--px)));
+  line-height: 1.55;
+  opacity: 0.75;
+}
+
+.hint {
+  margin: 0 0 calc(8 * var(--px));
+  color: var(--color-text-on-light);
+  font-family: var(--font-body);
+  font-size: max(14px, calc(16 * var(--px)));
+  line-height: 1.5;
+  opacity: 0.65;
+}
+
+/* Looks like the links under the other forms. */
+.linkButton {
+  align-self: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: calc(28 * var(--px));
+  text-decoration: underline;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.linkButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* "Checking…" or "Available", inside the right end of the handle field. */
+.handleStatus {
+  padding: 0 calc(20 * var(--px));
+  color: var(--color-accent-soft);
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+  white-space: nowrap;
+}
+
+/* Read by screen readers only. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

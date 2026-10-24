@@ -1,5 +1,5 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Alert.Tests/AlertSenderTests.cs
-// Version : 1.3.0
+// Version : 1.4.0
 // Latest commit: feat/account-deletion
 // Author : Gerrah
 // Purpose : Proves each alert type becomes one email to the right recipient with its data filled in and HTML-encoded.
@@ -20,6 +20,7 @@ public class AlertSenderTests
     private const string Device = "Mozilla/5.0 (Test)";
     private const string MaskedNewEmail = "j***@example.com";
     private const string RecoveryDays = "30";
+    private const string ExpiresInMinutes = "10";
 
     private readonly RecordingEmailSender _email = new();
     private readonly AlertSender _sender;
@@ -120,6 +121,81 @@ public class AlertSenderTests
         sent.HtmlBody.ShouldNotContain("{{");
     }
 
+    [Theory]
+    [InlineData(AlertType.RegistrationCode)]
+    [InlineData(AlertType.LoginCode)]
+    [InlineData(AlertType.PasswordChangeCode)]
+    [InlineData(AlertType.PasswordResetCode)]
+    [InlineData(AlertType.EmailChangeCurrentCode)]
+    [InlineData(AlertType.EmailChangeNewCode)]
+    [InlineData(AlertType.AccountDeletionCode)]
+    [InlineData(AlertType.StepUpCode)]
+    public async Task EveryCodeAlert_ShowsTheCodeAndItsExpiry_AndLeavesNoPlaceholder(AlertType type)
+    {
+        var data = new Dictionary<string, string>
+        {
+            [AlertTemplateKeys.Code] = VerificationCode,
+            [AlertTemplateKeys.ExpiresInMinutes] = ExpiresInMinutes,
+            [AlertTemplateKeys.NewEmail] = MaskedNewEmail,
+            [AlertTemplateKeys.RecoveryDays] = RecoveryDays
+        };
+
+        await _sender.SendAlertAsync(Recipient, type, data);
+
+        var sent = _email.Sent.ShouldHaveSingleItem();
+        sent.To.ShouldBe(Recipient);
+        sent.Subject.ShouldNotBeNullOrWhiteSpace();
+        sent.HtmlBody.ShouldContain(VerificationCode);
+        sent.HtmlBody.ShouldContain(ExpiresInMinutes);
+        sent.HtmlBody.ShouldNotContain("{{");
+    }
+
+    [Fact]
+    public async Task EmailChangeCurrentCode_NamesTheRequestedNewAddress()
+    {
+        var data = new Dictionary<string, string>
+        {
+            [AlertTemplateKeys.Code] = VerificationCode,
+            [AlertTemplateKeys.ExpiresInMinutes] = ExpiresInMinutes,
+            [AlertTemplateKeys.NewEmail] = MaskedNewEmail
+        };
+
+        await _sender.SendAlertAsync(Recipient, AlertType.EmailChangeCurrentCode, data);
+
+        _email.Sent.ShouldHaveSingleItem().HtmlBody.ShouldContain(MaskedNewEmail);
+    }
+
+    [Fact]
+    public async Task AccountDeletionCode_NamesTheRecoveryWindow()
+    {
+        var data = new Dictionary<string, string>
+        {
+            [AlertTemplateKeys.Code] = VerificationCode,
+            [AlertTemplateKeys.ExpiresInMinutes] = ExpiresInMinutes,
+            [AlertTemplateKeys.RecoveryDays] = RecoveryDays
+        };
+
+        await _sender.SendAlertAsync(Recipient, AlertType.AccountDeletionCode, data);
+
+        _email.Sent.ShouldHaveSingleItem().HtmlBody.ShouldContain(RecoveryDays);
+    }
+
+    [Fact]
+    public async Task CodeAlert_HtmlEncodesTheValuesItShows()
+    {
+        var data = new Dictionary<string, string>
+        {
+            [AlertTemplateKeys.Code] = "<b>1</b>",
+            [AlertTemplateKeys.ExpiresInMinutes] = ExpiresInMinutes
+        };
+
+        await _sender.SendAlertAsync(Recipient, AlertType.LoginCode, data);
+
+        var body = _email.Sent.ShouldHaveSingleItem().HtmlBody;
+        body.ShouldNotContain("<b>1</b>");
+        body.ShouldContain("&lt;b&gt;1&lt;/b&gt;");
+    }
+
     [Fact]
     public async Task EveryAlertType_HasATemplateAndSendsExactlyOneEmail()
     {
@@ -214,7 +290,8 @@ public class AlertSenderTests
             [AlertTemplateKeys.IpAddress] = Ip,
             [AlertTemplateKeys.UserAgent] = Device,
             [AlertTemplateKeys.NewEmail] = MaskedNewEmail,
-            [AlertTemplateKeys.RecoveryDays] = RecoveryDays
+            [AlertTemplateKeys.RecoveryDays] = RecoveryDays,
+            [AlertTemplateKeys.ExpiresInMinutes] = ExpiresInMinutes
         };
 
     #endregion

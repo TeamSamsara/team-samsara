@@ -1,17 +1,16 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/ProfileService.cs
-// Version: 1.1.0
-// Latest commit: fix/profile-atomic-update
-// Author: Gerrah
-//
-// Purpose: Default IProfileService: validates profile text and keeps images and profile in step.
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/ProfileService.cs
+// Version : 1.4.0
+// Latest commit: task/api-handle-cooldown
+// Author : Gerrah
+// Purpose : Default IProfileService: keeps images, handle and profile in step. The text,
+// handle and cooldown rules live in ProfileText, HandleFormat, HandleCandidates and the handle store.
 
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Shared.Assets;
+using TeamSamsara.Shared.Context;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
 
@@ -19,12 +18,11 @@ public class ProfileService : IProfileService
 {
     #region Fields
 
-    private const char LineFeed = '\n';
-    private const char CarriageReturn = '\r';
-
     private readonly IProfileStore _profiles;
+    private readonly IHandleStore _handles;
     private readonly IMemberImageService _images;
     private readonly ProfileSettings _settings;
+    private readonly IClock _clock;
     private readonly ILogger<ProfileService> _logger;
 
     #endregion
@@ -33,13 +31,17 @@ public class ProfileService : IProfileService
 
     public ProfileService(
         IProfileStore profiles,
+        IHandleStore handles,
         IMemberImageService images,
         IOptions<ProfileSettings> settings,
+        IClock clock,
         ILogger<ProfileService> logger)
     {
         _profiles = profiles;
+        _handles = handles;
         _images = images;
         _settings = settings.Value;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -47,12 +49,24 @@ public class ProfileService : IProfileService
 
     #region Public Methods
 
-    // Returns the member's profile, or ProfileNotFound if they have none
+    // Returns the member's profile, or ProfileNotFound if they have none. A profile without a
+    // handle is given one first, which is how profiles made before handles existed catch up.
     public async Task<ProfileResult> GetAsync(string userId)
     {
         var profile = await _profiles.GetByIdAsync(userId);
 
-        return profile is null ? Failure(ProfileStatus.ProfileNotFound) : Success(profile);
+        if (profile is null)
+        {
+            return Failure(ProfileStatus.ProfileNotFound);
+        }
+
+        if (profile.Handle is null)
+        {
+            await EnsureHandleAsync(userId);
+            profile = await _profiles.GetByIdAsync(userId) ?? profile;
+        }
+
+        return Success(profile);
     }
 
     // Replaces the display name and bio once both pass validation
@@ -60,14 +74,14 @@ public class ProfileService : IProfileService
     {
         var displayName = request.DisplayName?.Trim();
 
-        if (!IsValidDisplayName(displayName))
+        if (!ProfileText.IsValidDisplayName(displayName, _settings))
         {
             return Failure(ProfileStatus.InvalidDisplayName);
         }
 
         var bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
 
-        if (!IsValidBio(bio))
+        if (!ProfileText.IsValidBio(bio, _settings))
         {
             return Failure(ProfileStatus.InvalidBio);
         }
@@ -97,38 +111,7 @@ public class ProfileService : IProfileService
             return Failure(ToFailureStatus(stored.Status));
         }
 
-        var newAssetId = stored.AssetId!;
-        string? previousAssetId = null;
-        Profile? profile;
-
-        try
-        {
-            profile = await _profiles.ModifyAsync(userId, current =>
-            {
-                previousAssetId = GetImageId(current, kind);
-                SetImageId(current, kind, newAssetId);
-            });
-        }
-        catch
-        {
-            await TryDeleteImageAsync(newAssetId);
-            throw;
-        }
-
-        // The profile was removed while the image was being stored
-        if (profile is null)
-        {
-            await TryDeleteImageAsync(newAssetId);
-
-            return Failure(ProfileStatus.ProfileNotFound);
-        }
-
-        if (previousAssetId is not null)
-        {
-            await TryDeleteImageAsync(previousAssetId);
-        }
-
-        return Success(profile);
+        return await LinkImageAsync(userId, kind, stored.AssetId!);
     }
 
     // Unlinks the image from the profile, then removes it. Clearing an empty slot succeeds.
@@ -155,41 +138,171 @@ public class ProfileService : IProfileService
         return Success(profile);
     }
 
+    // Gives the member a handle made from their display name, trying a few numbered variants
+    // when it is taken. Does nothing if they already have one or have no profile.
+    public async Task EnsureHandleAsync(string userId)
+    {
+        var profile = await _profiles.GetByIdAsync(userId);
+
+        if (profile is null || profile.Handle is not null)
+        {
+            return;
+        }
+
+        foreach (var candidate in HandleCandidates.For(profile.DisplayName, _settings))
+        {
+            var claim = await _handles.ClaimAsync(userId, candidate, null);
+
+            if (claim.Status != HandleClaimStatus.HandleTaken)
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException($"No free handle could be found for member '{userId}'.");
+    }
+
+    // Tells whether the member could take this handle, without changing anything
+    public async Task<ProfileStatus> CheckHandleAsync(string userId, string handle)
+    {
+        if (!HandleFormat.TryNormalize(handle, _settings, out var normalized, out var refusal))
+        {
+            return refusal;
+        }
+
+        var owner = await _handles.GetOwnerAsync(normalized);
+
+        return owner is null || owner == userId ? ProfileStatus.Success : ProfileStatus.HandleTaken;
+    }
+
+    // Changes the handle. Keeping the current handle succeeds without starting the cooldown,
+    // and so does choosing one while the member is still setting up their account. The
+    // handle store enforces the cooldown where it reads the profile.
+    public async Task<ProfileResult> SetHandleAsync(string userId, SetHandleRequest request)
+    {
+        if (!HandleFormat.TryNormalize(request.Handle, _settings, out var handle, out var refusal))
+        {
+            return Failure(refusal);
+        }
+
+        var change = new HandleChange(_clock.UtcNow, _settings.HandleChangeCooldownDays);
+        var claim = await _handles.ClaimAsync(userId, handle, change);
+
+        return claim.Status switch
+        {
+            HandleClaimStatus.Success => Success(claim.Profile!),
+            HandleClaimStatus.HandleTaken => Failure(ProfileStatus.HandleTaken),
+            HandleClaimStatus.HandleCooldown => Failure(ProfileStatus.HandleCooldown),
+            _ => Failure(ProfileStatus.ProfileNotFound)
+        };
+    }
+
+    // Marks onboarding as finished. Doing it again changes nothing.
+    public async Task<ProfileResult> CompleteOnboardingAsync(string userId)
+    {
+        var profile = await _profiles.ModifyAsync(userId, current => current.OnboardingCompleted = true);
+
+        return profile is null ? Failure(ProfileStatus.ProfileNotFound) : Success(profile);
+    }
+
+    // Returns what a visitor sees of the member who holds the handle, or null if nobody does
+    public async Task<PublicProfileView?> GetPublicAsync(string handle)
+    {
+        var normalized = HandleFormat.Normalize(handle);
+
+        if (!HandleFormat.IsValid(normalized, _settings))
+        {
+            return null;
+        }
+
+        var owner = await _handles.GetOwnerAsync(normalized);
+
+        if (owner is null)
+        {
+            return null;
+        }
+
+        var profile = await _profiles.GetByIdAsync(owner);
+
+        return profile is null
+            ? null
+            : new PublicProfileView(
+                profile.DisplayName,
+                normalized,
+                profile.Bio,
+                profile.ProfilePictureAssetId,
+                profile.BannerAssetId);
+    }
+
     #endregion
 
     #region Private Methods
 
-    // A name needs at least one visible character, must fit the limits, and has no control characters
-    private bool IsValidDisplayName([NotNullWhen(true)] string? displayName)
+    // Points the profile at the stored image, then removes the image it replaced
+    private async Task<ProfileResult> LinkImageAsync(string userId, MemberImageKind kind, string newAssetId)
     {
-        if (string.IsNullOrEmpty(displayName))
+        var (profile, previousAssetId) = await ReplaceImageAsync(userId, kind, newAssetId);
+
+        if (profile is null)
         {
-            return false;
+            return Failure(ProfileStatus.ProfileNotFound);
         }
 
-        var length = LengthOf(displayName);
-
-        return length >= _settings.DisplayNameMinLength
-            && length <= _settings.DisplayNameMaxLength
-            && !displayName.Any(char.IsControl);
-    }
-
-    // No bio is valid; a bio must fit the limit and may only use line breaks as control characters
-    private bool IsValidBio(string? bio)
-    {
-        if (bio is null)
+        if (previousAssetId is not null)
         {
-            return true;
+            await TryDeleteImageAsync(previousAssetId);
         }
 
-        return LengthOf(bio) <= _settings.BioMaxLength
-            && !bio.Any(character => char.IsControl(character)
-                && character != LineFeed
-                && character != CarriageReturn);
+        return Success(profile);
     }
 
-    // Counts what a reader sees as characters, so an emoji or an accented letter counts once
-    private static int LengthOf(string text) => new StringInfo(text).LengthInTextElements;
+    // Swaps the new image into the profile and returns the image it replaced. The new image
+    // is removed again if the swap fails or the profile was removed while it was being stored.
+    private async Task<(Profile? Profile, string? PreviousAssetId)> ReplaceImageAsync(
+        string userId,
+        MemberImageKind kind,
+        string newAssetId)
+    {
+        string? previousAssetId = null;
+        Profile? profile;
+
+        try
+        {
+            profile = await _profiles.ModifyAsync(userId, current =>
+            {
+                previousAssetId = GetImageId(current, kind);
+                SetImageId(current, kind, newAssetId);
+            });
+        }
+        catch
+        {
+            await TryDeleteImageAsync(newAssetId);
+            throw;
+        }
+
+        if (profile is null)
+        {
+            await TryDeleteImageAsync(newAssetId);
+        }
+
+        return (profile, previousAssetId);
+    }
+
+    // True while the member has changed their handle more recently than the cooldown allows
+    private bool IsCoolingDown(Profile profile)
+    {
+        return _settings.HandleChangeCooldownDays > 0
+            && profile.HandleChangedAt is { } changedAt
+            && _clock.UtcNow < changedAt.AddDays(_settings.HandleChangeCooldownDays);
+    }
+
+    // When the member can change their handle again, or null when they can do it now
+    private DateTimeOffset? GetHandleChangeableAt(Profile profile)
+    {
+        return IsCoolingDown(profile)
+            ? profile.HandleChangedAt?.AddDays(_settings.HandleChangeCooldownDays)
+            : null;
+    }
 
     // The asset id currently held for this kind of image, or null
     private static string? GetImageId(Profile profile, MemberImageKind kind) => kind switch
@@ -237,15 +350,18 @@ public class ProfileService : IProfileService
         }
     }
 
-    private static ProfileResult Success(Profile profile) => new(ProfileStatus.Success, ToView(profile));
+    private ProfileResult Success(Profile profile) => new(ProfileStatus.Success, ToView(profile));
 
     private static ProfileResult Failure(ProfileStatus status) => new(status, null);
 
-    private static ProfileView ToView(Profile profile) => new(
+    private ProfileView ToView(Profile profile) => new(
         profile.DisplayName,
+        profile.Handle,
         profile.Bio,
         profile.ProfilePictureAssetId,
-        profile.BannerAssetId);
+        profile.BannerAssetId,
+        profile.OnboardingCompleted,
+        GetHandleChangeableAt(profile));
 
     #endregion
 }

@@ -1,0 +1,84 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/OnboardingSlideshow.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-onboarding-navbar
+   Author : Gerrah
+   Purpose : Look of the onboarding slideshow, from the Figma onboarding frames (1920 x 1080): photos filling the 1058 px left panel over a solid slate slot, with the dots 52 px from the left and bottom edges. */
+
+/* Fills the panel it sits in; the slate shows until the first photo loads. */
+.slideshow {
+  position: absolute;
+  inset: 0;
+  background-color: var(--palette-slate);
+}
+
+.viewport {
+  width: 100%;
+  height: 100%;
+}
+
+.slide {
+  width: 100%;
+  height: 100%;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Darkens the photos so the headline stays readable. */
+.shade {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(
+    in srgb,
+    var(--color-surface-dark) 55%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.dots {
+  position: absolute;
+  left: calc(52 * var(--px));
+  bottom: calc(52 * var(--px));
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--px));
+}
+
+/* A 12 px dot; the current photo's dot stretches to 36 px and turns green. */
+.dot {
+  width: calc(12 * var(--px));
+  height: calc(12 * var(--px));
+  padding: 0;
+  border: 0;
+  border-radius: calc(6 * var(--px));
+  background-color: color-mix(
+    in srgb,
+    var(--color-text-on-dark) 40%,
+    transparent
+  );
+  cursor: pointer;
+  transition:
+    width 250ms ease,
+    background-color 250ms ease;
+}
+
+.dot[data-active="true"] {
+  width: calc(36 * var(--px));
+  background-color: var(--color-accent);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    transition: none;
+  }
+}

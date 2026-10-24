@@ -74,7 +74,7 @@ public class AccountDeletionServiceTests
 
         var alert = _alerts.Sent.ShouldHaveSingleItem();
         alert.To.ShouldBe(Email);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.AccountDeletionCode);
     }
 
     [Fact]

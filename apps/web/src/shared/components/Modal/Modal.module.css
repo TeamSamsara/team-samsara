@@ -1,0 +1,50 @@
+/* File : /team-samsara/apps/web/src/shared/components/Modal/Modal.module.css
+   Version : 1.0.0
+   Latest commit: task/web-modal-styles
+   Author : Gerrah
+   Purpose : Look of the shared modal: a centred card over a dimmed page, with the title in the display font. The browser's own dialog supplies the backdrop and the focus handling. */
+
+.dialog {
+  box-sizing: border-box;
+  width: min(calc(700 * var(--px)), calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  padding: calc(40 * var(--px));
+  overflow-y: auto;
+  background: #fcfcfc;
+  color: var(--color-text-on-light);
+  border: 0;
+  border-radius: calc(20 * var(--px));
+  box-shadow: 0 24px 48px rgb(13 18 23 / 35%);
+}
+
+.dialog::backdrop {
+  background: rgb(13 18 23 / 60%);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: calc(24 * var(--px));
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: max(28px, calc(44 * var(--px)));
+  font-weight: 400;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+}
+
+@media (max-width: 900px) {
+  .dialog {
+    padding: 24px 20px;
+    border-radius: 16px;
+  }
+
+  .content {
+    gap: 16px;
+  }
+}

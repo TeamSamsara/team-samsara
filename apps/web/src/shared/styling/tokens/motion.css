@@ -1,0 +1,17 @@
+/* File : /team-samsara/apps/web/src/shared/styling/tokens/motion.css
+   Version : 1.0.0
+   Latest commit: task/web-notifications
+   Author : Gerrah
+   Purpose : Defines the easing curves and durations shared by every animation, so motion feels the same across the site. */
+
+:root {
+  /* Easing : ease-out for things arriving, spring for small playful pop*/
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Durations */
+  --motion-fast: 160ms;
+  --motion-base: 240ms;
+  --motion-slow: 420ms;
+  --motion-grow: 460ms;
+}

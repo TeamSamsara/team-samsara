@@ -1,9 +1,9 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/ProfileStatus.cs
-// Version: 1.0.0
-// Latest commit: feature/identity-profile
-// Author: Gerrah
-//
-// Purpose: The outcome of a profile operation. Endpoints translate these into responses.
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Profiles/ProfileStatus.cs
+// Version : 1.1.0
+// Latest commit: task/api-profile-onboarding
+// Author : Gerrah
+// Purpose : The outcome of a profile operation. Endpoints translate these into
+// responses.
 
 namespace TeamSamsara.Modules.Identity.Models;
 
@@ -25,5 +25,14 @@ public enum ProfileStatus
     ImageUnsupportedType,
 
     // The uploaded image is larger than the limit for this kind of image
-    ImageTooLarge
+    ImageTooLarge,
+
+    // The handle is too short, too long, or uses characters other than a-z, 0-9 and _
+    InvalidHandle,
+
+    // The handle belongs to another member or is on the reserved list
+    HandleTaken,
+
+    // The member changed their handle too recently to change it again
+    HandleCooldown
 }

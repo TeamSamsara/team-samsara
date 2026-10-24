@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Notification/Handlers/NotificationSender.cs
-// Version : 1.0.0
-// Latest commit: feat/notification-send-path
+// Version : 1.1.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Default INotificationSender. It validates the request and writes it to the inbox, treating a reused dedupe key as a duplicate or a conflict and a storage failure as Failed.
+// Purpose : Default INotificationSender. It validates the request and writes it to the inbox, treating a reused dedupe key as a duplicate or a conflict and a storage failure as Failed. After a stored notification it trims the member's inbox to its limit.
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +18,9 @@ public class NotificationSender : INotificationSender
     #region Fields
 
     private const string IdFormat = "N";
+
+    // How many notifications past the limit one trim looks at, so an inbox that grew before the limit existed shrinks over a few notifications
+    private const int TrimWindow = 100;
 
     private readonly IInboxNotificationStore _store;
     private readonly IClock _clock;
@@ -47,7 +50,7 @@ public class NotificationSender : INotificationSender
 
     #region Public Methods
 
-    // Validates and stores the notification; storage failures and write timeouts become Failed, a cancelled caller token is rethrown
+    // Validates and stores the notification, then trims the inbox; storage failures and write timeouts become Failed, a failed trim is only logged, and a cancelled caller token is rethrown
     public async Task<NotificationResult> SendNotificationAsync(
         NotificationRequest request,
         CancellationToken cancellationToken = default)
@@ -55,25 +58,14 @@ public class NotificationSender : INotificationSender
         NotificationRequestValidator.Validate(request);
 
         var notification = Build(request);
+        var result = await WriteAsync(notification, request.DedupeKey, cancellationToken);
 
-        using var writeLimit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        writeLimit.CancelAfter(TimeSpan.FromSeconds(_settings.WriteTimeoutSeconds));
-
-        try
+        if (result.Status == NotificationStatus.Stored)
         {
-            return await StoreAsync(notification, request.DedupeKey, writeLimit.Token);
+            await TrimQuietlyAsync(request.RecipientId, notification.Id, cancellationToken);
         }
-        catch (Exception exception) when (exception is NotificationStoreException or OperationCanceledException)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
 
-            _logger.LogError(
-                exception,
-                "Could not store the notification '{Key}' for member '{RecipientId}' (dedupe key '{DedupeKey}'); it may be lost.",
-                request.Key, request.RecipientId, request.DedupeKey);
-
-            return new NotificationResult(NotificationStatus.Failed, null);
-        }
+        return result;
     }
 
     #endregion
@@ -96,6 +88,40 @@ public class NotificationSender : INotificationSender
             CreatedAt = now,
             ExpiresAt = now.AddDays(_settings.RetentionDays)
         };
+    }
+
+    // Stores the notification within the write time limit; a storage failure or a timeout becomes Failed
+    private async Task<NotificationResult> WriteAsync(
+        InboxNotification notification,
+        string? dedupeKey,
+        CancellationToken cancellationToken)
+    {
+        using var writeLimit = StartWriteLimit(cancellationToken);
+
+        try
+        {
+            return await StoreAsync(notification, dedupeKey, writeLimit.Token);
+        }
+        catch (Exception exception) when (exception is NotificationStoreException or OperationCanceledException)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _logger.LogError(
+                exception,
+                "Could not store the notification '{Key}' for member '{RecipientId}' (dedupe key '{DedupeKey}'); it may be lost.",
+                notification.Key, notification.RecipientId, dedupeKey);
+
+            return new NotificationResult(NotificationStatus.Failed, null);
+        }
+    }
+
+    // A token that is cancelled when the caller cancels or when one storage call has taken too long
+    private CancellationTokenSource StartWriteLimit(CancellationToken cancellationToken)
+    {
+        var writeLimit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        writeLimit.CancelAfter(TimeSpan.FromSeconds(_settings.WriteTimeoutSeconds));
+
+        return writeLimit;
     }
 
     // Writes the notification and works out what a document already holding its id means
@@ -131,6 +157,36 @@ public class NotificationSender : INotificationSender
             dedupeKey, notification.RecipientId, notification.Key);
 
         return new NotificationResult(NotificationStatus.Conflict, null);
+    }
+
+    // Keeps the inbox within its limit; the notification that was just stored is never removed, and a failure is logged because the notification itself was stored
+    private async Task TrimQuietlyAsync(string recipientId, string storedId, CancellationToken cancellationToken)
+    {
+        using var writeLimit = StartWriteLimit(cancellationToken);
+
+        try
+        {
+            var newest = await _store.ListByRecipientAsync(
+                recipientId, _settings.MaxPerMember + TrimWindow, null, writeLimit.Token);
+
+            var excess = InboxRetention.SelectForTrim(newest, _settings.MaxPerMember)
+                .Where(notification => notification.Id != storedId)
+                .ToList();
+
+            if (excess.Count > 0)
+            {
+                await _store.DeleteManyAsync(excess, writeLimit.Token);
+            }
+        }
+        catch (Exception exception) when (exception is NotificationStoreException or OperationCanceledException)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _logger.LogWarning(
+                exception,
+                "Could not trim the inbox of member '{RecipientId}'; it stays over its limit until the next notification.",
+                recipientId);
+        }
     }
 
     // True when both notifications have the same key and the same data

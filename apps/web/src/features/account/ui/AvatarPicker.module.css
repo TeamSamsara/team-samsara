@@ -1,0 +1,12 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/AvatarPicker.module.css
+   Version : 2.0.0
+   Latest commit: task/web-account-settings
+   Author : Gerrah
+   Purpose : Look of the first letter shown in the profile picture circle until a photo exists. The circle, buttons and menu are styled by the shared image picker. */
+
+.initial {
+  color: var(--color-text-on-light);
+  font-family: var(--font-display);
+  font-size: calc(56 * var(--px));
+  text-transform: uppercase;
+}

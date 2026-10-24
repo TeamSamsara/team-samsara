@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/navbarContent.ts
-// Version : 1.1.0
-// Latest commit: feature/web-home-page
+// Version : 1.3.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : The Navbar's link list, visible text and scroll threshold, kept
 // out of the component so the labels can be translated later.
@@ -20,8 +20,11 @@ export const NavbarText = {
   languageMenu: "Languages",
   signIn: "Sign in",
   logIn: "Log in",
-  notifications: "Notifications",
-  account: "Your Account",
+  accountMenu: "Your account",
+  signedInAs: "Signed in as",
+  editProfile: "Edit profile",
+  accountSecurity: "Account security",
+  logOut: "Log out",
 } as const;
 
 // How far the page must scroll (in px) before a transparent navbar turns solid.

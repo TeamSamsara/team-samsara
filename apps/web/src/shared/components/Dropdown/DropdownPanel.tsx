@@ -1,10 +1,11 @@
 // File : /team-samsara/apps/web/src/shared/components/Dropdown/DropdownPanel.tsx
-// Version : 1.0.0
-// Latest commit: feature/web-home-page
+// Version : 1.1.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : The floating box a dropdown opens. It decides where it sits next
 // to the trigger (placement and offset) and whether it stays in the page while
-// closed; what goes inside, and how it looks, is up to the page.
+// closed, inert instead of hidden so its owner can animate it away; what goes
+// inside, and how it looks, is up to the page.
 
 import type { ComponentPropsWithoutRef, CSSProperties } from "react";
 import { useDropdownContext } from "./useDropdownContext";
@@ -18,7 +19,7 @@ interface DropdownPanelProps extends ComponentPropsWithoutRef<"div"> {
   placement?: DropdownPlacement;
   /** Gap between trigger and panel, in design pixels (scaled like all geometry). */
   offset?: number;
-  /** Keep the panel in the page while closed (hidden), for example to animate it. */
+  /** Keep the panel in the page while closed (inert, not hidden), so the page can animate it in and out. */
   keepMounted?: boolean;
 }
 
@@ -47,7 +48,7 @@ export function DropdownPanel({
       className={className ? `${styles.panel} ${className}` : styles.panel}
       id={panelId}
       aria-labelledby={triggerId}
-      hidden={!isOpen}
+      inert={!isOpen}
       data-open={isOpen}
       data-placement={placement}
       style={offsetStyle}

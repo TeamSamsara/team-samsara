@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeEndpointsTests.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-endpoints
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves the email change endpoints refuse non-members, reject bad bodies, and answer each step with the right HTTP status.
+// Purpose : Proves the email change endpoints refuse non-members, reject bad bodies, answer each step with the right HTTP status, and limit how often a member can request a change.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -149,17 +149,71 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
-    public async Task Request_ForAFreeAddressAndATakenAddress_GivesTheSameResponse()
+    public async Task Request_ForATakenAddress_GetsConflict_AndQueuesNothing()
     {
         _accounts.AddAccount(OtherUserId, TakenEmail);
         await using var app = await StartAsync(AuthState.Member);
 
-        var free = await RequestAsync(app, NewEmail);
-        _clock.Advance(TimeSpan.FromSeconds(_settings.ResendCooldownSeconds + 1));
-        var taken = await RequestAsync(app, TakenEmail);
+        var response = await RequestAsync(app, TakenEmail);
 
-        taken.StatusCode.ShouldBe(free.StatusCode);
-        (await taken.Content.ReadAsStringAsync()).ShouldBe(await free.Content.ReadAsStringAsync());
+        response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.EmailTaken);
+        _queue.Count.ShouldBe(0);
+        _requests.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Request_ForTheMembersOwnAddress_GetsBadRequest_WithTheReason()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+
+        var response = await RequestAsync(app, Email);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.SameAsCurrentEmail);
+    }
+
+    [Fact]
+    public async Task Request_AfterATakenAddress_CanTryAnotherAtOnce()
+    {
+        _accounts.AddAccount(OtherUserId, TakenEmail);
+        await using var app = await StartAsync(AuthState.Member);
+        await RequestAsync(app, TakenEmail);
+
+        var response = await RequestAsync(app, NewEmail);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Request_BeyondTheMemberLimit_GetsTooManyRequests_WithRetryAfter()
+    {
+        _settings.EmailChangeRequestLimit = 3;
+        await using var app = await StartAsync(AuthState.Member);
+
+        for (var attempt = 0; attempt < _settings.EmailChangeRequestLimit; attempt++)
+        {
+            (await RequestAsync(app, Email)).StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        }
+
+        var response = await RequestAsync(app, NewEmail);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
+        response.Headers.RetryAfter.ShouldNotBeNull();
+        _queue.Count.ShouldBe(0);
+        _requests.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Request_ByAnAnonymousCaller_IsNeverCountedAgainstTheLimit()
+    {
+        _settings.EmailChangeRequestLimit = 1;
+        await using var app = await StartAsync(AuthState.Anonymous);
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            (await RequestAsync(app, NewEmail)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+        }
     }
 
     [Fact]
@@ -199,6 +253,58 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
+    public async Task Confirm_WithOnlyTheOldCode_GetsOk_ReportsCodeAccepted_AndChangesNothing()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+
+        var response = await ConfirmAsync(app, codes.Old, null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.CodeAccepted);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(Email);
+        _accounts.RevokedSessions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Confirm_WithTheNewCodeAfterTheOldOne_ChangesTheEmail_AndSignsOutEverywhere()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+
+        await ConfirmAsync(app, codes.Old, null);
+        var response = await ConfirmAsync(app, null, codes.New);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await ReadStatusAsync(response)).ShouldBe(EmailChangeStatus.Success);
+        (await _accounts.GetEmailAsync(UserId)).ShouldBe(NewEmail);
+        _accounts.RevokedSessions.ShouldHaveSingleItem().ShouldBe(UserId);
+    }
+
+    [Fact]
+    public async Task Confirm_WithABodyThatLeavesOutAProperty_IsAccepted()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        var codes = await RequestAndGetCodesAsync(app);
+        var json = new StringContent($"{{\"oldCode\":\"{codes.Old}\"}}", Encoding.UTF8, "application/json");
+
+        var response = await app.Client.PostAsync(ConfirmPath, json);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Confirm_WithNoCodeAtAll_GetsBadRequest()
+    {
+        await using var app = await StartAsync(AuthState.Member);
+        await RequestAndGetCodesAsync(app);
+
+        var response = await ConfirmAsync(app, null, null);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Confirm_WithAWrongCode_GetsBadRequest_AndChangesNothing()
     {
         await using var app = await StartAsync(AuthState.Member);
@@ -212,11 +318,11 @@ public class EmailChangeEndpointsTests
     }
 
     [Fact]
-    public async Task Confirm_ForATakenAddress_GivesTheSameResponseAsAWrongCode()
+    public async Task Confirm_ForAnAddressTakenAfterTheRequest_GivesTheSameResponseAsAWrongCode()
     {
-        _accounts.AddAccount(OtherUserId, TakenEmail);
         await using var app = await StartAsync(AuthState.Member);
         await RequestAsync(app, TakenEmail);
+        _accounts.AddAccount(OtherUserId, TakenEmail);
         await _queue.RunAllAsync(app.Services);
 
         var response = await ConfirmAsync(app, CodeSentTo(Email), WrongCode);
@@ -263,11 +369,22 @@ public class EmailChangeEndpointsTests
         return app.Client.PostAsync(RequestPath, JsonContent.Create(new ChangeEmailRequest(newEmail)));
     }
 
-    // Posts the two codes to confirm the change.
-    private static Task<HttpResponseMessage> ConfirmAsync(TestApp app, string oldCode, string newCode)
+    // Posts one or both codes to confirm the change; null leaves a code out.
+    private static Task<HttpResponseMessage> ConfirmAsync(TestApp app, string? oldCode, string? newCode)
     {
         return app.Client.PostAsync(
             ConfirmPath, JsonContent.Create(new ConfirmEmailChangeRequest(oldCode, newCode)));
+    }
+
+    // Reads the status from a confirm response, whether it was written as a name or as a number.
+    private static async Task<EmailChangeStatus> ReadStatusAsync(HttpResponseMessage response)
+    {
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var status = body.RootElement.GetProperty("status");
+
+        return status.ValueKind == JsonValueKind.Number
+            ? (EmailChangeStatus)status.GetInt32()
+            : Enum.Parse<EmailChangeStatus>(status.GetString()!, ignoreCase: true);
     }
 
     // The code most recently emailed to an address.
@@ -326,6 +443,7 @@ public class EmailChangeEndpointsTests
             UserId = authState == AuthState.Anonymous ? null : UserId,
             AuthState = authState
         });
+        builder.Services.AddSingleton(Options.Create(_settings));
         builder.Services.AddSingleton<IEmailChangeService>(service);
         builder.Services.AddSingleton<IEmailChangeDelivery>(delivery);
 
