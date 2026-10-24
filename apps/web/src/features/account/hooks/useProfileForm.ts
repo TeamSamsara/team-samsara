@@ -1,18 +1,16 @@
-// File : /team-samsara/apps/web/src/features/account/view/useProfileForm.ts
-// Version : 1.0.0
-// Latest commit: task/web-account-settings
+// File : /team-samsara/apps/web/src/features/account/hooks/useProfileForm.ts
+// Version : 1.1.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : Holds the edit-profile form: what the member has typed or picked,
-// what is wrong with it, whether it differs from the saved profile, and the
-// save itself. The page only lays these out.
+// what is wrong with it, whether it differs from the saved profile, the save
+// itself and discarding the changes. The page only lays these out.
 
 import { useState } from "react";
 import {
   keepImage,
   type ImageChange,
 } from "@/shared/components/ImagePicker/imageChange";
-import { useHandleAvailability } from "../hooks/useHandleAvailability";
-import { useSaveProfile } from "../hooks/useSaveProfile";
 import type { ProfileView } from "../types/profileTypes";
 import {
   normalizeHandle,
@@ -24,7 +22,9 @@ import {
   ProfileSettingsText,
   profileSaveFailureMessage,
   type SettingsFieldName,
-} from "./profileSettingsContent";
+} from "../view/profileSettingsContent";
+import { useHandleAvailability } from "./useHandleAvailability";
+import { useSaveProfile } from "./useSaveProfile";
 
 type FieldErrors = Record<SettingsFieldName, string | null>;
 
@@ -115,6 +115,17 @@ export function useProfileForm(profile: ProfileView) {
     }
   }
 
+  // Puts every field back to the saved profile and clears the messages.
+  function discard() {
+    setDisplayName(profile.displayName);
+    setBio(profile.bio ?? "");
+    setHandle(profile.handle ?? "");
+    setPicture(keepImage);
+    setBanner(keepImage);
+    setErrors(noErrors);
+    setIsSaved(false);
+  }
+
   async function submit() {
     if (isSaving || !isDirty) {
       return;
@@ -186,6 +197,7 @@ export function useProfileForm(profile: ProfileView) {
     checkDisplayName,
     checkBio,
     checkHandle,
+    discard,
     submit,
   };
 }

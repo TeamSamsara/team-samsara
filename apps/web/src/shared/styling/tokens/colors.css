@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/styling/tokens/colors.css
-   Version : 1.2.0
-   Latest commit: task/web-auth-screens
+   Version : 1.3.0
+   Latest commit: task/web-notifications
    Author : Gerrah
    Purpose : Defines the brand palette and the semantic color roles every component uses. */
 
@@ -16,6 +16,7 @@
   --palette-grey-page: #f3f3f3;
   --palette-grey-border: #c2bcbc;
   --palette-red: #c0392b;
+  --palette-amber: #ffd36a;
 
   /* Roles: what components use. */
   --color-page: var(--palette-grey-page);
@@ -29,6 +30,10 @@
   --color-avatar-placeholder: var(--palette-grey-placeholder);
   --color-border-control: var(--palette-grey-border);
   --color-error: var(--palette-red);
+
+  /* Attention: the sign-in banner, and the unread marks on the bell and the notification rows. */
+  --color-alert: var(--palette-amber);
+  --color-text-on-alert: var(--palette-slate);
 
   /* Fill behind a text field: transparent*/
   --color-field-fill: transparent;

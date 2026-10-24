@@ -1,0 +1,78 @@
+/* File : /team-samsara/apps/web/src/features/notifications/ui/SignInAlertActions.module.css
+   Version : 1.0.0
+   Latest commit: task/web-notifications
+   Author : Gerrah
+   Purpose : Look of the two sign-in buttons, "that was me" and "secure my account". They sit small on the dark panel and large on the amber banner; data-tone picks which. */
+
+.button {
+  border: 2px solid transparent;
+  border-radius: calc(8 * var(--px));
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button[data-tone="panel"] {
+  min-height: max(36px, calc(44 * var(--px)));
+  padding-inline: calc(16 * var(--px));
+  font-size: max(14px, calc(22 * var(--px)));
+}
+
+.button[data-tone="banner"] {
+  min-height: max(44px, calc(73 * var(--px)));
+  padding-inline: calc(44 * var(--px));
+  border-width: 3px;
+  font-size: max(16px, calc(36 * var(--px)));
+  font-weight: 700;
+}
+
+.outline {
+  background: transparent;
+}
+
+.outline[data-tone="panel"] {
+  border-color: var(--color-text-on-dark);
+  color: var(--color-text-on-dark);
+}
+
+.outline[data-tone="panel"]:hover:not(:disabled) {
+  background: var(--color-text-on-dark);
+  color: var(--color-surface-dark);
+}
+
+.outline[data-tone="banner"] {
+  border-color: var(--color-text-on-alert);
+  color: var(--color-text-on-alert);
+}
+
+.outline[data-tone="banner"]:hover:not(:disabled) {
+  background: var(--color-text-on-alert);
+  color: var(--color-alert);
+}
+
+.secure {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: #fff;
+}
+
+.secure:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button[data-tone="panel"]:focus-visible {
+  outline: 2px solid var(--color-text-on-dark);
+  outline-offset: 3px;
+}
+
+.button[data-tone="banner"]:focus-visible {
+  outline: 3px solid var(--color-text-on-alert);
+  outline-offset: 3px;
+}

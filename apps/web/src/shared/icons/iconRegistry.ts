@@ -1,11 +1,12 @@
 // File : /team-samsara/apps/web/src/shared/icons/iconRegistry.ts
-// Version : 1.0.0
-// Latest commit: task/web-icons
+// Version : 1.1.0
+// Latest commit: task/web-notifications
 // Author : Gerrah
 // Purpose : The only file that knows where each icon comes from; screens use the names.
 
 import type { ComponentType } from "react";
 import {
+  Bell,
   Calendar,
   Camera,
   Check,
@@ -60,6 +61,7 @@ export const iconRegistry = {
   chevronDown: ChevronDown,
   info: Info,
   warning: TriangleAlert,
+  notifications: Bell,
 
   // Account
   user: User,
