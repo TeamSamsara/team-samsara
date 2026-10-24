@@ -1,11 +1,12 @@
 // File : /team-samsara/apps/web/src/features/auth/ui/AuthFormFrame.tsx
-// Version : 1.0.0
-// Latest commit: task/web-auth-screens
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The shared body of the auth forms: logo, title, the fields, a message about the
 // whole form, the submit button and the links underneath. Each screen supplies the parts.
 
 import type { FormEventHandler, ReactNode } from "react";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import styles from "./AuthFormFrame.module.css";
 import { AuthLogo } from "./AuthLogo";
 
@@ -38,11 +39,7 @@ export function AuthFormFrame({
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <div className={styles.fields}>{children}</div>
 
-        {error ? (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        ) : null}
+        <InlineMessage message={error} withIcon className={styles.errorText} />
 
         {actions}
       </form>

@@ -1,12 +1,15 @@
 /* File : /team-samsara/apps/web/src/shared/components/Fields/TextArea/TextArea.module.css
-   Version : 1.1.0
-   Latest commit: task/web-auth-onboarding-navbar
+   Version : 1.3.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
-   Purpose : Look of the multi-line field: the same outlined box as the text field, taller, with room for one error line under it. */
+   Purpose : Look of the multi-line field: the same outlined box as the text field, taller, with the error inside it, in the bottom right corner, and room reserved under it. */
 
 .field {
-  position: relative;
   padding-bottom: calc(24 * var(--px));
+}
+
+.control {
+  position: relative;
 }
 
 /* Read by screen readers only. */
@@ -48,17 +51,16 @@
   outline-offset: 2px;
 }
 
+/* Room under the text for the message, so the message never covers what is typed. */
 .invalid {
+  padding-bottom: max(36px, calc(44 * var(--px)));
   border-color: var(--color-error);
 }
 
 .error {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  margin: 0;
-  color: var(--color-error);
-  font-family: var(--font-body);
-  font-size: var(--text-control);
-  line-height: calc(24 * var(--px));
+  right: calc(16 * var(--px));
+  bottom: calc(10 * var(--px));
+  max-width: calc(100% - calc(32 * var(--px)));
+  text-align: right;
 }

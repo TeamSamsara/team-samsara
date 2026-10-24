@@ -1,14 +1,16 @@
 // File : /team-samsara/apps/web/src/features/auth/ui/CodeVerificationForm.tsx
-// Version : 1.1.0
-// Latest commit: task/web-auth-codes-reset
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The body of every screen that asks for an emailed code: the boxes,
 // the button, and a resend link with its countdown. The screen decides what a
-// code is for; this form only collects it and shows how it went.
+// code is for; this form only collects it and shows how it went. A new code
+// being sent shows as a toast.
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/shared/components/Button/Button";
 import { CodeInput } from "@/shared/components/Fields/CodeInput/CodeInput";
+import { useToast } from "@/shared/components/Toast/useToast";
 import { useCountdown } from "@/shared/hooks/useCountdown";
 import type { CodeAttempt, ResendAttempt } from "../types/codeAttempt";
 import styles from "./CodeVerificationForm.module.css";
@@ -38,10 +40,10 @@ export function CodeVerificationForm({
   onResend,
   secondaryAction,
 }: CodeVerificationFormProps) {
+  const { show } = useToast();
   const [code, setCode] = useState("");
   const [codeError, setCodeError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
   const [isResending, setIsResending] = useState(false);
   // A new round starts the boxes again, with the cursor in the first one.
@@ -61,7 +63,6 @@ export function CodeVerificationForm({
 
     setCodeError(null);
     setFormError(null);
-    setNotice(null);
     setIsConfirming(true);
 
     const attempt = await onConfirm(value);
@@ -90,7 +91,6 @@ export function CodeVerificationForm({
 
     setCodeError(null);
     setFormError(null);
-    setNotice(null);
     setIsResending(true);
 
     const attempt = await onResend();
@@ -98,7 +98,7 @@ export function CodeVerificationForm({
     if (attempt.kind === "waiting") {
       countdown.start(attempt.retryAfterSeconds);
       setCode("");
-      setNotice(CodeVerificationText.resent);
+      show({ tone: "success", title: CodeVerificationText.resent });
       setRound((current) => current + 1);
     } else {
       setFormError(attempt.message);
@@ -159,11 +159,6 @@ export function CodeVerificationForm({
         disabled={isBusy}
         autoFocus
       />
-      {notice ? (
-        <p className={styles.notice} role="status">
-          {notice}
-        </p>
-      ) : null}
     </AuthFormFrame>
   );
 }

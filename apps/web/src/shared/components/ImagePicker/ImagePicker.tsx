@@ -1,17 +1,20 @@
 // File : /team-samsara/apps/web/src/shared/components/ImagePicker/ImagePicker.tsx
-// Version : 1.0.2
-// Latest commit: task/web-account-settings
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : Lets a member choose, replace or remove a picture. The frame is a
 // circle or a banner, and the controls are either buttons beside the picture
 // or a button on it that opens an Upload / Remove menu. The screen owns the
-// choice and decides when to upload; nothing is sent from here.
+// choice and decides when to upload; nothing is sent from here. A rejected file
+// shows as a toast (see useImageChoice); an error passed in by the screen stays
+// under the picture until the screen clears it.
 
 import type { ReactNode } from "react";
 import { Dropdown } from "@/shared/components/Dropdown/Dropdown";
 import { DropdownItem } from "@/shared/components/Dropdown/DropdownItem";
 import { DropdownPanel } from "@/shared/components/Dropdown/DropdownPanel";
 import { DropdownTrigger } from "@/shared/components/Dropdown/DropdownTrigger";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Icon } from "@/shared/icons/Icon";
 import type { ImageChange } from "./imageChange";
 import styles from "./ImagePicker.module.css";
@@ -55,17 +58,8 @@ export function ImagePicker({
 }: ImagePickerProps) {
   // Destructured on purpose: passing `choice.setInput` straight to `ref` makes
   // the react-hooks/refs lint treat the whole object as a ref.
-  const {
-    setInput,
-    shownUrl,
-    hasImage,
-    error: fileError,
-    openFileDialog,
-    choose,
-    remove,
-  } = useImageChoice({ savedUrl, change, validate, onChange });
-
-  const shownError = fileError ?? error ?? null;
+  const { setInput, shownUrl, hasImage, openFileDialog, choose, remove } =
+    useImageChoice({ savedUrl, change, validate, onChange });
 
   const frame = (
     <div className={styles.frame} aria-hidden="true">
@@ -77,13 +71,14 @@ export function ImagePicker({
     </div>
   );
 
-  const message = shownError ? (
-    <p className={styles.error} role="alert">
-      {shownError}
-    </p>
-  ) : hint ? (
-    <p className={styles.hint}>{hint}</p>
-  ) : null;
+  const message = (
+    <>
+      <div className={styles.errorSlot}>
+        <InlineMessage message={error} />
+      </div>
+      {hint && !error ? <p className={styles.hint}>{hint}</p> : null}
+    </>
+  );
 
   const fileInput = (
     <input

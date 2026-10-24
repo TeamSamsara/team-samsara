@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/lib/devInvariants.ts
-// Version : 1.1.0
-// Latest commit: feature/web-home-page
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : Developer-facing invariant/assertion messages - text only a developer debugging
 // a broken setup would ever see, never a real user. Kept separate from uiMessages.ts since
@@ -13,4 +13,5 @@ export const DevInvariants = {
     "Carousel parts must be used inside a <Carousel> component",
   dropdownPartOutsideDropdown:
     "Dropdown parts must be used inside a <Dropdown> component",
+  useToastOutsideProvider: "useToast must be used within a ToastProvider",
 } as const;

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/DeleteAccountModal.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The delete-account modal opened from the security overview. It runs three
 // steps in one place: typing the handle to confirm, the code emailed to the account
@@ -20,6 +20,7 @@ import {
 import { CodeVerifyMessages } from "@/features/auth/view/codeVerifyContent";
 import { Modal } from "@/shared/components/Modal/Modal";
 import { TextField } from "@/shared/components/Fields/TextField/TextField";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { useMyProfile } from "../hooks/useMyProfile";
 import {
   confirmDeletion,
@@ -170,11 +171,7 @@ export function DeleteAccountModal({ onClose }: DeleteAccountModalProps) {
           />
         </div>
 
-        {formError ? (
-          <p className={`${styles.note} ${styles.noteError}`} role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <InlineMessage message={formError} withIcon />
 
         <div className={styles.actions}>
           <button

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileStep.tsx
-// Version : 1.2.0
-// Latest commit: task/web-account-settings
+// Version : 1.3.1
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The "Create your profile" step: picture, display name, handle and
 // bio. The handle is suggested from the name until the member edits it, and is
@@ -14,6 +14,7 @@ import {
   keepImage,
   type ImageChange,
 } from "@/shared/components/ImagePicker/imageChange";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { useHandleAvailability } from "../hooks/useHandleAvailability";
 import { saveOnboarding } from "../service/onboardingService";
 import type { ProfileView } from "../types/profileTypes";
@@ -219,11 +220,7 @@ export function ProfileStep({ profile, onFinished }: ProfileStepProps) {
           onBlur={() => showError("bio", validateBio(bio))}
         />
 
-        {formError ? (
-          <p className={styles.error} role="alert">
-            {formError}
-          </p>
-        ) : null}
+        <InlineMessage message={formError} withIcon />
 
         <Button type="submit" fullWidth isLoading={isSubmitting}>
           {ProfileStepText.submit}

@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/features/auth/ui/AuthFormFrame.module.css
-   Version : 1.0.0
-   Latest commit: task/web-auth-screens
+   Version : 1.1.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
    Purpose : Look of the shared auth form body: a centered column with the logo, the title, the fields, a form-level message, the button and the links. */
 
@@ -34,11 +34,9 @@
   flex-direction: column;
 }
 
-.error {
-  margin: 0;
-  color: var(--color-error);
-  font-family: var(--font-body);
-  font-size: var(--text-control);
+/* Centres the form-level message; its colour and motion come from InlineMessage. */
+.errorText {
+  justify-content: center;
   text-align: center;
 }
 

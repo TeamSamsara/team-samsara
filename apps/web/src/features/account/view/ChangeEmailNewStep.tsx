@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ChangeEmailNewStep.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The first step of "change email": the new address. Sending it emails one code
 // to the current address and one to the new address; the answer is the same whether the
@@ -10,6 +10,7 @@ import { useState, type FormEvent } from "react";
 import { validateEmail } from "@/features/auth/validation/authValidation";
 import { CodeVerifyMessages } from "@/features/auth/view/codeVerifyContent";
 import { TextField } from "@/shared/components/Fields/TextField/TextField";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { sendEmailChangeCodes } from "../service/emailChangeService";
 import { SecurityCodeFormText } from "../ui/securityCodeFormContent";
 import styles from "../ui/SecurityStep.module.css";
@@ -128,11 +129,7 @@ export function ChangeEmailNewStep({
       </div>
 
       <p className={styles.noteMuted}>{ChangeEmailText.newHint}</p>
-      {formError ? (
-        <p className={`${styles.note} ${styles.noteError}`} role="alert">
-          {formError}
-        </p>
-      ) : null}
+      <InlineMessage message={formError} withIcon />
 
       <div className={styles.actions}>
         <button

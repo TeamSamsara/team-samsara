@@ -1,0 +1,54 @@
+/* File : /team-samsara/apps/web/src/shared/components/Fields/FieldError/FieldError.module.css
+   Version : 1.0.0
+   Latest commit: task/web-toast-messages
+   Author : Gerrah
+   Purpose : Look of a field's error message: a small red icon and text that fade in. The field that uses it decides where it sits. */
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--px));
+  margin: 0;
+  color: var(--color-error);
+  font-family: var(--font-body);
+  font-size: max(13px, calc(16 * var(--px)));
+  font-weight: 500;
+  line-height: 1.25;
+  animation: field-error-in var(--motion-base) var(--ease-out) both;
+}
+
+.icon {
+  --icon-size: 1.2em;
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@keyframes field-error-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes field-error-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error {
+    animation-name: field-error-fade;
+    animation-duration: var(--motion-fast);
+  }
+}

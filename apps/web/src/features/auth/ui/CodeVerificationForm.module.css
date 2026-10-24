@@ -1,20 +1,12 @@
 /* File : /team-samsara/apps/web/src/features/auth/ui/CodeVerificationForm.module.css
-   Version : 1.1.0
-   Latest commit: task/web-auth-codes-reset
+   Version : 1.2.0
+   Latest commit: task/web-toast-messages
    Author : Gerrah
    Purpose : Look of the parts the code form adds to the shared frame: the
-   short explanation, the "new code sent" notice and the link buttons. */
+   short explanation and the link buttons. */
 
 .description {
   margin: 0 0 calc(24 * var(--px));
-  color: var(--color-text-on-light);
-  font-family: var(--font-body);
-  font-size: var(--text-control);
-  text-align: center;
-}
-
-.notice {
-  margin: 0;
   color: var(--color-text-on-light);
   font-family: var(--font-body);
   font-size: var(--text-control);

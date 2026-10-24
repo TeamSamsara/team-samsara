@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/icons/iconRegistry.ts
-// Version : 1.1.0
-// Latest commit: task/web-notifications
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The only file that knows where each icon comes from; screens use the names.
 
@@ -11,6 +11,7 @@ import {
   Camera,
   Check,
   ChevronDown,
+  CircleAlert,
   Eye,
   EyeOff,
   Image,
@@ -61,6 +62,7 @@ export const iconRegistry = {
   chevronDown: ChevronDown,
   info: Info,
   warning: TriangleAlert,
+  error: CircleAlert,
   notifications: Bell,
 
   // Account

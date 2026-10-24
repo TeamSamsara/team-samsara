@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ChangePasswordNewStep.tsx
-// Version : 1.0.0
-// Latest commit: task/web-account-security
+// Version : 1.1.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The first step of "change password": the new password, typed twice. Sending
 // it checks the rules and emails a code; nothing changes until the code is confirmed.
@@ -9,6 +9,7 @@ import { useState, type FormEvent } from "react";
 import { CodeVerifyMessages } from "@/features/auth/view/codeVerifyContent";
 import { validateNewPassword } from "@/features/auth/validation/authValidation";
 import { PasswordField } from "@/shared/components/Fields/PasswordField/PasswordField";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Icon } from "@/shared/icons/Icon";
 import { sendPasswordChangeCode } from "../service/passwordChangeService";
 import { SecurityCodeFormText } from "../ui/securityCodeFormContent";
@@ -147,11 +148,7 @@ export function ChangePasswordNewStep({
           {ChangePasswordText.match}
         </p>
       ) : null}
-      {formError ? (
-        <p className={`${styles.note} ${styles.noteError}`} role="alert">
-          {formError}
-        </p>
-      ) : null}
+      <InlineMessage message={formError} withIcon />
 
       <div className={styles.actions}>
         <button

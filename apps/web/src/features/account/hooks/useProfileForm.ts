@@ -1,16 +1,18 @@
 // File : /team-samsara/apps/web/src/features/account/hooks/useProfileForm.ts
-// Version : 1.1.0
-// Latest commit: task/web-notifications
+// Version : 1.2.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : Holds the edit-profile form: what the member has typed or picked,
 // what is wrong with it, whether it differs from the saved profile, the save
-// itself and discarding the changes. The page only lays these out.
+// itself (a success toast tells them it worked) and discarding the changes.
+// The page only lays these out.
 
 import { useState } from "react";
 import {
   keepImage,
   type ImageChange,
 } from "@/shared/components/ImagePicker/imageChange";
+import { useToast } from "@/shared/components/Toast/useToast";
 import type { ProfileView } from "../types/profileTypes";
 import {
   normalizeHandle,
@@ -38,13 +40,13 @@ const noErrors: FieldErrors = {
 };
 
 export function useProfileForm(profile: ProfileView) {
+  const { show } = useToast();
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [handle, setHandle] = useState(profile.handle ?? "");
   const [picture, setPicture] = useState<ImageChange>(keepImage);
   const [banner, setBanner] = useState<ImageChange>(keepImage);
   const [errors, setErrors] = useState<FieldErrors>(noErrors);
-  const [isSaved, setIsSaved] = useState(false);
 
   const { save, isSaving } = useSaveProfile();
   const availability = useHandleAvailability(handle, profile.handle);
@@ -64,7 +66,6 @@ export function useProfileForm(profile: ProfileView) {
 
   function changeDisplayName(value: string) {
     setDisplayName(value);
-    setIsSaved(false);
 
     if (errors.displayName) {
       showError("displayName", validateDisplayName(value));
@@ -73,7 +74,6 @@ export function useProfileForm(profile: ProfileView) {
 
   function changeBio(value: string) {
     setBio(value);
-    setIsSaved(false);
 
     if (errors.bio) {
       showError("bio", validateBio(value));
@@ -82,7 +82,6 @@ export function useProfileForm(profile: ProfileView) {
 
   function changeHandle(value: string) {
     setHandle(normalizeHandle(value));
-    setIsSaved(false);
 
     if (errors.handle) {
       showError("handle", validateHandle(value));
@@ -91,13 +90,11 @@ export function useProfileForm(profile: ProfileView) {
 
   function changePicture(change: ImageChange) {
     setPicture(change);
-    setIsSaved(false);
     showError("picture", null);
   }
 
   function changeBanner(change: ImageChange) {
     setBanner(change);
-    setIsSaved(false);
     showError("banner", null);
   }
 
@@ -123,7 +120,6 @@ export function useProfileForm(profile: ProfileView) {
     setPicture(keepImage);
     setBanner(keepImage);
     setErrors(noErrors);
-    setIsSaved(false);
   }
 
   async function submit() {
@@ -146,7 +142,6 @@ export function useProfileForm(profile: ProfileView) {
       return;
     }
 
-    setIsSaved(false);
     const attempt = await save({
       current: profile,
       displayName,
@@ -161,7 +156,7 @@ export function useProfileForm(profile: ProfileView) {
       setBio(trimmedBio);
       setPicture(keepImage);
       setBanner(keepImage);
-      setIsSaved(true);
+      show({ tone: "success", title: ProfileSettingsText.saved });
       return;
     }
 
@@ -188,7 +183,6 @@ export function useProfileForm(profile: ProfileView) {
     handleChangeableAt: profile.handleChangeableAt,
     isDirty,
     isSaving,
-    isSaved,
     changeDisplayName,
     changeBio,
     changeHandle,

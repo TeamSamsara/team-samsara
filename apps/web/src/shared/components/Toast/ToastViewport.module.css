@@ -1,0 +1,24 @@
+/* File : /team-samsara/apps/web/src/shared/components/Toast/ToastViewport.module.css
+   Version : 1.0.0
+   Latest commit: task/web-toast-messages
+   Author : Gerrah
+   Purpose : Where the toast stack sits: fixed at the top right, just under the navbar, above the page. On narrow screens it spans the width. It lets clicks through between toasts. */
+
+.viewport {
+  position: fixed;
+  top: calc(var(--navbar-height) + 8px);
+  right: max(8px, env(safe-area-inset-right, 0px));
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, calc(100% - 16px));
+  pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .viewport {
+    right: 0;
+    left: 0;
+    margin-inline: auto;
+  }
+}

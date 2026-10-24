@@ -1,12 +1,13 @@
 // File : /team-samsara/apps/web/src/features/account/view/WelcomeStep.tsx
-// Version : 1.1.0
-// Latest commit: task/web-auth-onboarding-navbar
+// Version : 1.2.1
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The first onboarding step: a short welcome, then on to the profile
 // step, or straight on with "Skip for now".
 
 import { AuthLogo } from "@/features/auth/ui/AuthLogo";
 import { Button } from "@/shared/components/Button/Button";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { StepIndicator } from "../ui/StepIndicator";
 import styles from "./WelcomePage.module.css";
 import { useSkipOnboarding } from "./useSkipOnboarding";
@@ -37,11 +38,7 @@ export function WelcomeStep({ onStart, onFinished }: WelcomeStepProps) {
         <h1 className={styles.title}>{WelcomeText.title}</h1>
         <p className={styles.body}>{WelcomeText.body}</p>
 
-        {skipError ? (
-          <p className={styles.error} role="alert">
-            {skipError}
-          </p>
-        ) : null}
+        <InlineMessage message={skipError} withIcon />
 
         <Button fullWidth onClick={onStart}>
           {WelcomeText.start}

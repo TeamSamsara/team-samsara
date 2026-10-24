@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsForm.tsx
-// Version : 1.2.0
-// Latest commit: task/web-notifications
+// Version : 1.3.0
+// Latest commit: task/web-toast-messages
 // Author : Gerrah
 // Purpose : The edit-profile layout: the public profile in edit mode, with a
 // banner, an overlapping picture, the name, handle and bio as fields, and
@@ -10,6 +10,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { assetUrl } from "@/lib/assetUrl";
+import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Modal } from "@/shared/components/Modal/Modal";
 import { routePaths } from "@/shared/constants/routePaths";
 import { useLanguage } from "@/shared/hooks/useLanguage";
@@ -275,18 +276,7 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
             </div>
           </div>
 
-          {form.errors.form ? (
-            <p className={`${styles.note} ${styles.noteError}`} role="alert">
-              <Icon name="warning" className={styles.noteIcon} />
-              {form.errors.form}
-            </p>
-          ) : null}
-          {form.isSaved ? (
-            <p className={`${styles.note} ${styles.noteOk}`} role="status">
-              <Icon name="check" className={styles.noteIcon} />
-              {ProfileSettingsText.saved}
-            </p>
-          ) : null}
+          <InlineMessage message={form.errors.form} withIcon />
         </div>
       </div>
 
