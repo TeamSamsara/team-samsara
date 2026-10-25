@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Repositories/FirestoreAssetMetadataStore.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/FirestoreAssetMetadataStore.cs
 // Version : 1.0.2
 // Latest commit: feature/assets-module
 // Author : Gerrah

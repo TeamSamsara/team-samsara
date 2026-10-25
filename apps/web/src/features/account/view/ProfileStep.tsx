@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileStep.tsx
-// Version : 1.3.1
-// Latest commit: task/web-toast-messages
+// Version : 1.4.0
+// Latest commit: task/web-cleanup-and-glow
 // Author : Gerrah
 // Purpose : The "Create your profile" step: picture, display name, handle and
 // bio. The handle is suggested from the name until the member edits it, and is
@@ -28,7 +28,7 @@ import {
   validateHandle,
 } from "../validation/profileValidation";
 import styles from "./WelcomePage.module.css";
-import { useSkipOnboarding } from "./useSkipOnboarding";
+import { useSkipOnboarding } from "../hooks/useSkipOnboarding";
 import {
   OnboardingText,
   neutralDisplayName,

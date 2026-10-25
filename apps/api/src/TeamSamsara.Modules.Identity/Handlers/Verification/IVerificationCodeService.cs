@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/IVerificationCodeService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Verification/IVerificationCodeService.cs
 // Version : 1.2.0
 // Latest commit: task/web-account-security
 // Author : Gerrah

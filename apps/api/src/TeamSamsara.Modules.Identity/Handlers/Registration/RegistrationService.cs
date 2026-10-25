@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/RegistrationService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Registration/RegistrationService.cs
 // Version : 1.0.1
 // Latest commit: fix/neutral-default-display-name
 // Author : Gerrah

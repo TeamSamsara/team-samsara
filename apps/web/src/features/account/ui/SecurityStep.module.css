@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/features/account/ui/SecurityStep.module.css
-   Version : 1.2.0
-   Latest commit: task/web-toast-messages
+   Version : 1.4.0
+   Latest commit: task/web-cleanup-and-glow
    Author : Gerrah
    Purpose : Look of the parts every account security step shares inside its card: heading, description, fields, the action buttons, the notes under them and the round "done" badge. */
 
@@ -58,14 +58,7 @@
 }
 
 .primary {
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  border: 0;
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
-}
-
-.primary:hover:not(:disabled) {
-  filter: brightness(1.08);
+  composes: slanted from "../../../shared/styles/slantedButton.module.css";
 }
 
 .outline {
@@ -92,7 +85,11 @@
   outline-offset: 3px;
 }
 
-.danger .primary,
+.danger .primary {
+  --slant-fill: var(--color-error);
+  color: #fff;
+}
+
 .primaryDanger {
   background: var(--color-error);
   color: #fff;

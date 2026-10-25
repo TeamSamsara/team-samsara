@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/HandleCandidates.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Profiles/HandleCandidate.cs
 // Version : 1.0.0
 // Latest commit: task/api-handle-cooldown
 // Author : Gerrah

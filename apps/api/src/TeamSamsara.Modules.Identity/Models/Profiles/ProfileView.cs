@@ -1,4 +1,4 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/ProfileView.cs
+// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Profiles/ProfileView.cs
 // Version: 1.1.0
 // Latest commit: task/web-account-settings
 // Author: Gerrah

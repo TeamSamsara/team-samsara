@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/web/src/features/notifications/types/notificationTypes.ts
+// File : /team-samsara/apps/web/src/features/notification/types/notificationTypes.ts
 // Version : 1.0.0
 // Latest commit: task/web-notifications
 // Author : Gerrah

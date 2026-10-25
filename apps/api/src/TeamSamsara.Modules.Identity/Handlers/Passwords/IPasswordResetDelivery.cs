@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/IPasswordResetDelivery.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Passwords/IPasswordResetDelivery.cs
 // Version : 1.0.0
 // Latest commit: feat/password-reset-service
 // Author : Gerrah

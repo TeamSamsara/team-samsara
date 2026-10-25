@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationSettings.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Verification/VerificationSettings.cs
 // Version : 1.3.0
 // Latest commit: task/api-handle-cooldown
 // Author : Gerrah

@@ -1,0 +1,73 @@
+/* File : /team-samsara/apps/web/src/shared/styles/slantedButton.module.css
+   Version : 1.0.0
+   Latest commit: task/web-cleanup-and-glow
+   Author : Gerrah
+   Purpose : The slanted green action button shared by the account pages (send code, save changes). It rests in a slightly deeper green, lightens on hover while a light wave crosses it, and never scales or casts a shadow. */
+
+/* The slanted fill and the wave live on pseudo-elements, so the text stays upright.
+   --slant-fill is the button's color; a parent can change it (the danger steps use the error color). */
+.slanted {
+  --slant-fill: var(--color-accent);
+  --slant-shape: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  position: relative;
+  isolation: isolate;
+  background: transparent;
+  color: var(--color-text-on-accent);
+  border: 0;
+}
+
+.slanted::before,
+.slanted::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  clip-path: var(--slant-shape);
+}
+
+.slanted::before {
+  z-index: -2;
+  background-color: color-mix(in srgb, var(--slant-fill) 68%, black);
+  transition: background-color 500ms ease;
+}
+
+/* The wave waits off the left edge, crosses on hover, and fades out where it is if the pointer leaves. */
+.slanted::after {
+  z-index: -1;
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--color-text-on-dark) 70%, transparent) 45%,
+    transparent 58%
+  );
+  background-size: 300% 100%;
+  background-position: 120% 0;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 350ms ease,
+    background-position 0s linear 350ms;
+}
+
+.slanted:hover:not(:disabled)::before,
+.slanted:focus-visible:not(:disabled)::before {
+  background-color: color-mix(in srgb, var(--slant-fill), white 18%);
+}
+
+.slanted:hover:not(:disabled)::after,
+.slanted:focus-visible:not(:disabled)::after {
+  opacity: 1;
+  background-position: -20% 0;
+  transition:
+    opacity 150ms ease-out,
+    background-position 1100ms cubic-bezier(0.35, 0, 0.15, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slanted::before {
+    transition: none;
+  }
+
+  .slanted::after {
+    display: none;
+  }
+}

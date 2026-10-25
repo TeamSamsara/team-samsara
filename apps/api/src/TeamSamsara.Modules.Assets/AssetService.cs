@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Services/AssetService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetService.cs
 // Version : 2.1.0
 // Latest commit: feat/account-purge
 // Author : Gerrah

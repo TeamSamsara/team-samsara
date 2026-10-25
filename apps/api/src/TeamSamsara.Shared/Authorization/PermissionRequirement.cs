@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Authorization/PermissionAuthorization.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Authorization/PermissionRequirement.cs
 // Version : 1.0.0
 // Latest commit: feature/shared-core-primitives
 // Author : Gerrah

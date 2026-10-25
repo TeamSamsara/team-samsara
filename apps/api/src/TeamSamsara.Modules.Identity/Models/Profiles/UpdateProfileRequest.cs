@@ -1,4 +1,4 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/UpdateProfileRequest.cs
+// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Profiles/UpdateProfileRequest.cs
 // Version: 1.0.0
 // Latest commit: feature/identity-profile
 // Author: Gerrah

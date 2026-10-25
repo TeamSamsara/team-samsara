@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Services/ImageDimensionReader.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/ImageDimensionReader.cs
 // Version : 1.0.0
 // Latest commit: feature/assets-module
 // Author : Gerrah

@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsPage.module.css
-   Version : 1.3.0
-   Latest commit: task/web-toast-messages
+   Version : 1.4.0
+   Latest commit: task/web-cleanup-and-glow
    Author : Gerrah
    Purpose : Layout of the edit-profile page: banner, overlapping picture, fields column, Cancel and Save changes. Also the loading and error status shown by the page loader. The block that overlaps the banner lets clicks through to the banner's camera button. The error note under a field fades in. */
 
@@ -121,14 +121,7 @@
 }
 
 .save {
-  background: var(--color-accent);
-  color: var(--color-text-on-accent);
-  border: 0;
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
-}
-
-.save:hover:not(:disabled) {
-  filter: brightness(1.08);
+  composes: slanted from "../../../shared/styles/slantedButton.module.css";
 }
 
 .outline:disabled,

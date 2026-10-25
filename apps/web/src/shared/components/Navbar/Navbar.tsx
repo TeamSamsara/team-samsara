@@ -1,12 +1,14 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.tsx
-// Version : 1.4.0
-// Latest commit: task/web-notifications
+// Version : 1.5.0
+// Latest commit: task/web-cleanup-and-glow
 // Author : Gerrah
 // Purpose : The fixed top navigation bar shown on every page: transparent over
 // a hero until the page scrolls, then solid. Shows Sign in / Log in for guests
 // and the notification bell and account menu for signed-in members. While the
 // session is still being checked it draws the member layout if the last visit
-// was a member, so a refresh does not flash the guest buttons.
+// was a member, so a refresh does not flash the guest buttons. The background
+// fade only starts once the page has settled, so a refresh while scrolled does
+// not fade the bar in from transparent.
 
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
@@ -15,9 +17,11 @@ import { NotificationBell } from "@/features/notification/ui/NotificationBell";
 import { readAuthHint } from "@/lib/authHint";
 import { routePaths } from "@/shared/constants/routePaths";
 import { useScrollPast } from "@/shared/hooks/useScrollPast";
+import { useSettled } from "@/shared/hooks/useSettled";
 import {
   NavbarText,
   navbarLinks,
+  navbarFadeStartsAfterMs,
   navbarSolidAfterScrollY,
 } from "./navbarContent";
 import { NavbarAccount } from "./NavbarAccount";
@@ -31,6 +35,7 @@ interface NavbarProps {
 export function Navbar({ transparentAtTop = false }: NavbarProps) {
   const { status } = useAuth();
   const hasScrolled = useScrollPast(navbarSolidAfterScrollY);
+  const canFade = useSettled(navbarFadeStartsAfterMs);
   const isSolid = !transparentAtTop || hasScrolled;
 
   // Read once, on the first render: it only covers the moment before the real answer.
@@ -39,7 +44,9 @@ export function Navbar({ transparentAtTop = false }: NavbarProps) {
     status === "member" || (status === "loading" && wasMember);
 
   return (
-    <header className={`${styles.navbar} ${isSolid ? styles.solid : ""}`}>
+    <header
+      className={`${styles.navbar} ${isSolid ? styles.solid : ""} ${canFade ? styles.fades : ""}`}
+    >
       <nav className={styles.links} aria-label={NavbarText.mainNavigation}>
         {navbarLinks.map((link) => (
           <NavLink
