@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/features/account/view/WelcomeStep.tsx
-// Version : 1.2.1
-// Latest commit: task/web-toast-messages
+// Version : 1.3.0
+// Latest commit: task/web-cleanup-and-glow
 // Author : Gerrah
 // Purpose : The first onboarding step: a short welcome, then on to the profile
 // step, or straight on with "Skip for now".
@@ -10,7 +10,7 @@ import { Button } from "@/shared/components/Button/Button";
 import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { StepIndicator } from "../ui/StepIndicator";
 import styles from "./WelcomePage.module.css";
-import { useSkipOnboarding } from "./useSkipOnboarding";
+import { useSkipOnboarding } from "../hooks/useSkipOnboarding";
 import {
   OnboardingText,
   WelcomeText,

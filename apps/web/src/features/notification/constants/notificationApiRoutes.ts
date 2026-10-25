@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/web/src/features/notifications/constants/notificationApiRoutes.ts
+// File : /team-samsara/apps/web/src/features/notification/constants/notificationApiRoutes.ts
 // Version : 1.1.0
 // Latest commit: task/api-handle-cooldown
 // Author : Gerrah

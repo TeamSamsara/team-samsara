@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/PostgresFileStorageService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Shared/Storage/PostgreFileStorageService.cs
 // Version : 1.1.0
 // Latest commit: feature/asset-storage-routing
 // Author : Gerrah

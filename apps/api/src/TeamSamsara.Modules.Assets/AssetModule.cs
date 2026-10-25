@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsModule.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetModule.cs
 // Version : 2.1.0
 // Latest commit: feature/identity-profile
 // Author : Gerrah

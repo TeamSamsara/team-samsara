@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetsPipelineSettings.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetPipelineSettings.cs
 // Version : 1.0.0
 // Latest commit: feature/assets-module
 // Author : Gerrah

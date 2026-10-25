@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/navbarContent.ts
-// Version : 1.3.0
-// Latest commit: task/web-account-security
+// Version : 1.4.0
+// Latest commit: task/web-cleanup-and-glow
 // Author : Gerrah
 // Purpose : The Navbar's link list, visible text and scroll threshold, kept
 // out of the component so the labels can be translated later.
@@ -29,3 +29,7 @@ export const NavbarText = {
 
 // How far the page must scroll (in px) before a transparent navbar turns solid.
 export const navbarSolidAfterScrollY = 10;
+
+// How long (in ms) after the navbar appears before its background fade is switched on.
+// It lets the browser restore the scroll position first, so the bar is not seen fading in.
+export const navbarFadeStartsAfterMs = 400;

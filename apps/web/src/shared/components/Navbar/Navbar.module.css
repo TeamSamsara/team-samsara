@@ -1,6 +1,6 @@
 /* File : /team-samsara/apps/web/src/shared/components/Navbar/Navbar.module.css
-   Version : 1.4.0
-   Latest commit: task/web-icons
+   Version : 1.5.0
+   Latest commit: task/web-cleanup-and-glow
    Author : Gerrah
    Purpose : Styles the fixed Navbar: transparent over a hero, solid after scrolling, with the guest controls and the signed-in account menu. */
 
@@ -22,7 +22,16 @@
   --cta-wave-duration: 2500ms;
   --cta-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --cta-wave-ease: cubic-bezier(0.35, 0, 0.15, 1);
+}
+
+/* The fade between transparent and solid only runs once the page has settled (see useSettled),
+   so a refresh while scrolled shows the solid bar at once. */
+.fades {
   transition: background-color 250ms ease;
+}
+
+.fades::before {
+  transition: opacity 250ms ease;
 }
 
 /* Dark gradient behind the transparent bar, so the links stay readable on bright images. */
@@ -38,7 +47,6 @@
     transparent
   );
   pointer-events: none;
-  transition: opacity 250ms ease;
 }
 
 .solid {

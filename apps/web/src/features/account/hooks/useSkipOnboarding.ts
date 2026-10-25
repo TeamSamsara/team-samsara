@@ -1,6 +1,6 @@
-// File : /team-samsara/apps/web/src/features/account/view/useSkipOnboarding.ts
-// Version : 1.0.0
-// Latest commit: task/web-auth-onboarding-navbar
+// File : /team-samsara/apps/web/src/features/account/hooks/useSkipOnboarding.ts
+// Version : 1.1.0
+// Latest commit: task/web-cleanup-and-glow
 // Author : Gerrah
 // Purpose : The "Skip for now" action shared by both steps: marks onboarding
 // as done without changing the profile, then continues. A failure stays on the
@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import { skipOnboarding } from "../service/onboardingService";
-import { onboardingFailureMessage } from "./welcomePageContent";
+import { onboardingFailureMessage } from "../view/welcomePageContent";
 
 export function useSkipOnboarding(onDone: () => void) {
   const [isSkipping, setIsSkipping] = useState(false);

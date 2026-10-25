@@ -407,12 +407,14 @@ Both answer `204 No Content` with no body, and repeating them is harmless.
 Every call reads or changes the caller's own notifications; nobody can see or touch another
 member's.
 
-| Method | Path                          | Does                                                                                    |
-| ------ | ----------------------------- | --------------------------------------------------------------------------------------- |
-| `GET`  | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor`             |
-| `GET`  | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                            |
-| `POST` | `/notifications/{id}/read`    | Marks one notification read                                                             |
-| `POST` | `/notifications/read-all`     | Marks every unread notification read, up to 10,000 in one call                          |
+| Method   | Path                          | Does                                                                        |
+| -------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `GET`    | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor` |
+| `GET`    | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                |
+| `POST`   | `/notifications/{id}/read`    | Marks one notification read                                                 |
+| `POST`   | `/notifications/read-all`     | Marks every unread notification read, up to 10,000 in one call              |
+| `DELETE` | `/notifications/{id}`         | Removes one notification, unless it is an unanswered sign-in notice         |
+| `DELETE` | `/notifications/read`         | Removes every read notification, up to 10,000 in one call                   |
 
 - **Items.** The list answers `{"items": [...], "nextCursor": "..." | null}`. Each item is
   `{id, key, data, createdAt, readAt}`; `readAt` is `null` while unread. The category is not sent;
@@ -429,7 +431,18 @@ member's.
 - **Mark all read.** Answers `204` with no body, including when nothing was unread. It works in
   batches of 500 and stops after 20, so a member with more than 10,000 unread notifications calls
   it again.
+- **Remove one.** Answers `204` once it is gone. An unknown id, a malformed one and someone else's
+  answer `404` with an empty body, like mark read. An unanswered sign-in notice
+  (`security.new-login` with no `readAt`) answers `409`: the site keeps showing it as an alert until
+  the member answers it, so it cannot be removed or trimmed away. The check happens on the stored
+  notification inside the deletion, so it cannot be raced.
+- **Remove all read.** Answers `204`, including when nothing was read. It looks at the member's
+  newest 500 notifications, deletes the read ones, and repeats up to 20 times, so it needs no extra
+  Firestore index. Unread notifications, sign-in notices included, are never touched.
 - **Storage failures** are unexpected failures (`application/problem+json`), like everywhere else.
+- **Realtime.** There is no push (no WebSocket or server-sent events). The web app polls the unread
+  count every 15 seconds while the tab is open, and reloads the list when the count changes, so a new
+  notification can take up to 15 seconds to show.
 
 ### Assets (`/assets`)
 
@@ -600,10 +613,17 @@ The category is the text before the first dot of `Key`; it is derived and never 
   gains optional fields, and a renderer stays until its producer is gone and the retention period
   has passed.
 
-| Setting (`Notification`) | Default | Range | Meaning                                                    |
-| ------------------------ | ------- | ----- | ---------------------------------------------------------- |
-| `RetentionDays`          | `90`    | 1-365 | How long a notification lives before the TTL may delete it |
-| `WriteTimeoutSeconds`    | `5`     | 1-30  | How long one storage call may take before `Failed`         |
+| Setting (`Notification`) | Default | Range  | Meaning                                                    |
+| ------------------------ | ------- | ------ | ---------------------------------------------------------- |
+| `RetentionDays`          | `90`    | 1-365  | How long a notification lives before the TTL may delete it |
+| `WriteTimeoutSeconds`    | `5`     | 1-30   | How long one storage call may take before `Failed`         |
+| `MaxPerMember`           | `50`    | 10-500 | How many notifications one member's inbox keeps            |
+
+**Inbox cap.** After a notification is stored, the sender trims the member's inbox to
+`MaxPerMember`: the oldest read notifications go first, then the oldest unread ones. An unanswered
+sign-in notice and the notification just stored are never removed, so an inbox full of unanswered
+sign-ins can stay over the cap. A failed trim is logged and does not change the `Stored` answer.
+Trimming runs per member and looks at the newest `MaxPerMember + 100` notifications.
 
 `RetentionDays` is a policy choice, not a confirmed requirement. `ExpiresAt` is stored with each
 notification and the Firestore TTL policy on `notifications.ExpiresAt` does the deleting, usually
@@ -621,7 +641,7 @@ deletes it, at most `RetentionDays` later.
 | -------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
 | `security.new-login` | A sign-in from an unrecognized client, when its code goes out | `ipAddress` and `userAgent` (each cut to 500 characters) |
 
-- **`security.new-login`** is sent by `AuthenticationService` next to the new-login email. The
+- **`security.new-login`** is sent by `NewLoginNotifier` (called by `AuthenticationService`) next to the new-login email. The
   `DedupeKey` is `new-login:<device>:<yyyyMMdd>`, where `<device>` is 32 hex characters hashed from
   the client fingerprint and the day is the UTC day, so the same client on the same day leaves one
   notice however many times it tries. It is not sent for a recognized client, during the resend
@@ -654,7 +674,7 @@ Staging, call the endpoints once with a real member's token: list with `?limit=1
 `nextCursor` to the end, read the unread count, mark one notification read and check the count
 drops, then mark all read. A pass against the Firestore emulator would also do.
 
-**Not planned yet.** Mark unread, delete, per-member preferences, other delivery channels (email,
+**Not planned yet.** Mark unread, per-member preferences, other delivery channels (email,
 push) and sending one notification to many members.
 
 **Before the first producer.** The first module that calls `INotificationSender` in code that

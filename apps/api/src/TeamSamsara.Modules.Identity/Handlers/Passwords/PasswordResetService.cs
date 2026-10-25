@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordResetService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Passwords/PasswordResetService.cs
 // Version : 1.1.0
 // Latest commit: chore/api-contract-baseline
 // Author : Gerrah

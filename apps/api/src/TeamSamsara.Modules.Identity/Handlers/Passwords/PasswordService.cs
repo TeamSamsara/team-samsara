@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Passwords/PasswordService.cs
 // Version : 1.3.0
 // Latest commit: task/web-account-security
 // Author : Gerrah

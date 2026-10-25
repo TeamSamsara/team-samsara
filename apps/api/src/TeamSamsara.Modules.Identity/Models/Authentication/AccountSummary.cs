@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/AccountSummary.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Authentication/AccountSummary.cs
 // Version : 1.1.0
 // Latest commit: feature/identity-profile
 // Author : Gerrah

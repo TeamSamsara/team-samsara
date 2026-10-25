@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationCode.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Verification/VerificationCode.cs
 // Version : 1.0.1
 // Latest commit: feature/identity-module
 // Author : Gerrah
