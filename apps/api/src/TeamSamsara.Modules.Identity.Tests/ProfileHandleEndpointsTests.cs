@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/ProfileHandleEndpointsTests.cs
-// Version : 1.1.0
-// Latest commit: task/api-handle-cooldown
+// Version : 1.2.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
-// Purpose : Proves the handle, onboarding and public profile endpoints: who may call them, how outcomes map to status codes, and the public rate limit.
+// Purpose : Proves the handle, onboarding and profile lookup endpoints: who may call them, how outcomes map to status codes, and the lookup rate limit.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -150,9 +150,9 @@ public class ProfileHandleEndpointsTests
     }
 
     [Fact]
-    public async Task APublicLookup_NeedsNoSignIn_AndReturnsTheProfileWithoutAnId()
+    public async Task AMemberLookup_ReturnsTheProfileWithoutAnId()
     {
-        await using var app = await StartAsync(AuthState.Anonymous);
+        await using var app = await StartAsync(AuthState.Member);
         await _handles.ClaimAsync(OtherUserId, "taken", null);
 
         var response = await app.Client.GetAsync($"{PublicPath}Taken");
@@ -164,9 +164,9 @@ public class ProfileHandleEndpointsTests
     }
 
     [Fact]
-    public async Task APublicLookup_OfAnUnknownHandle_GetsNotFound()
+    public async Task AMemberLookup_OfAnUnknownHandle_GetsNotFound()
     {
-        await using var app = await StartAsync(AuthState.Anonymous);
+        await using var app = await StartAsync(AuthState.Member);
 
         var response = await app.Client.GetAsync($"{PublicPath}nobody");
 
@@ -174,9 +174,9 @@ public class ProfileHandleEndpointsTests
     }
 
     [Fact]
-    public async Task APublicLookup_IsRateLimitedPerIp()
+    public async Task AMemberLookup_IsRateLimitedPerIp()
     {
-        await using var app = await StartAsync(AuthState.Anonymous);
+        await using var app = await StartAsync(AuthState.Member);
 
         for (var i = 0; i < PublicPermitLimit; i++)
         {
@@ -185,6 +185,26 @@ public class ProfileHandleEndpointsTests
 
         (await GetFromAsync(app, "10.0.0.1")).StatusCode.ShouldBe(HttpStatusCode.TooManyRequests);
         (await GetFromAsync(app, "10.0.0.2")).StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AnAnonymousCaller_CannotLookUpAProfile()
+    {
+        await using var app = await StartAsync(AuthState.Anonymous);
+        await _handles.ClaimAsync(OtherUserId, "taken", null);
+
+        (await app.Client.GetAsync($"{PublicPath}taken"))
+            .StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AnUnverifiedCaller_CannotLookUpAProfile()
+    {
+        await using var app = await StartAsync(AuthState.VerificationRequired);
+        await _handles.ClaimAsync(OtherUserId, "taken", null);
+
+        (await app.Client.GetAsync($"{PublicPath}taken"))
+            .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     #endregion

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/navbarContent.ts
-// Version : 1.4.0
-// Latest commit: task/web-cleanup-and-glow
+// Version : 1.5.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
 // Purpose : The Navbar's link list, visible text and scroll threshold, kept
 // out of the component so the labels can be translated later.
@@ -22,7 +22,7 @@ export const NavbarText = {
   logIn: "Log in",
   accountMenu: "Your account",
   signedInAs: "Signed in as",
-  editProfile: "Edit profile",
+  myProfile: "My profile",
   accountSecurity: "Account security",
   logOut: "Log out",
 } as const;

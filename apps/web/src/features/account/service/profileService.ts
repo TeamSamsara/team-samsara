@@ -194,7 +194,7 @@ export function clearImage(
   return sendAccountRequest(imageRoute(kind), parseProfileResult, sendDelete);
 }
 
-// ---- Public profile (no sign-in) ----
+// ---- A member's profile, as other members see it (needs a signed-in member) ----
 
 export async function getPublicProfile(
   handle: string,

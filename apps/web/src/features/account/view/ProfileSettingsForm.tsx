@@ -1,18 +1,19 @@
 // File : /team-samsara/apps/web/src/features/account/view/ProfileSettingsForm.tsx
-// Version : 1.3.0
-// Latest commit: task/web-toast-messages
+// Version : 1.4.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
-// Purpose : The edit-profile layout: the public profile in edit mode, with a
-// banner, an overlapping picture, the name, handle and bio as fields, and
-// Cancel and Save changes. The state and the saving live in useProfileForm.
-// Discarding changes puts the saved values back and keeps the member here.
+// Purpose : The profile editor, shown in place of the profile page: the same
+// layout with a banner, an overlapping picture, the name, handle and bio as
+// fields, and Cancel and Save changes. The state and the saving live in
+// useProfileForm. Cancel and Discard hand control back through onLeave, and a
+// successful save through onSaved. Leaving with unsaved changes asks first,
+// whether by Cancel, a link, the back button, or closing the tab.
 
-import { useId, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useBlocker } from "react-router-dom";
 import { assetUrl } from "@/lib/assetUrl";
 import { InlineMessage } from "@/shared/components/InlineMessage/InlineMessage";
 import { Modal } from "@/shared/components/Modal/Modal";
-import { routePaths } from "@/shared/constants/routePaths";
 import { useLanguage } from "@/shared/hooks/useLanguage";
 import { Icon } from "@/shared/icons/Icon";
 import type { IconName } from "@/shared/icons/iconRegistry";
@@ -24,6 +25,7 @@ import {
   bioMaxLength,
   displayNameMaxLength,
   handleMaxLength,
+  normalizeHandle,
   visibleLength,
 } from "../validation/profileValidation";
 import styles from "./ProfileSettingsPage.module.css";
@@ -39,6 +41,10 @@ interface Note {
 
 interface ProfileSettingsFormProps {
   profile: ProfileView;
+  /** Called when the member is done with the editor without saving. */
+  onLeave: () => void;
+  /** Called after a save, with the handle the profile now has. */
+  onSaved: (handle: string) => void;
 }
 
 const noteClass: Record<NoteTone, string> = {
@@ -47,19 +53,42 @@ const noteClass: Record<NoteTone, string> = {
   error: styles.noteError,
 };
 
-export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
-  const navigate = useNavigate();
+export function ProfileSettingsForm({
+  profile,
+  onLeave,
+  onSaved,
+}: ProfileSettingsFormProps) {
   const { language } = useLanguage();
   const form = useProfileForm(profile);
   const [isConfirmingCancel, setIsConfirmingCancel] = useState(false);
+  // Set once a save went through, so the move to a new handle is not mistaken for leaving.
+  const hasSavedRef = useRef(false);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      form.isDirty &&
+      !hasSavedRef.current &&
+      currentLocation.pathname !== nextLocation.pathname,
+  );
+  const isConfirmingLeave = isConfirmingCancel || blocker.state === "blocked";
 
   const nameId = useId();
   const handleId = useId();
   const bioId = useId();
 
-  function leave() {
-    void navigate(routePaths.home);
-  }
+  // The browser's own prompt when the tab is closed or refreshed with unsaved changes.
+  useEffect(() => {
+    if (!form.isDirty) {
+      return;
+    }
+
+    function warn(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [form.isDirty]);
 
   function cancel() {
     if (form.isDirty) {
@@ -67,17 +96,46 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
       return;
     }
 
-    leave();
+    onLeave();
+  }
+
+  function keepEditing() {
+    setIsConfirmingCancel(false);
+
+    if (blocker.state === "blocked") {
+      blocker.reset();
+    }
   }
 
   function discard() {
-    form.discard();
     setIsConfirmingCancel(false);
+
+    // A blocked link or back button goes ahead; Cancel puts the saved values back and leaves.
+    if (blocker.state === "blocked") {
+      blocker.proceed();
+      return;
+    }
+
+    form.discard();
+    onLeave();
+  }
+
+  async function saveAndFinish() {
+    const saved = await form.submit();
+
+    if (saved) {
+      hasSavedRef.current = true;
+      onSaved(
+        form.handleLocked
+          ? (profile.handle ?? "")
+          : normalizeHandle(form.handle),
+      );
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    void form.submit();
+    void saveAndFinish();
   }
 
   function handleNote(): Note {
@@ -280,17 +338,14 @@ export function ProfileSettingsForm({ profile }: ProfileSettingsFormProps) {
         </div>
       </div>
 
-      {isConfirmingCancel ? (
-        <Modal
-          title={ProfileSettingsText.discardTitle}
-          onClose={() => setIsConfirmingCancel(false)}
-        >
+      {isConfirmingLeave ? (
+        <Modal title={ProfileSettingsText.discardTitle} onClose={keepEditing}>
           <p className={styles.modalText}>{ProfileSettingsText.discardBody}</p>
           <div className={styles.modalActions}>
             <button
               type="button"
               className={styles.outline}
-              onClick={() => setIsConfirmingCancel(false)}
+              onClick={keepEditing}
             >
               {ProfileSettingsText.keepEditing}
             </button>

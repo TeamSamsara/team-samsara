@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/IdentityRoutes.cs
-// Version : 1.8.0
-// Latest commit: task/api-profile-onboarding
+// Version : 1.9.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
 // Purpose : Route paths of the Identity module's endpoints, shared between the endpoint
 // classes and their tests.
@@ -34,7 +34,7 @@ public static class IdentityRoutes
     public const string ProfileHandleAvailable = "/handle/available";
     public const string ProfileOnboardingComplete = "/onboarding/complete";
 
-    // Anyone's public profile, mapped outside the signed-in group, so it carries the full path
+    // A member's profile as other members see it, mapped outside the signed-in group, so it carries the full path
     public const string PublicProfileGroup = "/profiles";
     public const string PublicProfileByHandle = "/{handle}";
 
