@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/constants/routePaths.ts
-// Version : 1.4.0
-// Latest commit: task/web-account=security
+// Version : 1.5.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
 // Purpose : Central source of truth for every route path in the app. No
 // component should hardcode a path string directly — always import from here.
@@ -24,10 +24,11 @@ export const routePaths = {
   accountSecurityPassword: "/account/security/password",
   accountSecurityEmail: "/account/security/email",
   members: "/members",
+  memberProfile: "/members/:handle",
   cms: "/cms",
 } as const;
 
-// Public profile address for a member id, e.g. /members/abc123
-export function memberPath(memberId: string): string {
-  return `${routePaths.members}/${encodeURIComponent(memberId)}`;
+// Profile address for a member handle, e.g. /members/gerrah
+export function memberPath(handle: string): string {
+  return `${routePaths.members}/${encodeURIComponent(handle)}`;
 }

@@ -19,6 +19,7 @@ Production website for Team Samsara - React frontend, C# (.NET) modular monolith
 
 - `docs/architecture` - Architecture decisions, specifications, and planning documents
 - `docs/new-module-checklist.md` - Steps for adding a new business module
+- `docs/project-plan.md` - Where the project stands, what is next, and what is parked
 
 ## Local Development
 
@@ -253,6 +254,14 @@ Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
 
 Text is stored exactly as typed. It is not HTML-cleaned, so the frontend must always render it as
 text, never as raw HTML. Replacing an image deletes the one it replaces.
+
+#### Looking up another member (`/profiles/{handle}`) - verified member
+
+`GET /profiles/{handle}` answers the profile of the member who owns the handle, for any verified
+member. The handle may carry a leading `@` and any capitalisation. Callers who are not signed in get
+`401`, callers who are not yet verified get `403`, and an unknown handle gets `404`. Lookups are rate
+limited per IP address (`429`). The answer holds only `displayName`, `handle`, `bio`,
+`profilePictureAssetId` and `bannerAssetId`: no member id, onboarding state or handle history.
 
 ### Password (`/account/password`) - verified member
 

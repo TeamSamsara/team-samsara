@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/web/src/shared/components/Navbar/NavbarAccount.tsx
-// Version : 1.3.0
-// Latest commit: task/web-notifications
+// Version : 1.4.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
-// Purpose : The avatar menu in the navbar: who is signed in, edit profile, account security and log out.
+// Purpose : The avatar menu in the navbar: who is signed in, my profile, account security and log out.
 // Until the profile loads it draws the avatar from the last visit's note, so a refresh does not flash an empty one.
 
 import { useEffect, useState } from "react";
@@ -15,7 +15,7 @@ import { Dropdown } from "@/shared/components/Dropdown/Dropdown";
 import { DropdownItem } from "@/shared/components/Dropdown/DropdownItem";
 import { DropdownPanel } from "@/shared/components/Dropdown/DropdownPanel";
 import { DropdownTrigger } from "@/shared/components/Dropdown/DropdownTrigger";
-import { routePaths } from "@/shared/constants/routePaths";
+import { memberPath, routePaths } from "@/shared/constants/routePaths";
 import { Icon } from "@/shared/icons/Icon";
 import { NavbarText } from "./navbarContent";
 import styles from "./Navbar.module.css";
@@ -77,12 +77,16 @@ export function NavbarAccount() {
         )}
         <DropdownItem
           as={Link}
-          to={routePaths.accountProfile}
+          to={
+            profile?.handle
+              ? memberPath(profile.handle)
+              : routePaths.accountProfile
+          }
           role="menuitem"
           className={styles.accountItem}
         >
-          <Icon name="profileSettings" className={styles.accountIcon} />
-          {NavbarText.editProfile}
+          <Icon name="user" className={styles.accountIcon} />
+          {NavbarText.myProfile}
         </DropdownItem>
         <DropdownItem
           as={Link}

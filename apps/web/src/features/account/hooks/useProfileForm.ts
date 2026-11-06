@@ -1,11 +1,11 @@
 // File : /team-samsara/apps/web/src/features/account/hooks/useProfileForm.ts
-// Version : 1.2.0
-// Latest commit: task/web-toast-messages
+// Version : 1.3.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
 // Purpose : Holds the edit-profile form: what the member has typed or picked,
 // what is wrong with it, whether it differs from the saved profile, the save
-// itself (a success toast tells them it worked) and discarding the changes.
-// The page only lays these out.
+// itself (a success toast tells them it worked, and submit answers whether it
+// worked) and discarding the changes. The page only lays these out.
 
 import { useState } from "react";
 import {
@@ -122,9 +122,10 @@ export function useProfileForm(profile: ProfileView) {
     setErrors(noErrors);
   }
 
-  async function submit() {
+  // Answers true when everything was saved.
+  async function submit(): Promise<boolean> {
     if (isSaving || !isDirty) {
-      return;
+      return false;
     }
 
     const found: FieldErrors = {
@@ -139,7 +140,7 @@ export function useProfileForm(profile: ProfileView) {
     setErrors(found);
 
     if (found.displayName || found.bio || found.handle) {
-      return;
+      return false;
     }
 
     const attempt = await save({
@@ -157,7 +158,7 @@ export function useProfileForm(profile: ProfileView) {
       setPicture(keepImage);
       setBanner(keepImage);
       show({ tone: "success", title: ProfileSettingsText.saved });
-      return;
+      return true;
     }
 
     if (attempt.kind === "rejected") {
@@ -165,10 +166,11 @@ export function useProfileForm(profile: ProfileView) {
         attempt.field,
         ProfileSettingsText.rejectionMessage(attempt.status),
       );
-      return;
+      return false;
     }
 
     showError("form", profileSaveFailureMessage(attempt));
+    return false;
   }
 
   return {

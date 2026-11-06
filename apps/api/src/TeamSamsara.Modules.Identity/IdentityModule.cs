@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/IdentityModule.cs
-// Version : 1.15.0
-// Latest commit: task/api-handle-cooldown
+// Version : 1.16.0
+// Latest commit: task/web-member-profile
 // Author : Gerrah
 // Purpose : Registers the Identity module's services and maps its endpoints.
 
@@ -27,7 +27,7 @@ public class IdentityModule : IModule
 {
     #region Fields
 
-    // Public profile lookups allowed per IP address in each window
+    // Profile lookups allowed per IP address in each window
     private const int PublicReadPermitLimit = 60;
     private const int PublicReadWindowSeconds = 60;
 
@@ -80,7 +80,7 @@ public class IdentityModule : IModule
         services.AddValidatedOptions<AccountPurgeSettings>(configuration, AccountPurgeSettings.SectionName);
     }
 
-    // Registers the per-IP limit on anonymous public profile lookups.
+    // Registers the per-IP limit on profile lookups.
     private static void RegisterRateLimits(IServiceCollection services)
     {
         services.AddPerIpRateLimitPolicy(

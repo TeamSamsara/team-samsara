@@ -1,0 +1,137 @@
+/* File : /team-samsara/apps/web/src/features/account/view/MemberProfileView.module.css
+   Version : 1.0.0
+   Latest commit: task/web-member-profile
+   Author : Gerrah
+   Purpose : Look of a member's profile page. The page, the overlapping block, the picture ring, the Edit profile button and the text column are the editor's own, so reading and editing line up exactly; only what is read-only (banner, picture, name, handle, bio, socials) is styled here. */
+
+.page {
+  composes: page from "./ProfileSettingsPage.module.css";
+}
+
+.identity {
+  composes: identity from "./ProfileSettingsPage.module.css";
+}
+
+.avatar {
+  composes: avatar from "./ProfileSettingsPage.module.css";
+}
+
+.actions {
+  composes: actions from "./ProfileSettingsPage.module.css";
+}
+
+.edit {
+  composes: outline from "./ProfileSettingsPage.module.css";
+}
+
+.details {
+  composes: fields from "./ProfileSettingsPage.module.css";
+}
+
+.banner {
+  width: 100%;
+  height: calc(394 * var(--px));
+  min-height: 96px;
+  border-radius: calc(24 * var(--px));
+  overflow: hidden;
+  background-color: var(--color-surface-dark);
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatarFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--color-avatar-placeholder);
+}
+
+.initial {
+  color: var(--color-text-on-light);
+  font-family: var(--font-display);
+  font-size: calc(56 * var(--px));
+  text-transform: uppercase;
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: max(24px, calc(44 * var(--px)));
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+  overflow-wrap: anywhere;
+}
+
+.handle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: max(16px, calc(24 * var(--px)));
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+.bio,
+.bioEmpty {
+  max-width: calc(780 * var(--px));
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(16px, calc(24 * var(--px)));
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-text-on-light);
+}
+
+.bioEmpty {
+  color: color-mix(in srgb, var(--color-text-on-light) 60%, transparent);
+}
+
+/* Room for linked accounts later; for now it only says they are coming. */
+.socials {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8 * var(--px));
+  max-width: calc(780 * var(--px));
+  margin-top: calc(12 * var(--px));
+  padding: calc(20 * var(--px)) calc(24 * var(--px));
+  border: 2px dashed
+    color-mix(in srgb, var(--color-text-on-light) 30%, transparent);
+  border-radius: calc(10 * var(--px));
+}
+
+.socialsTitle {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(14px, calc(22 * var(--px)));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+}
+
+.socialsSoon {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: max(14px, calc(20 * var(--px)));
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+@media (max-width: 900px) {
+  .banner {
+    height: 180px;
+    border-radius: 16px;
+  }
+
+  .name,
+  .handle {
+    text-align: center;
+  }
+}
