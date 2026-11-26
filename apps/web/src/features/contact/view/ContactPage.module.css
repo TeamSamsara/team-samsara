@@ -1,0 +1,117 @@
+/* File : /team-samsara/apps/web/src/features/contact/view/ContactPage.module.css
+   Version : 1.0.1
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Layout of the contact page, from the Figma contact frame: the CONTACT title, two columns of fields, the subject list centered under them, the message, then the attach button on the left and the slanted SEND button in the middle. One column on a narrow screen. */
+
+.page {
+  width: min(calc(940 * var(--px)), 100%);
+  margin-inline: auto;
+  padding-top: calc(90 * var(--px));
+  padding-bottom: calc(160 * var(--px));
+}
+
+.title {
+  margin: 0 0 calc(64 * var(--px));
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: max(48px, calc(120 * var(--px)));
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-text-on-light);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: calc(52 * var(--px));
+}
+
+.subject {
+  width: min(calc(441 * var(--px)), 100%);
+  margin-inline: auto;
+}
+
+/* Hidden from people and screen readers; far off screen so it still counts as filled for a bot. */
+.trap {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  column-gap: calc(24 * var(--px));
+  margin-top: calc(8 * var(--px));
+}
+
+.attach {
+  grid-column: 1;
+}
+
+.send {
+  composes: slanted from "../../../shared/styles/slantedButton.module.css";
+  grid-column: 2;
+  min-width: calc(432 * var(--px));
+  min-height: max(48px, calc(62 * var(--px)));
+  padding-inline: calc(48 * var(--px));
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: max(18px, calc(30 * var(--px)));
+  letter-spacing: 0.04em;
+}
+
+/* The shared slanted button rests in a deeper green; these two use the full brand green. */
+.send.send::before {
+  background-color: var(--color-accent);
+}
+
+.send.send:hover:not(:disabled)::before,
+.send.send:focus-visible:not(:disabled)::before {
+  background-color: color-mix(in srgb, var(--color-accent), white 18%);
+}
+
+.send:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.formError {
+  margin-top: calc(16 * var(--px));
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    grid-template-columns: 1fr;
+    row-gap: calc(24 * var(--px));
+  }
+
+  .attach,
+  .send {
+    grid-column: 1;
+  }
+
+  .send {
+    min-width: 0;
+    width: 100%;
+  }
+}

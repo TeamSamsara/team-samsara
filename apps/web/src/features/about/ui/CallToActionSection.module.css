@@ -1,0 +1,64 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/CallToActionSection.module.css
+   Version : 1.0.1
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the closing call to action: a full-width green band with a centred headline, a short invitation and two dark slanted buttons. */
+
+.band {
+  padding-block: calc(150 * var(--px));
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(37 * var(--px));
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: min(calc(107 * var(--px)), 9vw);
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.body {
+  margin: 0;
+  max-width: calc(840 * var(--px));
+  font-family: var(--font-body);
+  font-size: max(17px, calc(27 * var(--px)));
+  line-height: 1.6;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(27 * var(--px));
+  margin-top: calc(27 * var(--px));
+}
+
+.button {
+  composes: slanted from "../../../shared/styles/slantedButton.module.css";
+  display: inline-block;
+  padding: calc(22 * var(--px)) calc(70 * var(--px));
+  font-family: var(--font-display);
+  font-size: max(18px, calc(32 * var(--px)));
+  letter-spacing: 0.04em;
+  text-decoration: none;
+}
+
+/* Doubled so the dark fill and the green text win over the shared button's own colors. */
+.button.button {
+  --slant-fill: var(--palette-slate);
+  color: var(--color-accent);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-text-on-accent);
+  outline-offset: 3px;
+}

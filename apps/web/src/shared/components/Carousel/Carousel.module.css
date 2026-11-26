@@ -33,3 +33,42 @@
     transition: none;
   }
 }
+
+/* The sliding variant: items share one spot and each slides sideways by its distance from the
+   active item. --carousel-item-width and --carousel-item-gap are set by the page. */
+.trackWindow {
+  overflow: hidden;
+}
+
+.track {
+  display: grid;
+  justify-items: center;
+}
+
+.track[data-align="start"] {
+  justify-items: start;
+}
+
+.trackItem {
+  grid-area: 1 / 1;
+  width: var(--carousel-item-width);
+  min-width: 0;
+  transform: translateX(
+    calc(
+      var(--carousel-offset, 0) *
+        (var(--carousel-item-width) + var(--carousel-item-gap, 0px))
+    )
+  );
+  transition: transform var(--carousel-slide-duration, 600ms)
+    cubic-bezier(0.35, 0, 0.15, 1);
+}
+
+.trackItem[data-active="false"] {
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trackItem {
+    transition: none;
+  }
+}

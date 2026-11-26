@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/web/src/shared/constants/routePaths.ts
-// Version : 1.5.0
-// Latest commit: task/web-member-profile
+// Version : 1.6.0
+// Latest commit: feat/web-contact-about-teams
 // Author : Gerrah
 // Purpose : Central source of truth for every route path in the app. No
 // component should hardcode a path string directly — always import from here.
@@ -15,6 +15,7 @@ export const routePaths = {
   forgotPassword: "/forgot-password",
   welcome: "/welcome",
   teams: "/teams",
+  team: "/teams/:teamSlug",
   about: "/about",
   contact: "/contact",
   account: "/account",
@@ -31,4 +32,9 @@ export const routePaths = {
 // Profile address for a member handle, e.g. /members/gerrah
 export function memberPath(handle: string): string {
   return `${routePaths.members}/${encodeURIComponent(handle)}`;
+}
+
+// Page of one team, e.g. /teams/team-samsara
+export function teamPath(teamSlug: string): string {
+  return `${routePaths.teams}/${encodeURIComponent(teamSlug)}`;
 }

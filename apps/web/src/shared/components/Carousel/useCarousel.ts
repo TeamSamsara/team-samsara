@@ -22,6 +22,8 @@ export interface UseCarouselOptions {
 export interface CarouselState {
   index: number;
   count: number;
+  /** Whether next/previous wrap around at the ends. */
+  loop: boolean;
   canGoNext: boolean;
   canGoPrevious: boolean;
   /** True while a timer is running (autoplay on, not paused, not at the end). */
@@ -100,6 +102,7 @@ export function useCarousel({
   return {
     index,
     count,
+    loop,
     canGoNext,
     canGoPrevious,
     isAutoplaying,
