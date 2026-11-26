@@ -49,24 +49,31 @@ Environment configuration (#50), account API client, auth state and route guard 
 
 ### 2.3 Member journey on the web (done, to be re-checked in the browser at the end)
 
-| Piece                                                         | Pull request                            |
-| ------------------------------------------------------------- | --------------------------------------- |
-| Home page and footer                                          | #50                                     |
-| Register and log in                                           | #52                                     |
-| Code verification and forgot password                         | #53                                     |
-| Onboarding, post-login landing and account menu               | #55                                     |
-| Edit profile (now folded into the profile page)               | #59                                     |
-| Account security: password, email, delete, log out everywhere | #60                                     |
-| Notification bell, panel and sign-in banner                   | #63                                     |
-| Notification clearing, handle cooldown, email checks          | #65                                     |
-| Cleanups, shared slanted button hover, navbar fade            | #67                                     |
-| Members-only profile page with in-place editing               | In progress (`task/web-member-profile`) |
+| Piece                                                         | Pull request                                 |
+| ------------------------------------------------------------- | -------------------------------------------- |
+| Home page and footer                                          | #50                                          |
+| Register and log in                                           | #52                                          |
+| Code verification and forgot password                         | #53                                          |
+| Onboarding, post-login landing and account menu               | #55                                          |
+| Edit profile (now folded into the profile page)               | #59                                          |
+| Account security: password, email, delete, log out everywhere | #60                                          |
+| Notification bell, panel and sign-in banner                   | #63                                          |
+| Notification clearing, handle cooldown, email checks          | #65                                          |
+| Cleanups, shared slanted button hover, navbar fade            | #67                                          |
+| Members-only profile page with in-place editing               | #68                                          |
+| Contact, About (redesigned), Teams and team roster pages      | In review (`feat/web-contact-about-teams`)   |
 
 ### 2.4 Still to build for Phase 2
 
-1. **Commit and merge the profile page** (the branch above), then re-check it in the browser.
-2. **Teams, About and Contact pages.** Their routes are reserved in `routePaths`, but no feature
-   exists yet. The Contact API is done; the web form is not.
+1. **Merge the Contact, About and Teams pages** (the branch above), then check them in the
+   browser, including narrow widths. Their words and rosters live in `data/` files that the CMS
+   replaces in Phase 3; pictures and player photos are filled in as asset ids.
+   The About page is a long-form story page (hero, story, mission, pillars, Grow/Evolve/Renew,
+   leadership carousel, call to action); photos, leader names and the technology and brand-value copy
+   are still to be supplied.
+2. **Pages that wait for the CMS (Phase 3):** Home content, the news list and articles, Sponsorship
+   and case studies, Careers, Brand Guidelines, Apparel Services, Help, Shipping, Returns and the
+   legal pages. The footer lists only pages that exist today.
 3. **Wire the real design into every remaining page** and finish the shared components the new
    pages need.
 4. **Real assets and a polish pass** (images, copy, spacing, motion, mobile).

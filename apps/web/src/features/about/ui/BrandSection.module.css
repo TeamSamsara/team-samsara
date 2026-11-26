@@ -1,0 +1,17 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/BrandSection.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Spacing of the brand section: a short intro, then the three word blocks one under the other with generous space between them. */
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: calc(192 * var(--px));
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: calc(40 * var(--px));
+}

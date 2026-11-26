@@ -1,0 +1,44 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/SplitSection.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of a headline-and-text block beside a square picture. The two columns are equal; a reversed block swaps them on a wide screen and stacks (picture first) on a narrow one. */
+
+.split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: calc(128 * var(--px));
+}
+
+.picture {
+  aspect-ratio: 1 / 1;
+  height: auto;
+  border-radius: calc(27 * var(--px));
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: calc(28 * var(--px));
+  min-width: 0;
+}
+
+.copy h2 {
+  margin-bottom: calc(8 * var(--px));
+}
+
+.split[data-reversed="true"] .picture {
+  order: 2;
+}
+
+@media (max-width: 760px) {
+  .split {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .split[data-reversed="true"] .picture {
+    order: 0;
+  }
+}

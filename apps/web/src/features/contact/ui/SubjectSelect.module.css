@@ -1,0 +1,63 @@
+/* File : /team-samsara/apps/web/src/features/contact/ui/SubjectSelect.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the subject list: the same outlined box as the text fields, with a small dark arrow at the right end instead of the browser's own. */
+
+.field {
+  composes: field from "../../../shared/components/Fields/TextField/TextField.module.css";
+}
+
+.label {
+  composes: label from "../../../shared/components/Fields/TextField/TextField.module.css";
+}
+
+.control {
+  composes: control from "../../../shared/components/Fields/TextField/TextField.module.css";
+  position: relative;
+}
+
+.invalid {
+  composes: invalid from "../../../shared/components/Fields/TextField/TextField.module.css";
+}
+
+.select {
+  flex: 1;
+  min-width: 0;
+  min-height: calc(62 * var(--px));
+  padding: 0 calc(56 * var(--px)) 0 calc(20 * var(--px));
+  border: 0;
+  border-radius: calc(10 * var(--px));
+  background: transparent;
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+  appearance: none;
+  cursor: pointer;
+}
+
+.select[data-empty] {
+  opacity: 0.7;
+}
+
+.select:focus {
+  outline: none;
+}
+
+/* The arrow: a small triangle drawn with borders. */
+.control::after {
+  content: "";
+  position: absolute;
+  right: calc(22 * var(--px));
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-inline: calc(7 * var(--px)) solid transparent;
+  border-top: calc(9 * var(--px)) solid var(--color-text-on-light);
+  pointer-events: none;
+}
+
+.error {
+  composes: error from "../../../shared/components/Fields/TextField/TextField.module.css";
+  margin-right: calc(48 * var(--px));
+}

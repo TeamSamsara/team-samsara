@@ -1,0 +1,14 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/AboutMedia.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : A picture slot of the About page: rounded corners, cropped to fill, dark while empty. */
+
+.media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(25 * var(--px));
+  background-color: var(--color-surface-dark);
+  object-fit: cover;
+}

@@ -1,0 +1,56 @@
+/* File : /team-samsara/apps/web/src/features/teams/ui/PageBanner.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the banner, from the Figma teams frames: 672 px tall at 1920, the title in the display font, green on a dark box, near the bottom left. */
+
+.banner {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: calc(672 * var(--px));
+  background-color: var(--color-surface-dark);
+  overflow: hidden;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.text {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(12 * var(--px));
+  padding: 0 calc(110 * var(--px)) calc(60 * var(--px));
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: max(40px, calc(128 * var(--px)));
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-accent);
+}
+
+.title span {
+  padding: 0 calc(12 * var(--px));
+  background-color: color-mix(in srgb, var(--palette-dark) 92%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.subtitle {
+  margin: 0;
+  padding: calc(4 * var(--px)) calc(12 * var(--px));
+  background-color: color-mix(in srgb, var(--palette-dark) 92%, transparent);
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(32 * var(--px)));
+  color: var(--color-text-on-dark);
+}

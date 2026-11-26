@@ -1,0 +1,39 @@
+/* File : /team-samsara/apps/web/src/features/teams/ui/MemberSocials.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the social icons: small grey icons in a row that turn green on hover. */
+
+.list {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: calc(14 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 24px;
+  color: color-mix(in srgb, var(--color-text-on-dark) 55%, transparent);
+  transition: color 150ms ease;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--color-accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: max(20px, calc(32 * var(--px)));
+  height: max(20px, calc(32 * var(--px)));
+}

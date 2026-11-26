@@ -1,0 +1,11 @@
+/* File : /team-samsara/apps/web/src/features/about/view/AboutPage.module.css
+   Version : 2.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Vertical rhythm of the About page: every section is separated by the same large gap, so the page breathes and no two blocks feel crowded. The sections style themselves. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: calc(192 * var(--px));
+}
