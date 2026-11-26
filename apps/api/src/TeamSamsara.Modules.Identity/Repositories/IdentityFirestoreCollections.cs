@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Repositories/IdentityFirestoreCollections.cs
-// Version : 1.3.0
-// Latest commit: feat/email-change-request-store
+// Version : 1.4.0
+// Latest commit: task/api-profile-onboarding
 // Author : Gerrah
 // Purpose : Firestore collection names owned by the Identity module.
 
@@ -15,6 +15,9 @@ public static class IdentityFirestoreCollections
 
     // Display records, one per member, keyed by Firebase uid; user-editable
     public const string Profiles = "profiles";
+
+    // Held @handles, keyed by the lowercase handle; each names the member who holds it
+    public const string Handles = "handles";
 
     // Pending verification codes, keyed by "{uid}_{purpose}"; short-lived
     public const string VerificationCodes = "verificationCodes";

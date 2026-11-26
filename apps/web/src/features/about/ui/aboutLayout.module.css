@@ -1,0 +1,59 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/aboutLayout.module.css
+   Version : 1.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : The pieces every About section shares: the centred content column, the big section heading, the muted paragraph and the corner-cut picture. Sections compose them so the page keeps one look. */
+
+.wrap {
+  width: min(calc(1650 * var(--px)), 100%);
+  margin-inline: auto;
+  padding-inline: var(--page-margin);
+  box-sizing: border-box;
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: max(30px, calc(69 * var(--px)));
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-text-on-light);
+}
+
+.bigHeading {
+  composes: heading;
+  font-size: min(calc(117 * var(--px)), 11vw);
+}
+
+.paragraph {
+  margin: 0;
+  max-width: calc(720 * var(--px));
+  font-family: var(--font-body);
+  font-size: max(16px, calc(24 * var(--px)));
+  line-height: 1.75;
+  color: color-mix(in srgb, var(--color-text-on-light) 80%, transparent);
+}
+
+/* A picture with its two lower corners cut, like the team tiles. */
+.cut {
+  --cut: calc(58 * var(--px));
+  border-radius: 0;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut))
+  );
+}
+
+@media (max-width: 760px) {
+  .wrap {
+    padding-inline: 20px;
+  }
+
+  .cut {
+    --cut: 28px;
+  }
+}

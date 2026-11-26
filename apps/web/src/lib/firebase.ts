@@ -1,25 +1,22 @@
 // File : /team-samsara/apps/web/src/lib/firebase.ts
-// Version : 1.0.0
-// Latest commit: feature/apps-web-foundation
+// Version : 1.2.0
+// Latest commit: feature/web-home-page
 // Author : Gerrah
 // Purpose : Initializes Firebase Auth only — no Firestore or Storage client
 // SDK usage anywhere in this app, since all data access routes through the
-// C# API. In development, redirects Auth calls to the local emulator.
+// C# API. Every value comes from appConfig; the Auth emulator is connected
+// only when appConfig provides its URL, which happens in development alone.
 
 import { initializeApp } from "firebase/app";
 import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { appConfig } from "@/config/appConfig";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
+const { authEmulatorUrl, ...firebaseConfig } = appConfig.firebase;
 
 const firebaseApp = initializeApp(firebaseConfig);
 
 export const auth = getAuth(firebaseApp);
 
-if (import.meta.env.DEV) {
-  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+if (authEmulatorUrl) {
+  connectAuthEmulator(auth, authEmulatorUrl, { disableWarnings: true });
 }

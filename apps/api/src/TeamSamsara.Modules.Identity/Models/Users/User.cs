@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/User.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Users/User.cs
 // Version : 1.2.0
 // Latest commit: feat/account-purge
 // Author : Gerrah

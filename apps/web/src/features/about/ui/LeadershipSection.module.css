@@ -1,0 +1,97 @@
+/* File : /team-samsara/apps/web/src/features/about/ui/LeadershipSection.module.css
+   Version : 2.0.0
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the leadership carousel: the big heading, then a row of slanted portraits that starts at the page margin and bleeds off the right edge, with a name and role under each and a square arrow on each side. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(107 * var(--px));
+  overflow: hidden;
+}
+
+.carousel {
+  /* Left edge of the content column, so the row lines up with the heading. */
+  --lead-start: max(
+    var(--page-margin),
+    calc((100% - 1650 * var(--px)) / 2 + var(--page-margin))
+  );
+  --carousel-item-width: min(calc(453 * var(--px)), 72vw);
+  --carousel-item-gap: calc(43 * var(--px));
+  --arrow-size: max(44px, calc(75 * var(--px)));
+  position: relative;
+}
+
+.track {
+  padding-left: var(--lead-start);
+}
+
+@media (max-width: 760px) {
+  .carousel {
+    --lead-start: 20px;
+  }
+}
+
+/* The portrait leans: the top edge is shifted to the right. */
+.portrait {
+  aspect-ratio: 340 / 440;
+  height: auto;
+  border-radius: 0;
+  clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+}
+
+.name {
+  margin: calc(37 * var(--px)) 0 0;
+  font-family: var(--font-display);
+  font-size: max(22px, calc(40 * var(--px)));
+  line-height: 1.1;
+  color: var(--color-text-on-light);
+}
+
+.role {
+  margin: calc(11 * var(--px)) 0 0;
+  font-family: var(--font-ui);
+  font-size: max(15px, calc(27 * var(--px)));
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+}
+
+/* Both arrows sit at the middle of the portraits, at the edges of the page. */
+.arrow {
+  position: absolute;
+  top: calc(var(--carousel-item-width) * 440 / 340 / 2 - var(--arrow-size) / 2);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: var(--arrow-size);
+  height: var(--arrow-size);
+  padding: calc(var(--arrow-size) / 4);
+  box-sizing: border-box;
+  border: 0;
+  background-color: var(--color-surface-dark);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.arrow:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+}
+
+.arrow:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+.previous {
+  left: calc(16 * var(--px));
+}
+
+.next {
+  right: calc(16 * var(--px));
+}

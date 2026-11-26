@@ -1,0 +1,59 @@
+/* File : /team-samsara/apps/web/src/shared/components/StatusPage/StatusPage.module.css
+   Version : 1.0.2
+   Latest commit: task/web-error-pages
+   Author : Gerrah
+   Purpose : Look of the 404, 403 and 500 pages, from the Figma error frames (1920 x 1080). */
+
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(20 * var(--px));
+  box-sizing: border-box;
+  width: min(100%, calc(700 * var(--px) + 2 * var(--page-margin)));
+  min-height: 70svh;
+  margin: 0 auto;
+  padding: calc(160 * var(--px)) var(--page-margin);
+  text-align: center;
+}
+
+.code {
+  margin: 0;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: max(120px, calc(360 * var(--px)));
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.title {
+  margin: 0;
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: max(36px, calc(72 * var(--px)));
+  font-weight: 400;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.body {
+  margin: 0;
+  color: var(--color-text-on-light);
+  font-family: var(--font-body);
+  font-size: max(16px, calc(24 * var(--px)));
+  line-height: 1.5;
+  opacity: 0.75;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(16 * var(--px));
+  width: 100%;
+}
+
+.actions > * {
+  width: min(100%, calc(320 * var(--px)));
+}

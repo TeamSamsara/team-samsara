@@ -19,6 +19,7 @@ Production website for Team Samsara - React frontend, C# (.NET) modular monolith
 
 - `docs/architecture` - Architecture decisions, specifications, and planning documents
 - `docs/new-module-checklist.md` - Steps for adding a new business module
+- `docs/project-plan.md` - Where the project stands, what is next, and what is parked
 
 ## Local Development
 
@@ -153,6 +154,26 @@ This is the human summary. The machine-readable contract is the OpenAPI document
 - **Outcome in the body:** the flow endpoints answer with a `status` in the body as well as an HTTP
   status code, so a client reacts to the exact reason rather than to the code alone.
 
+### Response contract
+
+Every failure reaches the client in one of these shapes, so a frontend can handle them in order:
+
+1. **Flow outcome:** an HTTP status plus a `status` string in the body (and, when relevant,
+   `codeLength`, `retryAfterSeconds` or `profile`). The `status` is the precise reason; the HTTP
+   code is derived from it in one place (`IdentityStatusCodes`).
+2. **Authentication and access:** `401` with an empty body for an unknown caller, and `403` with
+   an `authState` body on verified-member endpoints (see below). Login checks answer `403` with a
+   `status` body instead.
+3. **Rate limiting:** `429` with an empty body and a `Retry-After` header, or `429` with
+   `cooldownActive` in the body when a code was requested too soon.
+4. **Unexpected failures:** `application/problem+json`, where `title` is a snake_case code and
+   `detail` is an English message for developers, not for display.
+5. **Malformed requests:** `400` with an empty body, for example a code sent as a number.
+
+The API never sends display text. The frontend decides what the member reads, from the `status`
+first, then the problem `title`, then the HTTP code alone. Browsers can read the `Retry-After` and
+`X-Correlation-Id` headers because the CORS policy exposes them.
+
 ### Who can call what
 
 | Access          | Meaning                                                                |
@@ -216,7 +237,9 @@ a second request after an edit.
 | `DELETE` | `/account/profile/banner`  | Removes the banner                                         |
 
 The profile holds `displayName`, `bio`, `profilePictureAssetId` and `bannerAssetId`. Images are
-asset ids - the client builds the address from `GET /assets/{id}/file`.
+asset ids - the client builds the address from `GET /assets/{id}/file`. It also carries
+`handleChangeableAt`: the moment the handle can be changed again, or `null` when it can be
+changed now.
 
 Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
 
@@ -231,6 +254,14 @@ Rules (the limits are configurable under `Identity:Profile` and `MemberImages`):
 
 Text is stored exactly as typed. It is not HTML-cleaned, so the frontend must always render it as
 text, never as raw HTML. Replacing an image deletes the one it replaces.
+
+#### Looking up another member (`/profiles/{handle}`) - verified member
+
+`GET /profiles/{handle}` answers the profile of the member who owns the handle, for any verified
+member. The handle may carry a leading `@` and any capitalisation. Callers who are not signed in get
+`401`, callers who are not yet verified get `403`, and an unknown handle gets `404`. Lookups are rate
+limited per IP address (`429`). The answer holds only `displayName`, `handle`, `bio`,
+`profilePictureAssetId` and `bannerAssetId`: no member id, onboarding state or handle history.
 
 ### Password (`/account/password`) - verified member
 
@@ -283,14 +314,15 @@ over the account.
 | Method | Path                     | Does                                                                                    | Answers                                     |
 | ------ | ------------------------ | --------------------------------------------------------------------------------------- | ------------------------------------------- |
 | `POST` | `/account/email/request` | Takes `{"newEmail"}`, emails one code to the current address and one to the new address | `status`, `codeLength`, `retryAfterSeconds` |
-| `POST` | `/account/email/confirm` | Checks `{"oldCode", "newCode"}` and, if both are right, switches the address            | `status`                                    |
+| `POST` | `/account/email/confirm` | Checks `{"oldCode"?, "newCode"?}` and, once both are accepted, switches the address       | `status`                                    |
 
 1. `request` saves the pending change and queues two 8-digit codes: one to the **current** address
    and one to the **new** address. Codes expire after 10 minutes. Asking again within 60 seconds
    answers `cooldownActive`.
-2. `confirm` needs both codes. A code that was accepted is remembered, so after a typo the client
-   only has to resend the other one.
-3. On success the address changes, every session ends, and the **old** address gets an
+2. `confirm` takes either code or both; leave a code out to send it later. A right code is
+   remembered, and while the other is missing the answer is `codeAccepted` (`200`). After a typo
+   the client only has to resend the other one. Sending no code at all answers `invalidCode`.
+3. Once both codes are accepted (`success`) the address changes, every session ends, and the **old** address gets an
    email-changed notice naming the new address in masked form (`j***@example.com`). The client must
    sign the member in again with the new address.
 
@@ -351,7 +383,8 @@ it for good.
    purge is already working on the account, the sign-in answers `accountNotFound`.
 6. **Purge.** After the window the scheduled job (see Background Services) removes the profile
    images, the profile, every verification code, password reset token and email-change request
-   the account still has, the Firebase account, and finally the user record.
+   the account still has, what other modules hold about the member (the notification inbox, for
+   example), the Firebase account, and finally the user record.
 
 - **The client must call Firebase `signOut()` after a successful delete.** The API already refuses
   the old token as a member, but the Firebase session is still open on the device until the client
@@ -378,6 +411,48 @@ Both answer `204 No Content` with no body, and repeating them is harmless.
   no verified sign-in to end and gets `403`. To abandon the device challenge the client calls
   Firebase `signOut()` and returns to the login screen; nothing was recorded on the server.
 
+### Notifications (`/notifications`) - verified member
+
+Every call reads or changes the caller's own notifications; nobody can see or touch another
+member's.
+
+| Method   | Path                          | Does                                                                        |
+| -------- | ----------------------------- | --------------------------------------------------------------------------- |
+| `GET`    | `/notifications`              | Lists the caller's notifications, newest first, with `?limit` and `?cursor` |
+| `GET`    | `/notifications/unread-count` | Answers `{"unreadCount": n}`                                                |
+| `POST`   | `/notifications/{id}/read`    | Marks one notification read                                                 |
+| `POST`   | `/notifications/read-all`     | Marks every unread notification read, up to 10,000 in one call              |
+| `DELETE` | `/notifications/{id}`         | Removes one notification, unless it is an unanswered sign-in notice         |
+| `DELETE` | `/notifications/read`         | Removes every read notification, up to 10,000 in one call                   |
+
+- **Items.** The list answers `{"items": [...], "nextCursor": "..." | null}`. Each item is
+  `{id, key, data, createdAt, readAt}`; `readAt` is `null` while unread. The category is not sent;
+  the frontend derives it from `key`, and turns `key` and `data` into text.
+- **Order and paging.** Newest first by `createdAt`, then by id. `limit` defaults to 20 and is
+  clamped to 1-50. `nextCursor` is opaque and versioned: send it back unchanged as `?cursor=` for
+  the next page, and `null` means there is no next page. A malformed cursor answers `400` with an
+  empty body, and so does a `limit` that is not a number. A page can hold fewer items than `limit`
+  when some have expired but the TTL has not deleted them yet; keep following `nextCursor`.
+- **Unread count.** Counts the caller's notifications that have no `readAt`.
+- **Mark read.** Idempotent: a second call keeps the first `readAt` and answers `204` as well. The
+  id must look like a notification id (32 or 64 lowercase hex characters); an unknown id, a
+  malformed one and someone else's all answer `404` with an empty body, so ids cannot be probed.
+- **Mark all read.** Answers `204` with no body, including when nothing was unread. It works in
+  batches of 500 and stops after 20, so a member with more than 10,000 unread notifications calls
+  it again.
+- **Remove one.** Answers `204` once it is gone. An unknown id, a malformed one and someone else's
+  answer `404` with an empty body, like mark read. An unanswered sign-in notice
+  (`security.new-login` with no `readAt`) answers `409`: the site keeps showing it as an alert until
+  the member answers it, so it cannot be removed or trimmed away. The check happens on the stored
+  notification inside the deletion, so it cannot be raced.
+- **Remove all read.** Answers `204`, including when nothing was read. It looks at the member's
+  newest 500 notifications, deletes the read ones, and repeats up to 20 times, so it needs no extra
+  Firestore index. Unread notifications, sign-in notices included, are never touched.
+- **Storage failures** are unexpected failures (`application/problem+json`), like everywhere else.
+- **Realtime.** There is no push (no WebSocket or server-sent events). The web app polls the unread
+  count every 15 seconds while the tab is open, and reloads the list when the count changes, so a new
+  notification can take up to 15 seconds to show.
+
 ### Assets (`/assets`)
 
 | Method   | Path                | Access  | Does                                                                  |
@@ -398,6 +473,86 @@ repeat after a partial failure succeeds. If the file cannot be deleted the reque
 error. A file can still be left without metadata only if the cleanup after a failed upload fails
 twice in a row; that is logged.
 
+### Contact (`/contact`) - public
+
+The website's contact form. One call emails the team; nothing is stored.
+
+| Method | Path       | Access                 | Does                                                |
+| ------ | ---------- | ---------------------- | --------------------------------------------------- |
+| `POST` | `/contact` | Public, limited per IP | Emails the form to the team for the chosen category |
+
+The body is `multipart/form-data`:
+
+| Field                   | Required | Rule                                                              |
+| ----------------------- | -------- | ----------------------------------------------------------------- |
+| `firstName`, `lastName` | yes      | Up to 100 characters each, no control characters                  |
+| `email`                 | yes      | One plain address (no display name), up to 254 characters         |
+| `phone`                 | no       | Up to 30 characters: digits, spaces and `+ - ( ) .`               |
+| `category`              | yes      | `sponsorship`, `general-inquiries`, `media` or `customer-service` |
+| `message`               | yes      | Up to 5000 characters; line breaks allowed                        |
+| `files`                 | no       | Up to 5 files; repeat the field once per file                     |
+| `website`               | no       | Hidden honeypot field: people leave it empty (see below)          |
+
+- **Attachments:** PNG, JPEG, WebP, PDF, DOCX, PPTX and XLSX only. The extension and the file's
+  first bytes must both match, so a renamed file is refused; anything else (zip, macro-enabled
+  Office files, executables) is refused. At most 5 files, 5 MiB each and 8 MiB together; the whole
+  request is capped at 10 MiB. File names are cleaned (any path and control characters removed,
+  at most 100 characters). Files are attached to the email directly and never stored.
+- **Routing:** each category goes to its own list of recipients (see Contact configuration).
+  One email is sent to everyone on the list, with the visitor's address as `Reply-To`, so a staff
+  member answers by replying. The sender is the shared `Email:FromAddress`.
+- **Honeypot:** a filled `website` field answers `sent` exactly like a real submission but sends
+  nothing, so a bot cannot tell it was dropped. The form must keep the field hidden and empty.
+- **Rate limit:** at most 5 submissions per 10 minutes per IP address. More answers `429` with a
+  `Retry-After` header and an empty body. A honeypot hit counts toward the limit.
+- **No confirmation email:** the visitor is not emailed, so the form cannot be used to send mail
+  to other people. The frontend shows its own thank-you screen on `sent`.
+- **Failure keeps the form:** `deliveryFailed` (`503`) means the email could not be sent and
+  nothing was recorded, so the frontend keeps the visitor's text and files and lets them retry.
+
+Every answer except `429` has the body `{"status": "..."}`, and the HTTP code follows the status:
+
+| Outcome (`status`)                                                      | HTTP  |
+| ----------------------------------------------------------------------- | ----- |
+| `sent`                                                                  | `200` |
+| `invalidRequest`, `invalidField`, `tooManyFiles`, `unsupportedFileType` | `400` |
+| `fileTooLarge`                                                          | `413` |
+| `deliveryFailed`                                                        | `503` |
+
+### Contact configuration
+
+| Setting (`Contact`)          | Default           | Range        | Meaning                                                |
+| ---------------------------- | ----------------- | ------------ | ------------------------------------------------------ |
+| `SponsorshipRecipients`      | required          | -            | Comma-separated addresses for the Sponsorship category |
+| `GeneralInquiriesRecipients` | required          | -            | Comma-separated addresses for General inquiries        |
+| `MediaRecipients`            | required          | -            | Comma-separated addresses for Media                    |
+| `CustomerServiceRecipients`  | required          | -            | Comma-separated addresses for Customer service         |
+| `MaxFiles`                   | `5`               | 1-10         | Most files one submission may attach                   |
+| `MaxFileBytes`               | `5242880` (5 MiB) | up to 10 MiB | Largest single attachment                              |
+| `MaxTotalBytes`              | `8388608` (8 MiB) | up to 10 MiB | Largest combined size of all attachments               |
+| `RateLimitPermitLimit`       | `5`               | 1-1000       | Submissions one IP address may make per window         |
+| `RateLimitWindowSeconds`     | `600`             | 1-86400      | Length of that window                                  |
+
+- **Recipients:** comma-separated addresses, at most 50 per category. They are checked at startup:
+  the API does not start if a category has no valid address or if `MaxFileBytes` is larger than
+  `MaxTotalBytes`.
+- **Where they live:** Staging reads them from `appsettings.Staging.json`. Production has no file
+  for them, so they are set as Render environment variables at cutover
+  (`Contact__SponsorshipRecipients`, `Contact__GeneralInquiriesRecipients`,
+  `Contact__MediaRecipients`, `Contact__CustomerServiceRecipients`); the API will not start
+  without them. A change needs a restart, and so does a new rate limit value.
+- **Local development** uses fake `@example.com` addresses from `appsettings.Development.json`, so
+  nothing reaches a real inbox.
+- **Staging test.** Real addresses receive this, so tell them first:
+
+```bash
+curl -F firstName=Ada -F lastName=Lovelace -F email=you@example.com \
+  -F category=media -F message=Hello -F files=@file.pdf \
+  https://<staging-host>/contact
+```
+
+It should answer `{"status":"sent"}` and deliver to the Media recipients.
+
 ### Health and utility
 
 | Method | Path            | Access    | Does                                                       |
@@ -406,6 +561,146 @@ twice in a row; that is logged.
 | `GET`  | `/health/ready` | Public    | Dependencies are reachable (`Healthy`)                     |
 | `GET`  | `/ping`         | Public    | Answers `pong`; used to check the frontend reaches the API |
 | `GET`  | `/ping/secure`  | Signed in | `401` without a token                                      |
+
+## Emails
+
+Code and alert emails are sent through `IAlertSender` with an `AlertType`. Every template shares one
+layout (`AlertEmailLayout`) styled like the contact-form emails: dark header, green code card, grey footer.
+
+| Kind   | Alert types                                                                                                                                  |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codes  | `RegistrationCode`, `LoginCode`, `PasswordChangeCode`, `PasswordResetCode`, `EmailChangeCurrentCode`, `EmailChangeNewCode`, `AccountDeletionCode` (`StepUpCode` is the generic wording) |
+| Alerts | `NewLoginAttempt`, `PasswordResetRequested`, `PasswordChanged`, `EmailChanged`, `AccountDeleted`                                                |
+
+Templates use `{{token}}` placeholders filled from `AlertTemplateKeys` (`code`, `expiresInMinutes`,
+`newEmail`, `recoveryDays`, `ipAddress`, `userAgent`). Values are HTML-encoded and a token that is not
+supplied stays visible, which the "no `{{` left" tests catch. `VerificationCodeService.IssueAsync` picks the
+wording from the purpose and accepts an override and extra data (password change and account deletion
+use it, because they share the step-up purpose).
+
+## Notifications
+
+The Notification module keeps a member's inbox. Other modules send into it through
+`INotificationSender` from `TeamSamsara.Shared`; a member reads it through the inbox endpoints
+(see Notifications under API Endpoints).
+
+```csharp
+NotificationResult result = await sender.SendNotificationAsync(
+    new NotificationRequest(recipientId, "order.shipped", data, dedupeKey), cancellationToken);
+```
+
+| Field         | Rule                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `RecipientId` | The member's Firebase uid (`A-Z a-z 0-9 _ -`, up to 128 characters)                                         |
+| `Key`         | `category.event`: 2-4 lowercase tokens joined by dots, each `[a-z][a-z0-9-]{0,31}`                          |
+| `Data`        | Optional flat map of strings: up to 20 entries, names `[a-z][A-Za-z0-9]{0,39}`, values up to 500 characters |
+| `DedupeKey`   | Optional, `A-Z a-z 0-9 . _ : -`, up to 100 characters                                                       |
+
+A malformed request throws `ArgumentException` (a bug in the caller, not a runtime condition).
+The category is the text before the first dot of `Key`; it is derived and never stored.
+
+| Status      | Meaning                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| `Stored`    | The notification was written; `Id` is its document id                                                        |
+| `Duplicate` | The same `DedupeKey` was already stored with the same `Key` and `Data`; nothing was written                  |
+| `Conflict`  | The `DedupeKey` was already used for a different `Key` or `Data`; nothing was written and an error is logged |
+| `Failed`    | The write could not be confirmed; it may or may not have happened                                            |
+
+- **Dedupe.** A `DedupeKey` is scoped to one recipient, and the document id is a hash of the two,
+  so a repeat lands on the same document. The window lasts as long as the document does: until
+  the retention period ends and the Firestore TTL deletes it. Without a `DedupeKey` every call
+  makes a new notification.
+- **Best effort.** Sending is at most once per call and a notification can be lost. The sender
+  gives up after `WriteTimeoutSeconds` and reports `Failed`; it rethrows only the caller's own
+  cancellation, and lets unexpected exceptions (bugs) through. A producer whose business
+  operation has already committed must guard the call itself so a failure cannot undo it.
+- **Frontend compatibility.** The frontend turns `Key` and `Data` into text, so: an unknown key
+  gets a generic localized fallback; unknown `Data` fields are ignored and missing ones tolerated;
+  `Data` values are untrusted text, never HTML; dates are ISO-8601 strings the frontend formats;
+  where a notification leads is decided by the frontend; translation keys are
+  `notifications.<key>`. A key never changes meaning (a new meaning is a new key), `Data` only
+  gains optional fields, and a renderer stays until its producer is gone and the retention period
+  has passed.
+
+| Setting (`Notification`) | Default | Range  | Meaning                                                    |
+| ------------------------ | ------- | ------ | ---------------------------------------------------------- |
+| `RetentionDays`          | `90`    | 1-365  | How long a notification lives before the TTL may delete it |
+| `WriteTimeoutSeconds`    | `5`     | 1-30   | How long one storage call may take before `Failed`         |
+| `MaxPerMember`           | `50`    | 10-500 | How many notifications one member's inbox keeps            |
+
+**Inbox cap.** After a notification is stored, the sender trims the member's inbox to
+`MaxPerMember`: the oldest read notifications go first, then the oldest unread ones. An unanswered
+sign-in notice and the notification just stored are never removed, so an inbox full of unanswered
+sign-ins can stay over the cap. A failed trim is logged and does not change the `Stored` answer.
+Trimming runs per member and looks at the newest `MaxPerMember + 100` notifications.
+
+`RetentionDays` is a policy choice, not a confirmed requirement. `ExpiresAt` is stored with each
+notification and the Firestore TTL policy on `notifications.ExpiresAt` does the deleting, usually
+within a day of expiry. Expired documents still appear in queries until then.
+
+**Account purge.** When an account is purged, the Notification module erases the member's whole
+inbox (`NotificationMemberDataEraser`, in batches of up to 500) before the Firebase account is
+deleted; if that fails, the account is retried on the next purge run. A notification written for
+the member while their purge is running can be missed by that run and then stays until the TTL
+deletes it, at most `RetentionDays` later.
+
+### Notifications the API sends
+
+| Key                  | When                                                           | `Data`                                                     |
+| -------------------- | -------------------------------------------------------------- | ---------------------------------------------------------- |
+| `security.new-login` | A sign-in from an unrecognized client, when its code goes out | `ipAddress` and `userAgent` (each cut to 500 characters) |
+
+- **`security.new-login`** is sent by `NewLoginNotifier` (called by `AuthenticationService`) next to the new-login email. The
+  `DedupeKey` is `new-login:<device>:<yyyyMMdd>`, where `<device>` is 32 hex characters hashed from
+  the client fingerprint and the day is the UTC day, so the same client on the same day leaves one
+  notice however many times it tries. It is not sent for a recognized client, during the resend
+  cooldown, or when a code is resent.
+- **Best effort.** If the notification cannot be stored, a warning is logged and the sign-in
+  carries on exactly as before: the code email has already gone out and the notice is a courtesy.
+
+### Notifications deployment
+
+Nothing in CI deploys Firestore configuration; it is applied by hand with
+`firebase deploy --only firestore --project staging` (or `production`). Before any module sends a
+notification:
+
+1. **TTL policy.** `firestore.indexes.json` declares it; confirm in the Firebase console that the
+   policy on `notifications.ExpiresAt` is active. Without it, notifications are never deleted.
+2. **Security rules.** `firestore.rules` denies all client access to `notifications`; the API
+   reads and writes through the Admin SDK. Deploying rules overwrites the live ones, so compare
+   them with the console first.
+3. **Indexes.** The inbox list needs a composite index on `RecipientId` ascending, `CreatedAt`
+   descending and `__name__` descending, declared in `firestore.indexes.json`; it must be deployed
+   and Ready before the inbox endpoints are merged, or the list answers an error. The first deploy of
+   `firestore.indexes.json` may offer to delete live indexes that are not in the file; read that
+   prompt before answering.
+
+### Notifications planned work
+
+**Inbox API: check against real Firestore.** The in-memory fakes cannot reproduce cursors, the
+unread count, equality on an empty `ReadAt` or index requirements, so after the index is Ready on
+Staging, call the endpoints once with a real member's token: list with `?limit=1` and follow
+`nextCursor` to the end, read the unread count, mark one notification read and check the count
+drops, then mark all read. A pass against the Firestore emulator would also do.
+
+**Not planned yet.** Mark unread, per-member preferences, other delivery channels (email,
+push) and sending one notification to many members.
+
+**Before the first producer.** The first module that calls `INotificationSender` in code that
+reaches `dev` does these, in this order:
+
+1. Deploy the TTL policy and rules to Staging with the commands in Notifications deployment, and
+   confirm the TTL policy is active in the Firebase console.
+2. Run the batch delete once against the Firestore emulator: store more than 500 notifications for
+   one member, run `NotificationMemberDataEraser`, and check they are all gone. The unit tests use
+   a fake store, so this is the only check against real Firestore behavior.
+3. Decide how a failed send is handled in the producer (guard the call so it cannot undo a
+   business operation that already committed) and what its `DedupeKey` is, if any.
+4. Repeat step 1 for the production project at cutover.
+
+A producer's notifications reach the member through the inbox API; the frontend turns each key
+into text, so a new key needs a renderer there. A feature that only emails someone, such as the
+contact form, needs none of this.
 
 ## Git Workflow
 
@@ -734,8 +1029,12 @@ the member's side.
   run takes the account over. A member who signs in during a lease is not restored.
 - **Retry safety.** Each step can be repeated, and something already gone counts as success. The
   order is images, profile, verification codes, password reset tokens, email-change request,
-  Firebase account, and the user record last, so an account that stopped halfway is still listed
-  and the next run finishes it.
+  other modules' data, Firebase account, and the user record last, so an account that stopped
+  halfway is still listed and the next run finishes it.
+- **Other modules' data.** A module that holds member data registers an `IMemberDataEraser`
+  (`TeamSamsara.Shared.Members`). The purge runs them one after another, after the leftover
+  documents and before the Firebase account is deleted. An eraser that fails stops the purge of
+  that account, which stays listed and is retried on the next run.
 - **Failures.** A failure on one account is logged and counted, and the rest of the batch goes on.
   The account stays listed and is retried on every later run. A run that logs failed accounts is
   a warning.
@@ -751,8 +1050,8 @@ Nothing is planned at the moment.
 
 Run this audit once every backend module is built. Findings so far, from the code that exists:
 
-- `AuthenticationService` - the new-login alert is awaited inside the sign-in request and its
-  failure is swallowed. Candidate for the queue.
+- `AuthenticationService` - the new-login alert and the new-login inbox notice are awaited inside
+  the sign-in request and their failures are swallowed. Candidate for the queue.
 - `PasswordService` - the password-changed notice is awaited inside the request and its failure
   is swallowed. Candidate for the queue.
 - `VerificationCodeService` - the code email stays inline. `IssueAsync` discards the stored code
@@ -807,3 +1106,14 @@ Any method that throws `NotImplementedException` must be documented here, alongs
   still have multi-sentence `Purpose` lines explaining implementation reasoning rather than
   stating what the file does. Not yet trimmed; revisit as those files are next touched, or as a
   dedicated pass.
+
+# Blocked word lists
+
+`BlockedWords.en.txt` and `BlockedWords.fr.txt` come from the LDNOOBW project,
+"List of Dirty, Naughty, Obscene, and Otherwise Bad Words"
+(https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words),
+by Shutterstock, Inc. and its contributors, under the CC BY 4.0 license.
+The full license text is in `LDNOOBW-LICENSE.txt`.
+
+The files are unchanged copies of the project's `en` and `fr` lists, only renamed.
+No endorsement by the authors is claimed or implied.

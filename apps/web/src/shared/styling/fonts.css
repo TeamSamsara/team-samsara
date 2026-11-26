@@ -1,0 +1,21 @@
+/* File : /team-samsara/apps/web/src/shared/styling/fonts.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Loads the self-hosted fonts from npm packages, so no request goes to an external font service. */
+
+/* Anton: hero titles. */
+@import "@fontsource/anton/latin-400.css";
+
+/* Agdasima: buttons, nav and footer links. */
+@import "@fontsource/agdasima/latin-400.css";
+@import "@fontsource/agdasima/latin-700.css";
+
+/* Norwester: section and footer headings. */
+@import "@fontsource/norwester/latin-400.css";
+
+/* DM Sans: body text, standing in for Satoshi (Light, Regular, Medium, Bold). */
+@import "@fontsource/dm-sans/latin-300.css";
+@import "@fontsource/dm-sans/latin-400.css";
+@import "@fontsource/dm-sans/latin-500.css";
+@import "@fontsource/dm-sans/latin-700.css";

@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/EmailChangeDeliveryTests.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
-// Purpose : Proves email change delivery: real codes for a free address, a silent decoy for an unavailable one.
+// Purpose : Proves email change delivery: real codes for a free address, a silent decoy for one taken since the request, and a masked log of every step.
 
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Shouldly;
 using TeamSamsara.Modules.Identity.Handlers;
@@ -29,6 +29,7 @@ public class EmailChangeDeliveryTests
     private readonly FakeAccountGateway _accounts = new();
     private readonly FakeClock _clock = new();
     private readonly VerificationSettings _settings = new();
+    private readonly RecordingLogger<EmailChangeDelivery> _logger = new();
     private readonly VerificationCodeService _verification;
     private readonly EmailChangeDelivery _delivery;
 
@@ -42,7 +43,7 @@ public class EmailChangeDeliveryTests
             _codes, _alerts, _clock, Options.Create(_settings));
 
         _delivery = new EmailChangeDelivery(
-            _accounts, _verification, NullLogger<EmailChangeDelivery>.Instance);
+            _accounts, _verification, _logger);
 
         _accounts.AddAccount(UserId, Email);
     }
@@ -52,13 +53,23 @@ public class EmailChangeDeliveryTests
     #region Public Methods
 
     [Fact]
-    public async Task Deliver_EmailsAStepUpCodeToTheCurrentAddress()
+    public async Task Deliver_EmailsACurrentAddressCodeToTheCurrentAddress()
     {
         await _delivery.DeliverAsync(UserId, NewEmail);
 
         var alert = _alerts.Sent.Single(sent => sent.To == Email);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.EmailChangeCurrentCode);
         alert.TemplateData[AlertTemplateKeys.Code].Length.ShouldBe(_settings.EmailChangeCodeLength);
+    }
+
+    [Fact]
+    public async Task Deliver_TheCurrentAddressEmailShowsOnlyAMaskedNewAddress()
+    {
+        await _delivery.DeliverAsync(UserId, NewEmail);
+
+        var alert = _alerts.Sent.Single(sent => sent.To == Email);
+        alert.TemplateData[AlertTemplateKeys.NewEmail].ShouldBe(EmailMasking.Mask(NewEmail));
+        alert.TemplateData[AlertTemplateKeys.NewEmail].ShouldNotBe(NewEmail);
     }
 
     [Fact]
@@ -67,7 +78,7 @@ public class EmailChangeDeliveryTests
         await _delivery.DeliverAsync(UserId, NewEmail);
 
         var alert = _alerts.Sent.Single(sent => sent.To == NewEmail);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.EmailChangeNewCode);
 
         var result = await _verification.VerifyAsync(
             UserId, VerificationPurpose.EmailChangeNew, alert.TemplateData[AlertTemplateKeys.Code]);
@@ -142,6 +153,47 @@ public class EmailChangeDeliveryTests
 
         old.ShouldBe(VerificationResult.NotFound);
         added.ShouldBe(VerificationResult.NotFound);
+    }
+
+    [Fact]
+    public async Task Deliver_ForAFreeAddress_LogsBothCodes_WithTheAddressesMasked()
+    {
+        await _delivery.DeliverAsync(UserId, NewEmail);
+
+        _logger.Entries.Count(entry => entry.Message.Contains("Sent")).ShouldBe(2);
+        _logger.Entries.ShouldAllBe(entry =>
+            !entry.Message.Contains(Email) && !entry.Message.Contains(NewEmail));
+    }
+
+    [Fact]
+    public async Task Deliver_ForAnAddressTakenSinceTheRequest_LogsTheDecoy()
+    {
+        _accounts.AddAccount(OtherUserId, NewEmail);
+
+        await _delivery.DeliverAsync(UserId, NewEmail);
+
+        _logger.Entries.ShouldContain(entry =>
+            entry.Level == LogLevel.Warning && entry.Message.Contains("decoy"));
+        _logger.Entries.ShouldAllBe(entry => !entry.Message.Contains(NewEmail));
+    }
+
+    [Fact]
+    public async Task Deliver_WhenEmailFails_LogsTheReason()
+    {
+        _alerts.ShouldFail = true;
+
+        await _delivery.DeliverAsync(UserId, NewEmail);
+
+        _logger.Entries.ShouldContain(entry =>
+            entry.Level == LogLevel.Warning && entry.Message.Contains("Could not issue"));
+    }
+
+    [Fact]
+    public async Task Deliver_ForAMissingAccount_LogsWhyNothingWasIssued()
+    {
+        await _delivery.DeliverAsync("missing-user", NewEmail);
+
+        _logger.Entries.ShouldContain(entry => entry.Message.Contains("not issued"));
     }
 
     [Fact]

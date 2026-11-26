@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/LoginResult.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Authentication/LoginResult.cs
 // Version : 1.0.0
 // Latest commit: feature/identity-module
 // Author : Gerrah

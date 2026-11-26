@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertType.cs
-// Version : 1.3.0
-// Latest commit: feat/account-deletion
+// Version : 1.4.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Every system-triggered alert the platform can send, requestable by type from any module.
 
@@ -27,5 +27,23 @@ public enum AlertType
     EmailChanged,
 
     // Reports that the account was deleted and can be restored by signing in within the recovery window
-    AccountDeleted
+    AccountDeleted,
+
+    // Confirms a sign-in from an unrecognized device or IP
+    LoginCode,
+
+    // Confirms a new password chosen by a signed-in member
+    PasswordChangeCode,
+
+    // Proves ownership of the email before a forgotten password is replaced
+    PasswordResetCode,
+
+    // Sent to the current address to confirm an email change
+    EmailChangeCurrentCode,
+
+    // Sent to the new address to confirm an email change
+    EmailChangeNewCode,
+
+    // Confirms the deletion of the account
+    AccountDeletionCode
 }

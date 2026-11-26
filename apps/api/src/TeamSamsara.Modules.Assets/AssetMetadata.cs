@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Models/AssetMetadata.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetMetadata.cs
 // Version : 1.0.1
 // Latest commit: feature/assets-module
 // Author : Gerrah

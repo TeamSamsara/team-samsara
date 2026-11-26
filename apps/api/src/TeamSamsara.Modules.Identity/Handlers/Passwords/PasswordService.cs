@@ -1,6 +1,6 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/PasswordService.cs
-// Version : 1.1.0
-// Latest commit: fix/password-change-verified-sign-ins
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Passwords/PasswordService.cs
+// Version : 1.3.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Default IPasswordService. The new password travels with the confirmation code, so
 // the server never stores it between steps. The code is checked only after the password rules,
@@ -74,7 +74,11 @@ public class PasswordService : IPasswordService
         }
 
         var issue = await _verification.IssueAsync(
-            userId, VerificationPurpose.StepUp, email, cancellationToken);
+            userId,
+            VerificationPurpose.StepUp,
+            email,
+            cancellationToken,
+            wording: AlertType.PasswordChangeCode);
 
         var status = issue.Status == VerificationIssueStatus.Sent
             ? PasswordStatus.Success
@@ -114,7 +118,7 @@ public class PasswordService : IPasswordService
         await _accounts.SetPasswordAsync(userId, newPassword);
         await _accounts.RevokeSessionsAsync(userId);
         await _signIns.ClearVerifiedAsync(userId);
-        await NotifyPasswordChangedAsync(email, cancellationToken);
+        await AlertPasswordChangedAsync(email, cancellationToken);
 
         return PasswordStatus.Success;
     }
@@ -144,9 +148,9 @@ public class PasswordService : IPasswordService
             && password.Length <= _settings.MaxLength;
     }
 
-    // Security notice after the change. The password is already replaced by now, so a failure
+    // Security alert after the change. The password is already replaced by now, so a failure
     // here is logged and must not turn a completed change into an error.
-    private async Task NotifyPasswordChangedAsync(string email, CancellationToken cancellationToken)
+    private async Task AlertPasswordChangedAsync(string email, CancellationToken cancellationToken)
     {
         try
         {
@@ -158,7 +162,7 @@ public class PasswordService : IPasswordService
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not send the password-changed notice.");
+            _logger.LogWarning(exception, "Could not send the password-changed alert.");
         }
     }
 

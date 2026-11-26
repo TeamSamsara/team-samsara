@@ -1,0 +1,36 @@
+/* File : /team-samsara/apps/web/src/features/home/ui/RecentContent.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Layout of the "Recent content" row, from the Figma landing page: a heading, then three equal tiles. */
+
+.section {
+  /* 164 Figma px under the Recent Updates grid, 162 from the left edge. The 194 above the
+     footer is padding, because a bottom margin here would collapse into the page container. */
+  margin: calc(164 * var(--px)) 0 0 calc(162 * var(--px));
+  padding-bottom: calc(194 * var(--px));
+}
+
+.heading {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-section-heading);
+  font-weight: 400;
+  letter-spacing: var(--tracking-heading);
+  line-height: calc(60 * var(--px));
+  text-transform: uppercase;
+  color: var(--color-text-on-light);
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(3, calc(505 * var(--px)));
+  gap: calc(46 * var(--px));
+  margin: calc(32 * var(--px)) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  height: calc(332 * var(--px));
+}

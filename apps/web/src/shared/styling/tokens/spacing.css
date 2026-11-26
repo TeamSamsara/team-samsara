@@ -1,0 +1,19 @@
+/* File : /team-samsara/apps/web/src/shared/styling/tokens/spacing.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Defines the page margin, grid gap, corner radius and layout sizes shared by every page. */
+
+:root {
+  /* Page: one symmetric side margin, used by every full-width section. */
+  --page-margin: calc(162 * var(--px));
+
+  /* Grid: one gap between tiles, horizontally and vertically. */
+  --grid-gap: calc(25 * var(--px));
+
+  /* Corners */
+  --radius-tile: calc(25 * var(--px));
+
+  /* Navbar: height of the fixed bar at the top of every page. */
+  --navbar-height: calc(62 * var(--px));
+}

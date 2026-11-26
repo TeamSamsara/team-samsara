@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/IPasswordService.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Passwords/IPasswordService.cs
 // Version : 1.0.0
 // Latest commit: feat/password-change-service
 // Author : Gerrah

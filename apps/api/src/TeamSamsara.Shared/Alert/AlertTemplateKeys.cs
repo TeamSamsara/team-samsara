@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Alert/AlertTemplateKeys.cs
-// Version : 1.2.0
-// Latest commit: feat/account-deletion
+// Version : 1.3.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Names of the template data entries callers supply to IAlertSender.
 
@@ -10,7 +10,7 @@ public static class AlertTemplateKeys
 {
     #region Fields
 
-    // The one-time verification code (RegistrationCode, StepUpCode)
+    // The one-time verification code (every code alert)
     public const string Code = "code";
 
     // The IP address of the request (NewLoginAttempt, PasswordResetRequested)
@@ -19,11 +19,14 @@ public static class AlertTemplateKeys
     // The user agent of the request (NewLoginAttempt, PasswordResetRequested)
     public const string UserAgent = "userAgent";
 
-    // The new email address, masked (EmailChanged)
+    // The new email address, masked (EmailChanged, EmailChangeCurrentCode)
     public const string NewEmail = "newEmail";
 
-    // The number of days the deleted account can still be restored (AccountDeleted)
+    // The number of days the deleted account can still be restored (AccountDeleted, AccountDeletionCode)
     public const string RecoveryDays = "recoveryDays";
+
+    // The minutes a one-time code stays valid (every code alert)
+    public const string ExpiresInMinutes = "expiresInMinutes";
 
     #endregion
 }

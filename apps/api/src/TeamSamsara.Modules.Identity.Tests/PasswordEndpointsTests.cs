@@ -144,7 +144,7 @@ public class PasswordEndpointsTests
 
         var alert = _alerts.Sent.ShouldHaveSingleItem();
         alert.To.ShouldBe(Email);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.PasswordChangeCode);
 
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         body.RootElement.GetProperty("codeLength").GetInt32().ShouldBe(_verificationSettings.StepUpCodeLength);

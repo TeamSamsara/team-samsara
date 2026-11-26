@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/Models/AssetFileResult.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Assets/AssetFileResult.cs
 // Version : 1.0.0
 // Latest commit: feature/asset-storage-routing
 // Author : Gerrah

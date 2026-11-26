@@ -69,22 +69,22 @@ public class VerificationCodeServiceTests
     }
 
     [Fact]
-    public async Task Issue_LoginChallenge_ReusesTheStepUpAlert()
+    public async Task Issue_LoginChallenge_UsesTheLoginCodeAlert()
     {
         var result = await _service.IssueAsync(UserId, VerificationPurpose.LoginChallenge, Email);
 
         result.CodeLength.ShouldBe(_settings.LoginChallengeCodeLength);
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.LoginCode);
     }
 
     [Fact]
-    public async Task Issue_PasswordReset_UsesItsOwnLengthAndTheStepUpAlert()
+    public async Task Issue_PasswordReset_UsesItsOwnLengthAndTheResetCodeAlert()
     {
         var result = await _service.IssueAsync(UserId, VerificationPurpose.PasswordReset, Email);
 
         result.Status.ShouldBe(VerificationIssueStatus.Sent);
         result.CodeLength.ShouldBe(_settings.PasswordResetCodeLength);
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.PasswordResetCode);
         _alerts.LastCode.Length.ShouldBe(_settings.PasswordResetCodeLength);
     }
 
@@ -103,15 +103,15 @@ public class VerificationCodeServiceTests
     }
 
     [Theory]
-    [InlineData(VerificationPurpose.EmailChangeOld)]
-    [InlineData(VerificationPurpose.EmailChangeNew)]
-    public async Task Issue_EmailChange_UsesTheEmailChangeLengthAndTheStepUpAlert(VerificationPurpose purpose)
+    [InlineData(VerificationPurpose.EmailChangeOld, AlertType.EmailChangeCurrentCode)]
+    [InlineData(VerificationPurpose.EmailChangeNew, AlertType.EmailChangeNewCode)]
+    public async Task Issue_EmailChange_UsesTheEmailChangeLengthAndItsOwnAlert(VerificationPurpose purpose, AlertType expected)
     {
         var result = await _service.IssueAsync(UserId, purpose, Email);
 
         result.Status.ShouldBe(VerificationIssueStatus.Sent);
         result.CodeLength.ShouldBe(_settings.EmailChangeCodeLength);
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(expected);
         _alerts.LastCode.Length.ShouldBe(_settings.EmailChangeCodeLength);
     }
 

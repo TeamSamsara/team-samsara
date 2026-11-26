@@ -1,0 +1,70 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/OnboardingLayout.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-onboarding-navbar
+   Author : Gerrah
+   Purpose : Look of the dark onboarding frame, from the Figma onboarding frames (1920 x 1080): a 1058 px photo panel on the left with the headline low in it, and the step centered on the right. */
+
+.layout {
+  display: grid;
+  grid-template-columns: calc(1058 * var(--px)) 1fr;
+  min-height: 100svh;
+  background-color: var(--color-surface-dark);
+  color: var(--color-text-on-dark);
+
+  /* Everything inside reads the dark side of the palette. */
+  --color-page: var(--color-surface-dark);
+  --color-text-on-light: var(--color-text-on-dark);
+  --color-border-control: color-mix(
+    in srgb,
+    var(--color-text-on-dark) 20%,
+    transparent
+  );
+  --color-field-fill: var(--palette-slate);
+  --color-avatar-placeholder: var(--palette-slate);
+}
+
+.art {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--palette-slate);
+}
+
+/* Headline and subtitle sit over the photos, 52 px from the left, 112 px from the bottom. */
+.copy {
+  position: absolute;
+  left: calc(52 * var(--px));
+  bottom: calc(112 * var(--px));
+  display: flex;
+  flex-direction: column;
+  gap: calc(16 * var(--px));
+  max-width: calc(900 * var(--px));
+}
+
+.headline {
+  margin: 0;
+  color: var(--color-accent);
+  font-family: var(--font-display);
+  font-size: var(--text-hero-title);
+  line-height: calc(140 * var(--px));
+  text-transform: uppercase;
+}
+
+.line {
+  display: block;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-on-dark);
+  font-family: var(--font-body);
+  font-size: calc(36 * var(--px));
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(60 * var(--px)) calc(40 * var(--px));
+}

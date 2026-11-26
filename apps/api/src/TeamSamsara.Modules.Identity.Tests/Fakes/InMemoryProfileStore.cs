@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity.Tests/Fakes/InMemoryProfileStore.cs
-// Version : 1.1.0
-// Latest commit: fix/profile-atomic-update
+// Version : 1.2.0
+// Latest commit: task/api-profile-onboarding
 // Author : Gerrah
 // Purpose : An in-memory profile store.
 
@@ -65,9 +65,12 @@ public class InMemoryProfileStore : IProfileStore
         {
             Id = profile.Id,
             DisplayName = profile.DisplayName,
+            Handle = profile.Handle,
+            HandleChangedAt = profile.HandleChangedAt,
             Bio = profile.Bio,
             ProfilePictureAssetId = profile.ProfilePictureAssetId,
-            BannerAssetId = profile.BannerAssetId
+            BannerAssetId = profile.BannerAssetId,
+            OnboardingCompleted = profile.OnboardingCompleted
         };
     }
 

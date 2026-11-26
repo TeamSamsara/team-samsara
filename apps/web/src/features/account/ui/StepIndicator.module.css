@@ -1,0 +1,41 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/StepIndicator.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-onboarding-navbar
+   Author : Gerrah
+   Purpose : Look of the step indicator, from the Figma onboarding frames: 60 x 8 px bars, 12 px apart, then a small green label. */
+
+.indicator {
+  display: flex;
+  align-items: center;
+  gap: calc(12 * var(--px));
+}
+
+.bars {
+  display: flex;
+  gap: calc(12 * var(--px));
+}
+
+/* A step still to come is a faint bar; one reached or finished is solid. */
+.bar {
+  width: calc(60 * var(--px));
+  height: calc(8 * var(--px));
+  border-radius: calc(4 * var(--px));
+  background-color: color-mix(
+    in srgb,
+    var(--color-accent-muted) 25%,
+    transparent
+  );
+}
+
+.bar[data-done="true"] {
+  background-color: var(--color-accent-soft);
+}
+
+.label {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-accent) 70%, transparent);
+  font-family: var(--font-ui);
+  font-size: var(--text-control);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

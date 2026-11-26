@@ -1,0 +1,226 @@
+/* File : /team-samsara/apps/web/src/shared/components/Toast/Toast.module.css
+   Version : 1.0.0
+   Latest commit: task/web-toast-messages
+   Author : Gerrah
+   Purpose : Look and motion of one toast: a coloured chip with a tone icon, an uppercase title, an optional detail line, a close button and a thin line that drains while it waits. It slides in with a small spring, and slides out while the stack closes the gap. */
+
+/* The wrapper is a one-cell grid whose height grows from zero and shrinks back, so the toasts
+   below move smoothly. .slot clips while that happens and leaves room for the shadow. */
+.collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  pointer-events: auto;
+  animation: toast-wrap-in var(--motion-grow) var(--ease-out) both;
+}
+
+.collapse[data-leaving="true"] {
+  animation: toast-wrap-out 320ms cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+
+.slot {
+  min-height: 0;
+  overflow: hidden;
+  padding: calc(6 * var(--px)) calc(14 * var(--px)) calc(12 * var(--px));
+}
+
+.toast {
+  --toast-bg: var(--color-accent);
+  --toast-fg: var(--color-text-on-accent);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: calc(12 * var(--px));
+  padding: calc(14 * var(--px)) calc(14 * var(--px)) calc(18 * var(--px))
+    calc(16 * var(--px));
+  overflow: hidden;
+  border-radius: calc(14 * var(--px));
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  box-shadow: 0 6px 20px
+    color-mix(in srgb, var(--color-surface-dark) 28%, transparent);
+  animation: toast-in var(--motion-grow) var(--ease-spring) both;
+}
+
+.collapse[data-leaving="true"] .toast {
+  animation: toast-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.toast[data-tone="success"] {
+  --toast-bg: var(--color-accent);
+  --toast-fg: var(--color-text-on-accent);
+}
+
+.toast[data-tone="error"] {
+  --toast-bg: var(--color-error);
+  --toast-fg: var(--color-text-on-error);
+}
+
+.toast[data-tone="info"] {
+  --toast-bg: var(--color-info);
+  --toast-fg: var(--color-text-on-info);
+}
+
+.toast[data-tone="warning"] {
+  --toast-bg: var(--color-alert);
+  --toast-fg: var(--color-text-on-alert);
+}
+
+.icon {
+  --icon-size: max(22px, calc(30 * var(--px)));
+  margin-top: 1px;
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: calc(2 * var(--px));
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(18px, calc(30 * var(--px)));
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.detail {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-control);
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  transition:
+    opacity var(--motion-fast) ease,
+    background-color var(--motion-fast) ease;
+}
+
+.close:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  opacity: 1;
+}
+
+.close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+  opacity: 1;
+}
+
+.closeIcon {
+  --icon-size: 18px;
+}
+
+/* The timer. Its animation ends when the toast's time is up; hovering or focusing the toast pauses it. */
+.bar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: currentColor;
+  opacity: 0.38;
+  transform-origin: left;
+  animation: toast-drain var(--toast-life) linear forwards;
+}
+
+.toast:hover .bar,
+.toast:focus-within .bar {
+  animation-play-state: paused;
+}
+
+@keyframes toast-wrap-in {
+  from {
+    grid-template-rows: 0fr;
+  }
+  to {
+    grid-template-rows: 1fr;
+  }
+}
+
+@keyframes toast-wrap-out {
+  from {
+    grid-template-rows: 1fr;
+  }
+  to {
+    grid-template-rows: 0fr;
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(36px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(36px);
+  }
+}
+
+@keyframes toast-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes toast-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes toast-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion: only a short fade. The timer line still drains, because it shows time, not movement. */
+@media (prefers-reduced-motion: reduce) {
+  .collapse {
+    animation: toast-fade-in var(--motion-fast) ease both;
+  }
+
+  .collapse[data-leaving="true"] {
+    animation: toast-fade-out var(--motion-fast) ease both;
+  }
+
+  .toast,
+  .collapse[data-leaving="true"] .toast {
+    animation: none;
+  }
+}

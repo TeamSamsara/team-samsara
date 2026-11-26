@@ -1,0 +1,64 @@
+/* File : /team-samsara/apps/web/src/features/account/ui/SecurityPageShell.module.css
+   Version : 1.0.0
+   Latest commit: task/web-account-security
+   Author : Gerrah
+   Purpose : Layout of the frame shared by the account security pages: back link, title and the card that holds the current step, outlined in red when the page is destructive. */
+
+.page {
+  width: min(calc(900 * var(--px)), 100%);
+  margin-inline: auto;
+  padding-top: calc(70 * var(--px));
+  padding-bottom: calc(160 * var(--px));
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: calc(16 * var(--px));
+  font-family: var(--font-heading);
+  font-size: max(16px, calc(28 * var(--px)));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--color-text-on-light);
+}
+
+.back:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.title {
+  margin: 0 0 calc(56 * var(--px));
+  font-family: var(--font-display);
+  font-size: max(40px, calc(84 * var(--px)));
+  font-weight: 400;
+  line-height: 1.1;
+  color: var(--color-text-on-light);
+}
+
+.card {
+  box-sizing: border-box;
+  padding: calc(70 * var(--px)) calc(40 * var(--px)) calc(54 * var(--px));
+  background: #fcfcfc;
+  border: 2px solid var(--color-border-control);
+  border-radius: calc(16 * var(--px));
+}
+
+.danger {
+  border: 3px solid var(--color-error);
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding-inline: 16px;
+    padding-top: 40px;
+  }
+
+  .card {
+    padding: 28px 20px;
+  }
+}

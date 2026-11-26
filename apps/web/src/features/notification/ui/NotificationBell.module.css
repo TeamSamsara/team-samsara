@@ -1,0 +1,257 @@
+/* File : /team-samsara/apps/web/src/features/notification/ui/NotificationBell.module.css
+   Version : 1.3.0
+   Latest commit: task/web-notifications
+   Author : Gerrah
+   Purpose : Look and motion of the bell button in the navbar: a green slanted button with a dark bell, and an amber badge on its top-right corner with the unread count. The badge pops in, rolls its digit when the count changes, and the bell swings when something new arrives. */
+
+.bell {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(47 * var(--px));
+  height: calc(31 * var(--px));
+  min-width: 36px;
+  min-height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-on-accent);
+  cursor: pointer;
+}
+
+/* The slanted green shape is drawn behind the icon, so the bell stays upright. */
+.bell::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(5.8 * var(--px));
+  z-index: -1;
+  border-radius: calc(5 * var(--px));
+  background: var(--color-accent);
+  transform: skewX(-22deg);
+  transition: filter 150ms ease;
+}
+
+.bell:hover::before {
+  filter: brightness(1.1);
+}
+
+.bell:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.bellIcon {
+  --icon-size: calc(20 * var(--px));
+  min-width: 14px;
+  min-height: 14px;
+  transform-origin: 50% 10%;
+}
+
+/* The bell swings from its top and settles when a new notification arrives. */
+.ringing .bellIcon {
+  animation: bell-ring 800ms ease-out;
+}
+
+/* Anchored to the bell's top-right corner, clear of the navbar edge. It is always in the page and
+   scales in and out, so it can animate when the count goes between zero and more. */
+.badge {
+  --badge-digit-nudge: 0px;
+  position: absolute;
+  top: calc(-8 * var(--px));
+  right: calc(-7 * var(--px));
+  display: grid;
+  place-items: center;
+  min-width: max(16px, calc(18 * var(--px)));
+  height: max(16px, calc(18 * var(--px)));
+  padding-inline: max(3px, calc(4 * var(--px)));
+  border: max(1px, calc(1.5 * var(--px))) solid var(--color-surface-dark);
+  border-radius: calc(4 * var(--px));
+  background: var(--color-alert);
+  color: var(--color-text-on-alert);
+  font-family: var(--font-heading);
+  font-size: max(11px, calc(13 * var(--px)));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0);
+  transition:
+    transform var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+  pointer-events: none;
+}
+
+.badgeOn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* First appearance: a quick springy pop. */
+.badgePop {
+  animation: badge-pop var(--motion-slow) var(--ease-spring) both;
+}
+
+/* Every new arrival: one amber ring that spreads and fades. */
+.badgePulse::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: badge-halo 800ms ease-out;
+}
+
+/* The digit slides inside this clipped box, so it never spills out of the badge. */
+.digits {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding-top: var(--badge-digit-nudge);
+  overflow: hidden;
+}
+
+.digit {
+  display: block;
+}
+
+.digitIn {
+  animation: digit-in var(--motion-base) var(--ease-out) both;
+}
+
+.digitOut {
+  position: absolute;
+  animation: digit-out 200ms var(--ease-out) forwards;
+}
+
+.digitInDown {
+  animation: digit-in-down var(--motion-base) var(--ease-out) both;
+}
+
+.digitOutDown {
+  position: absolute;
+  animation: digit-out-down 200ms var(--ease-out) forwards;
+}
+
+@keyframes bell-ring {
+  0% {
+    transform: rotate(0);
+  }
+  14% {
+    transform: rotate(-18deg);
+  }
+  30% {
+    transform: rotate(15deg);
+  }
+  46% {
+    transform: rotate(-10deg);
+  }
+  62% {
+    transform: rotate(6deg);
+  }
+  78% {
+    transform: rotate(-3deg);
+  }
+  100% {
+    transform: rotate(0);
+  }
+}
+
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes badge-halo {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-alert) 85%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 calc(9 * var(--px)) transparent;
+  }
+}
+
+@keyframes digit-in {
+  from {
+    opacity: 0;
+    transform: translateY(110%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes digit-out {
+  to {
+    opacity: 0;
+    transform: translateY(-110%);
+  }
+}
+
+@keyframes digit-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-110%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes digit-out-down {
+  to {
+    opacity: 0;
+    transform: translateY(110%);
+  }
+}
+
+/* Reduced motion: no swinging, popping or sliding, only quick fades. */
+@media (prefers-reduced-motion: reduce) {
+  .ringing .bellIcon,
+  .badgePulse::after {
+    animation: none;
+  }
+
+  .badgePop {
+    animation: badge-fade var(--motion-fast) ease both;
+  }
+
+  .digitIn,
+  .digitInDown {
+    animation: badge-fade var(--motion-fast) ease both;
+  }
+
+  .digitOut,
+  .digitOutDown {
+    animation: badge-fade-out var(--motion-fast) ease forwards;
+  }
+
+  @keyframes badge-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes badge-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+}

@@ -1,0 +1,197 @@
+/* File : /team-samsara/apps/web/src/features/home/ui/HomeHero.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : Look of the home hero. Every number is a Figma pixel (frame 1920 x 998, the hero starting at the very top, behind the Navbar) scaled by --px. */
+
+.hero {
+  --hero-bar-thickness: calc(5 * var(--px));
+
+  position: relative;
+  height: min(calc(998 * var(--px)), 100svh);
+  background-color: var(--color-surface-dark);
+}
+
+.viewport {
+  height: 100%;
+}
+
+.slide {
+  position: relative;
+}
+
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The text sits on the bottom-left, 101 px above the bottom edge. */
+.content {
+  position: absolute;
+  left: calc(54 * var(--px));
+  bottom: calc(101 * var(--px));
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-hero-title);
+  font-weight: 400;
+  line-height: calc(193 / 128);
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+/* The dark band behind the title starts 34 px below the top of the text box. */
+.titleText {
+  position: relative;
+  isolation: isolate;
+  display: inline-block;
+}
+
+.titleText::before {
+  content: "";
+  position: absolute;
+  inset: calc(34 * var(--px)) calc(-3 * var(--px)) auto;
+  z-index: -1;
+  height: calc(126 * var(--px));
+  background-color: var(--color-surface-dark);
+}
+
+/* The subtitle overlaps the bottom of the title box by 28 px. Its band is a fixed 612 px wide with the text centered in it. */
+.subtitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: calc(63 * var(--px));
+  margin-top: calc(-28 * var(--px));
+}
+
+.subtitle {
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  width: calc(612 * var(--px));
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-hero-subtitle);
+  font-weight: 400;
+  line-height: calc(105 / 70);
+  color: var(--color-accent);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.subtitle::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: calc(93 * var(--px));
+  background-color: var(--color-surface-dark);
+}
+
+/* Slanted button (15 degrees, measured on the Figma shape): the skew moves each edge by half the height times tan(15deg), about 9 px, so the inset keeps the corners inside the box. */
+.cta {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: calc(219 * var(--px));
+  height: calc(67 * var(--px));
+  margin-top: calc(28 * var(--px));
+  font-family: var(--font-ui);
+  font-size: var(--text-button);
+  line-height: 1;
+  color: var(--color-text-on-dark);
+  text-decoration: none;
+}
+
+.cta::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(9 * var(--px));
+  z-index: -1;
+  border-radius: calc(5 * var(--px));
+  background-color: var(--color-surface-dark);
+  transform: skewX(-15deg);
+}
+
+.cta:hover {
+  color: var(--color-accent);
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+/* Progress bars: 75 px from the left, 1698 px wide in total, 34 px between bars, bottom edge 20 px above the hero's bottom edge. */
+.indicators {
+  position: absolute;
+  left: calc(75 * var(--px));
+  bottom: calc(20 * var(--px));
+  display: flex;
+  gap: calc(34 * var(--px));
+  width: calc(1698 * var(--px));
+}
+
+/* The button is taller than the bar so it is easy to click. */
+.indicator {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: max(12px, calc(24 * var(--px)));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.indicator::before,
+.indicatorFill {
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--hero-bar-thickness);
+}
+
+.indicator::before {
+  content: "";
+  background-color: var(--color-accent-muted);
+}
+
+.indicatorFill {
+  background-color: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+/* The active bar is full when still, and fills from left to right while the countdown runs. */
+.indicator[data-active="true"] .indicatorFill {
+  transform: scaleX(1);
+}
+
+.indicatorFill[data-running="true"] {
+  animation-name: hero-bar-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes hero-bar-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.indicator:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

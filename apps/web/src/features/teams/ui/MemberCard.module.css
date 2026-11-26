@@ -1,0 +1,86 @@
+/* File : /team-samsara/apps/web/src/features/teams/ui/MemberCard.module.css
+   Version : 1.0.1
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of a member card, from the Figma roster: a dark rounded card, 768 x 333 at 1920, photo on the left, then the role in green, the handle big and white, the real name in green and the social icons. The button stretches over the whole card. */
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(230 * var(--px)) 1fr;
+  gap: calc(50 * var(--px));
+  min-height: calc(333 * var(--px));
+  padding: calc(30 * var(--px)) calc(40 * var(--px)) 0 calc(40 * var(--px));
+  border-radius: calc(20 * var(--px));
+  background-color: var(--color-surface-dark);
+  overflow: hidden;
+}
+
+.photo {
+  align-self: end;
+  height: calc(300 * var(--px));
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: calc(10 * var(--px));
+  padding-bottom: calc(30 * var(--px));
+  min-width: 0;
+}
+
+.role {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(18px, calc(40 * var(--px)));
+  letter-spacing: var(--tracking-heading);
+  color: var(--color-accent);
+}
+
+.handle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: max(34px, calc(72 * var(--px)));
+  font-weight: 400;
+  line-height: 1.05;
+  color: var(--color-text-on-dark);
+  overflow-wrap: anywhere;
+}
+
+/* The button is the handle; its overlay covers the whole card. */
+.open {
+  all: unset;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.open::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.open:focus-visible::after {
+  outline: 3px solid var(--color-accent);
+  outline-offset: -6px;
+  border-radius: calc(20 * var(--px));
+}
+
+.card:hover .handle {
+  color: var(--color-accent);
+}
+
+.realName {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: max(15px, calc(26 * var(--px)));
+  color: var(--color-accent);
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .card {
+    grid-template-columns: calc(200 * var(--px)) 1fr;
+    gap: calc(30 * var(--px));
+  }
+}

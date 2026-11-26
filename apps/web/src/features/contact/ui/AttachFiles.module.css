@@ -1,0 +1,111 @@
+/* File : /team-samsara/apps/web/src/features/contact/ui/AttachFiles.module.css
+   Version : 1.0.1
+   Latest commit: feat/web-contact-about-teams
+   Author : Gerrah
+   Purpose : Look of the attach button (the standard slanted green button, from the Figma contact frame) and the list of chosen files. */
+
+.attach {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(10 * var(--px));
+}
+
+/* The real file picker is hidden; the button opens it. */
+.picker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.button {
+  composes: slanted from "../../../shared/styles/slantedButton.module.css";
+  min-height: max(34px, calc(40 * var(--px)));
+  padding-inline: calc(26 * var(--px));
+  font-family: var(--font-heading);
+  font-size: max(15px, calc(22 * var(--px)));
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* The shared slanted button rests in a deeper green; these two use the full brand green. */
+.button.button::before {
+  background-color: var(--color-accent);
+}
+
+.button.button:hover:not(:disabled)::before,
+.button.button:focus-visible:not(:disabled)::before {
+  background-color: color-mix(in srgb, var(--color-accent), white 18%);
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.hint {
+  margin: 0;
+  color: color-mix(in srgb, var(--color-text-on-light) 65%, transparent);
+  font-family: var(--font-ui);
+  font-size: max(13px, calc(16 * var(--px)));
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(8 * var(--px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(8 * var(--px));
+  max-width: 100%;
+  padding: calc(4 * var(--px)) calc(6 * var(--px)) calc(4 * var(--px))
+    calc(14 * var(--px));
+  border: 0.5px solid var(--color-border-control);
+  border-radius: calc(999 * var(--px));
+  background-color: var(--color-field-fill);
+  color: var(--color-text-on-light);
+  font-family: var(--font-ui);
+  font-size: max(14px, calc(18 * var(--px)));
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  display: inline-grid;
+  place-items: center;
+  width: max(24px, calc(28 * var(--px)));
+  height: max(24px, calc(28 * var(--px)));
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: max(18px, calc(24 * var(--px)));
+  line-height: 1;
+  cursor: pointer;
+}
+
+.remove:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--color-text-on-light) 12%,
+    transparent
+  );
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--color-text-on-light);
+}

@@ -4,6 +4,10 @@
     <ProjectReference Include="..\TeamSamsara.Shared\TeamSamsara.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\BlockedWords.*.txt" WithCulture="false" LogicalName="%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

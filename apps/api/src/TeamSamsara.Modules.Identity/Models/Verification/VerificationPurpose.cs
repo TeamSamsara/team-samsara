@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/VerificationPurpose.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Verification/VerificationPurpose.cs
 // Version : 1.2.0
 // Latest commit: feat/email-change-foundation
 // Author : Gerrah

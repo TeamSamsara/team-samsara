@@ -1,0 +1,44 @@
+/* File : /team-samsara/apps/web/src/shared/components/Button/Button.module.css
+   Version : 1.0.1
+   Latest commit: task/web-error-pages
+   Author : Gerrah
+   Purpose : Look of the filled button, from the Figma log in frame: a 62 px tall green bar with 10 px corners and an uppercase 30 px label. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(62 * var(--px));
+  padding: 0 calc(40 * var(--px));
+  border: 0;
+  border-radius: calc(10 * var(--px));
+  background-color: var(--color-accent);
+  color: var(--color-text-on-accent);
+  font-family: var(--font-ui);
+  font-size: calc(30 * var(--px));
+  line-height: 1;
+  text-decoration: none;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--color-accent-soft);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-text-on-light);
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

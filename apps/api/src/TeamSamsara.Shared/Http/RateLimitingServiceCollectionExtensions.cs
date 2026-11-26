@@ -1,9 +1,9 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Http/RateLimitingServiceCollectionExtensions.cs
-// Version : 1.0.0
-// Latest commit: feat/password-reset-endpoints
+// Version : 1.1.0
+// Latest commit: feat/contact-module
 // Author : Gerrah
-// Purpose : Registers the per-IP rate limit policy that signed-out endpoints opt into with
-// RequireRateLimiting(RateLimitSettings.PerIpPolicyName).
+// Purpose : Registers the per-IP rate limit policies that signed-out endpoints opt into with
+// RequireRateLimiting(policyName).
 
 using System.Globalization;
 using System.Threading.RateLimiting;
@@ -24,7 +24,7 @@ public static class RateLimitingServiceCollectionExtensions
 
     #region Public Methods
 
-    // Adds the PerIp policy: a fixed window per client IP, answered with 429 and Retry-After
+    // Adds the PerIp policy and the shared 429 answer: a fixed window per client IP, with Retry-After
     public static IServiceCollection AddSamsaraRateLimiting(
         this IServiceCollection services,
         RateLimitSettings settings)
@@ -33,12 +33,28 @@ public static class RateLimitingServiceCollectionExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = WriteRetryAfterAsync;
+        });
 
+        return services.AddPerIpRateLimitPolicy(
+            RateLimitSettings.PerIpPolicyName,
+            settings.PermitLimit,
+            settings.WindowSeconds);
+    }
+
+    // Adds a named fixed-window policy that counts requests per client IP, separate from the other policies
+    public static IServiceCollection AddPerIpRateLimitPolicy(
+        this IServiceCollection services,
+        string policyName,
+        int permitLimit,
+        int windowSeconds)
+    {
+        services.AddRateLimiter(options =>
+        {
             options.AddPolicy(
-                RateLimitSettings.PerIpPolicyName,
+                policyName,
                 context => RateLimitPartition.GetFixedWindowLimiter(
                     GetClientKey(context),
-                    _ => CreateWindow(settings)));
+                    _ => CreateWindow(permitLimit, windowSeconds)));
         });
 
         return services;
@@ -48,12 +64,13 @@ public static class RateLimitingServiceCollectionExtensions
 
     #region Private Methods
 
-    private static FixedWindowRateLimiterOptions CreateWindow(RateLimitSettings settings)
+    // Builds the window options for one limit and length
+    private static FixedWindowRateLimiterOptions CreateWindow(int permitLimit, int windowSeconds)
     {
         return new FixedWindowRateLimiterOptions
         {
-            PermitLimit = settings.PermitLimit,
-            Window = TimeSpan.FromSeconds(settings.WindowSeconds),
+            PermitLimit = permitLimit,
+            Window = TimeSpan.FromSeconds(windowSeconds),
             QueueLimit = 0
         };
     }

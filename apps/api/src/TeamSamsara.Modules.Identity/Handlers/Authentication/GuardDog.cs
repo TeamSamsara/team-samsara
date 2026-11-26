@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/GuardDog.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/Authentication/GuardDog.cs
 // Version : 1.0.0
 // Latest commit: feature/identity-module
 // Author : Gerrah

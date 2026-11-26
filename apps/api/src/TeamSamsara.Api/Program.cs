@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Api/Program.cs
-// Version : 1.6.0
-// Latest commit: feat/password-reset-endpoints
+// Version : 1.9.0
+// Latest commit: feat/contact-module
 // Author : Gerrah
 // Purpose : Configures the API host, services, middleware pipeline, and modules.
 
@@ -12,7 +12,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using TeamSamsara.Modules.Alert;
 using TeamSamsara.Modules.Assets;
+using TeamSamsara.Modules.Contact;
 using TeamSamsara.Modules.Identity;
+using TeamSamsara.Modules.Notification;
 using TeamSamsara.Modules.PingPong;
 using TeamSamsara.Shared.Authentication;
 using TeamSamsara.Shared.Authorization;
@@ -57,7 +59,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("Default", policy =>
     {
-        policy.WithOrigins(corsSettings.AllowedOrigins).AllowAnyHeader().AllowAnyMethod();
+        policy.WithOrigins(corsSettings.AllowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .WithExposedHeaders(HttpConstants.RetryAfterHeader, HttpConstants.CorrelationIdHeader);
     });
 });
 
@@ -124,7 +129,9 @@ var modules = new List<IModule>
     new PingPongModule(),
     new AssetsModule(),
     new AlertModule(),
-    new IdentityModule()
+    new IdentityModule(),
+    new NotificationModule(),
+    new ContactModule()
 };
 
 foreach (var module in modules)

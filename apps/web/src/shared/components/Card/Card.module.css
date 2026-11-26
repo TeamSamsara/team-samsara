@@ -1,0 +1,75 @@
+/* File : /team-samsara/apps/web/src/shared/components/Card/Card.module.css
+   Version : 1.0.0
+   Latest commit: feature/web-home-page
+   Author : Gerrah
+   Purpose : The mechanics of a card: a clipped, rounded box with a picture behind a free content layer, and an optional link that covers the whole card while buttons and links inside the content stay clickable. The size and everything inside come from each page. */
+
+.card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--card-radius, calc(25 * var(--px)));
+  background-color: var(--card-background, var(--color-surface-dark));
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Stacking, bottom to top: the picture, the whole-card link, then the content. */
+.link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.link:focus-visible {
+  /* Drawn inside the card, because the card clips anything outside it. */
+  outline: 2px solid var(--color-accent);
+  outline-offset: -4px;
+}
+
+.content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+}
+
+/* On a card with a link, clicks on empty parts of the content fall through to the link,
+   while anything the visitor can press inside the content keeps working. */
+.card:has(.link) .content {
+  pointer-events: none;
+}
+
+.card:has(.link)
+  .content
+  :is(
+    a,
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [role="button"],
+    [tabindex]
+  ) {
+  pointer-events: auto;
+}
+
+/* Text for screen readers only. */
+.hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

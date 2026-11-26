@@ -1,10 +1,10 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AccountDeletion/AccountDeletionService.cs
-// Version : 1.0.0
-// Latest commit: feat/account-deletion
+// Version : 1.2.0
+// Latest commit: task/web-account-security
 // Author : Gerrah
 // Purpose : Default IAccountDeletionService. Deleting commits the deletion marker and the wipe of
 // verified sign-ins in one write, so the account stops counting as Member at once; session
-// revocation and the notice come after and cannot undo it.
+// revocation and the alert come after and cannot undo it.
 
 using System.Globalization;
 using Microsoft.Extensions.Logging;
@@ -70,7 +70,16 @@ public class AccountDeletionService : IAccountDeletionService
         }
 
         var issue = await _verification.IssueAsync(
-            userId, VerificationPurpose.StepUp, email, cancellationToken);
+            userId,
+            VerificationPurpose.StepUp,
+            email,
+            cancellationToken,
+            wording: AlertType.AccountDeletionCode,
+            extraData: new Dictionary<string, string>
+            {
+                [AlertTemplateKeys.RecoveryDays] =
+                    _settings.RecoveryWindowDays.ToString(CultureInfo.InvariantCulture)
+            });
 
         var status = issue.Status == VerificationIssueStatus.Sent
             ? AccountDeletionStatus.Success
@@ -79,7 +88,7 @@ public class AccountDeletionService : IAccountDeletionService
         return new AccountDeletionCodeResult(status, issue.CodeLength, issue.RetryAfterSeconds);
     }
 
-    // Checks the code, commits the deletion, then ends every session and sends the notice
+    // Checks the code, commits the deletion, then ends every session and sends the alert
     public async Task<AccountDeletionStatus> DeleteAsync(
         string userId,
         string code,
@@ -107,7 +116,7 @@ public class AccountDeletionService : IAccountDeletionService
 
         await ForgetSignInsAsync(userId);
         await RevokeSessionsAsync(userId);
-        await NotifyDeletedAsync(email, cancellationToken);
+        await AlertDeletedAsync(email, cancellationToken);
 
         return AccountDeletionStatus.Success;
     }
@@ -178,7 +187,7 @@ public class AccountDeletionService : IAccountDeletionService
     }
 
     // Tells the member the account was deleted; the deletion is committed, so a failure is only logged
-    private async Task NotifyDeletedAsync(string email, CancellationToken cancellationToken)
+    private async Task AlertDeletedAsync(string email, CancellationToken cancellationToken)
     {
         var templateData = new Dictionary<string, string>
         {
@@ -192,7 +201,7 @@ public class AccountDeletionService : IAccountDeletionService
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _logger.LogWarning(exception, "Could not send the account-deleted notice.");
+            _logger.LogWarning(exception, "Could not send the account-deleted alert.");
         }
     }
 

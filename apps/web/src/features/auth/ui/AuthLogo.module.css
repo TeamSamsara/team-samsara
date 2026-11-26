@@ -1,0 +1,15 @@
+/* File : /team-samsara/apps/web/src/features/auth/ui/AuthLogo.module.css
+   Version : 1.1.0
+   Latest commit: task/web-auth-screens
+   Author : Gerrah
+   Purpose : Size of the Samsara icon on the auth screens. */
+
+.logo {
+  display: inline-flex;
+}
+
+.icon {
+  display: block;
+  width: calc(96 * var(--px));
+  height: auto;
+}

@@ -1,8 +1,8 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Handlers/AccountDeletion/AccountPurgeService.cs
-// Version : 1.0.0
-// Latest commit: feat/account-purge
+// Version : 1.2.0
+// Latest commit: task/api-profile-onboarding
 // Author : Gerrah
-// Purpose : Default IAccountPurgeService. Each account is claimed with a lease, then removed in an order whose every step can be repeated, with the user record last so a half-finished purge is found and finished by the next run.
+// Purpose : Default IAccountPurgeService: claims each expired account with a lease, then removes it in an order whose every step can be repeated, user record last, so a half-finished purge is found and finished by the next run.
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,6 +10,7 @@ using TeamSamsara.Modules.Identity.Models;
 using TeamSamsara.Modules.Identity.Repositories;
 using TeamSamsara.Shared.Assets;
 using TeamSamsara.Shared.Context;
+using TeamSamsara.Shared.Members;
 
 namespace TeamSamsara.Modules.Identity.Handlers;
 
@@ -19,11 +20,13 @@ public class AccountPurgeService : IAccountPurgeService
 
     private readonly IUserStore _users;
     private readonly IProfileStore _profiles;
+    private readonly IHandleStore _handles;
     private readonly IVerificationCodeStore _codes;
     private readonly IPasswordResetTokenStore _resetTokens;
     private readonly IEmailChangeRequestStore _emailChanges;
     private readonly IAccountGateway _accounts;
     private readonly IMemberImageService _images;
+    private readonly IReadOnlyList<IMemberDataEraser> _erasers;
     private readonly IClock _clock;
     private readonly AuthenticationSettings _authenticationSettings;
     private readonly AccountPurgeSettings _purgeSettings;
@@ -36,11 +39,13 @@ public class AccountPurgeService : IAccountPurgeService
     public AccountPurgeService(
         IUserStore users,
         IProfileStore profiles,
+        IHandleStore handles,
         IVerificationCodeStore codes,
         IPasswordResetTokenStore resetTokens,
         IEmailChangeRequestStore emailChanges,
         IAccountGateway accounts,
         IMemberImageService images,
+        IEnumerable<IMemberDataEraser> erasers,
         IClock clock,
         IOptions<AuthenticationSettings> authenticationSettings,
         IOptions<AccountPurgeSettings> purgeSettings,
@@ -48,11 +53,13 @@ public class AccountPurgeService : IAccountPurgeService
     {
         _users = users;
         _profiles = profiles;
+        _handles = handles;
         _codes = codes;
         _resetTokens = resetTokens;
         _emailChanges = emailChanges;
         _accounts = accounts;
         _images = images;
+        _erasers = erasers.ToList();
         _clock = clock;
         _authenticationSettings = authenticationSettings.Value;
         _purgeSettings = purgeSettings.Value;
@@ -77,7 +84,7 @@ public class AccountPurgeService : IAccountPurgeService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            switch (await TryPurgeAsync(user.Id, cutoff))
+            switch (await TryPurgeAsync(user.Id, cutoff, cancellationToken))
             {
                 case PurgeOutcome.Purged:
                     purged++;
@@ -98,8 +105,8 @@ public class AccountPurgeService : IAccountPurgeService
 
     #region Private Methods
 
-    // Claims one account and removes it; Skipped when it was restored or another instance holds it, Failed on any error
-    private async Task<PurgeOutcome> TryPurgeAsync(string userId, DateTimeOffset cutoff)
+    // Claims one account and removes it; Skipped when it was restored or another instance holds it, Failed on any error except a cancellation, which is rethrown
+    private async Task<PurgeOutcome> TryPurgeAsync(string userId, DateTimeOffset cutoff, CancellationToken cancellationToken)
     {
         try
         {
@@ -111,7 +118,7 @@ public class AccountPurgeService : IAccountPurgeService
                 return PurgeOutcome.Skipped;
             }
 
-            await RemoveAccountAsync(userId);
+            await RemoveAccountAsync(userId, cancellationToken);
 
             _logger.LogInformation("Purged deleted account '{UserId}'.", userId);
 
@@ -126,17 +133,20 @@ public class AccountPurgeService : IAccountPurgeService
     }
 
     // Removes everything of the account; the user record goes last because it is how the next run finds a half-finished purge
-    private async Task RemoveAccountAsync(string userId)
+    private async Task RemoveAccountAsync(string userId, CancellationToken cancellationToken)
     {
         await RemoveProfileAsync(userId);
         await RemoveLeftoverRecordsAsync(userId);
+        await RemoveModuleDataAsync(userId, cancellationToken);
         await _accounts.DeleteAsync(userId);
         await _users.DeleteAsync(userId);
     }
 
-    // Deletes the profile images, then the profile, so a retry can still find the image ids it needs
+    // Frees the handle, deletes the profile images, then the profile, so a retry can still find the image ids it needs
     private async Task RemoveProfileAsync(string userId)
     {
+        await _handles.ReleaseAsync(userId);
+
         var profile = await _profiles.GetByIdAsync(userId);
 
         if (profile is null)
@@ -170,16 +180,13 @@ public class AccountPurgeService : IAccountPurgeService
         await _emailChanges.DeleteAsync(userId);
     }
 
-    #endregion
-
-    #region Nested Types
-
-    // How one account fared in a purge run
-    private enum PurgeOutcome
+    // Lets every other module erase what it holds for the member; the first failure stops the purge of this account so the Firebase account and user record stay until a retry succeeds
+    private async Task RemoveModuleDataAsync(string userId, CancellationToken cancellationToken)
     {
-        Purged,
-        Skipped,
-        Failed
+        foreach (var eraser in _erasers)
+        {
+            await eraser.EraseAsync(userId, cancellationToken);
+        }
     }
 
     #endregion

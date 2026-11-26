@@ -1,4 +1,4 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Assets.Tests/Fakes/InMemoryAssetMetadataStore.cs
+// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Assets.Tests/InMemoryAssetMetadataStore.cs
 // Version: 1.1.0
 // Latest commit: feat/account-purge
 // Author: Gerrah

@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/EmailChange/EmailChangeStatus.cs
-// Version : 1.0.0
-// Latest commit: feat/email-change-service
+// Version : 1.2.0
+// Latest commit: task/api-handle-cooldown
 // Author : Gerrah
 // Purpose : The outcome of an email change step. Endpoints translate these into responses.
 
@@ -21,12 +21,22 @@ public enum EmailChangeStatus
     CooldownActive,
 
     // A code was wrong, missing or expired, or the change could not be completed. Deliberately
-    // not told apart, so the answer never says which code failed or whether the address is taken.
+    // not told apart, so the answer never says which code failed.
     InvalidCode,
 
     // Too many wrong guesses; the request is cancelled and a new one must be made
     TooManyAttempts,
 
     // No change is pending, or it has expired
-    NoPendingRequest
+    NoPendingRequest,
+
+    // One code was accepted; the other has not been sent yet
+    CodeAccepted,
+
+    // The new address already belongs to an account. Told straight away, before anything is
+    // saved or sent, so it costs the member no cooldown.
+    EmailTaken,
+
+    // The new address is the one the member already has, so there is nothing to change
+    SameAsCurrentEmail
 }

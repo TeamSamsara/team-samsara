@@ -1,4 +1,4 @@
-// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/PasswordCodeResult.cs
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Models/Passwords/PasswordCodeResult.cs
 // Version : 1.0.0
 // Latest commit: feat/password-change-service
 // Author : Gerrah

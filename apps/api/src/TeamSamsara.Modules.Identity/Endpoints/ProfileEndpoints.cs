@@ -1,9 +1,9 @@
-// File: /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/ProfileEndpoints.cs
-// Version: 1.0.1
-// Latest commit: fix/profile-guest-before-form
-// Author: Gerrah
-//
-// Purpose: HTTP endpoints for a member's own profile: read, edit name and bio, set or remove images.
+// File : /team-samsara/apps/api/src/TeamSamsara.Modules.Identity/Endpoints/ProfileEndpoints.cs
+// Version : 1.1.0
+// Latest commit: task/api-profile-onboarding
+// Author : Gerrah
+// Purpose : HTTP endpoints for a member's own profile: read, edit name and bio, set or
+// remove images, choose a handle, finish onboarding.
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -41,6 +41,11 @@ public static class ProfileEndpoints
 
         group.MapPut(IdentityRoutes.ProfileBanner, SetBannerAsync);
         group.MapDelete(IdentityRoutes.ProfileBanner, ClearBannerAsync);
+
+        group.MapGet(IdentityRoutes.ProfileHandleAvailable, CheckHandleAsync);
+        group.MapPut(IdentityRoutes.ProfileHandle, SetHandleAsync);
+
+        group.MapPost(IdentityRoutes.ProfileOnboardingComplete, CompleteOnboardingAsync);
     }
 
     #endregion
@@ -60,6 +65,37 @@ public static class ProfileEndpoints
         IProfileService profiles)
     {
         return RunAsync(context, userId => profiles.UpdateAsync(userId, request));
+    }
+
+    // Tells whether the caller could take the handle in the query, without changing anything
+    private static async Task<IResult> CheckHandleAsync(
+        string? handle,
+        ICurrentUserContext context,
+        IProfileService profiles)
+    {
+        if (context.UserId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var status = await profiles.CheckHandleAsync(context.UserId, handle ?? string.Empty);
+
+        return Results.Json(new ProfileResult(status, null), statusCode: IdentityStatusCodes.For(status));
+    }
+
+    // Changes the caller's handle
+    private static Task<IResult> SetHandleAsync(
+        SetHandleRequest request,
+        ICurrentUserContext context,
+        IProfileService profiles)
+    {
+        return RunAsync(context, userId => profiles.SetHandleAsync(userId, request));
+    }
+
+    // Marks the caller's first-time profile step as finished or skipped
+    private static Task<IResult> CompleteOnboardingAsync(ICurrentUserContext context, IProfileService profiles)
+    {
+        return RunAsync(context, userId => profiles.CompleteOnboardingAsync(userId));
     }
 
     // Sets the caller's profile picture from an uploaded image

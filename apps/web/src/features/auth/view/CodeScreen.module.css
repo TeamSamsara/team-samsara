@@ -1,0 +1,26 @@
+/* File : /team-samsara/apps/web/src/features/auth/view/CodeScreen.module.css
+   Version : 1.0.0
+   Latest commit: task/web-auth-codes-reset
+   Author : Gerrah
+   Purpose : Look of a code screen before its boxes appear: the "sending"
+   line, and the link under the retry button. */
+
+.waiting {
+  margin: 0;
+  color: var(--color-text-on-light);
+  font-family: var(--font-body);
+  font-size: var(--text-control);
+  text-align: center;
+}
+
+/* Looks like the links under the other forms. */
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-transform: inherit;
+  cursor: pointer;
+}

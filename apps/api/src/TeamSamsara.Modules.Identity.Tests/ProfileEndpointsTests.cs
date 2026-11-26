@@ -136,7 +136,12 @@ public class ProfileEndpointsTests
             AuthState = authState
         });
         builder.Services.AddSingleton<IProfileService>(new ProfileService(
-            _profiles, _images, Options.Create(settings), NullLogger<ProfileService>.Instance));
+            _profiles,
+            new InMemoryHandleStore(_profiles),
+            _images,
+            Options.Create(settings),
+            new FakeClock(),
+            NullLogger<ProfileService>.Instance));
 
         var app = builder.Build();
         ProfileEndpoints.Map(app);

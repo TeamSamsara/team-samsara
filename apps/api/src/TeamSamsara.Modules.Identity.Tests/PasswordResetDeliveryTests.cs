@@ -83,13 +83,13 @@ public class PasswordResetDeliveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Deliver_ForAMember_EmailsAStepUpCodeToTheAccountAddress()
+    public async Task Deliver_ForAMember_EmailsAResetCodeToTheAccountAddress()
     {
         await _delivery.DeliverAsync(Email, _knownClient);
 
         var alert = _alerts.Sent.ShouldHaveSingleItem();
         alert.To.ShouldBe(Email);
-        alert.Type.ShouldBe(AlertType.StepUpCode);
+        alert.Type.ShouldBe(AlertType.PasswordResetCode);
         _alerts.LastCode.Length.ShouldBe(_settings.PasswordResetCodeLength);
     }
 
@@ -110,7 +110,7 @@ public class PasswordResetDeliveryTests : IAsyncLifetime
     {
         await _delivery.DeliverAsync("  Jane.Doe@Example.com ", _knownClient);
 
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.PasswordResetCode);
         (await _codes.GetAsync(PasswordResetCrypto.HashEmail(Email), VerificationPurpose.PasswordReset))
             .ShouldNotBeNull();
     }
@@ -183,7 +183,7 @@ public class PasswordResetDeliveryTests : IAsyncLifetime
 
         await _delivery.DeliverAsync(Email, _knownClient);
 
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.PasswordResetCode);
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class PasswordResetDeliveryTests : IAsyncLifetime
     [Fact]
     public async Task Deliver_WhenTheCodeEmailFails_Throws_AndLeavesNoCodeBehind()
     {
-        _alerts.FailingTypes.Add(AlertType.StepUpCode);
+        _alerts.FailingTypes.Add(AlertType.PasswordResetCode);
 
         await Should.ThrowAsync<InvalidOperationException>(
             () => _delivery.DeliverAsync(Email, _unknownClient));
@@ -217,7 +217,7 @@ public class PasswordResetDeliveryTests : IAsyncLifetime
 
         await _delivery.DeliverAsync(Email, _unknownClient);
 
-        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.StepUpCode);
+        _alerts.Sent.ShouldHaveSingleItem().Type.ShouldBe(AlertType.PasswordResetCode);
         (await _codes.GetAsync(PasswordResetCrypto.HashEmail(Email), VerificationPurpose.PasswordReset))
             .ShouldNotBeNull();
     }

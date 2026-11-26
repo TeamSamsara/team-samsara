@@ -1,6 +1,6 @@
 // File : /team-samsara/apps/api/src/TeamSamsara.Shared/Http/HttpConstants.cs
-// Version : 1.0.0
-// Latest commit: feature/string-magic-value-conventions
+// Version : 1.1.0
+// Latest commit: chore/api-contract-baseline
 // Author : Gerrah
 // Purpose : HTTP protocol values our code depends on matching exactly, not covered by any
 // typed API in the frameworks we use.
@@ -13,6 +13,8 @@ public static class HttpConstants
 
     public const string BearerPrefix = "Bearer ";
     public const string ProblemJsonContentType = "application/problem+json";
+    public const string RetryAfterHeader = "Retry-After";
+    public const string CorrelationIdHeader = "X-Correlation-Id";
 
     #endregion
 }
